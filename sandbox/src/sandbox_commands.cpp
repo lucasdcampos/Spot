@@ -65,16 +65,11 @@ SandboxCommands::SandboxCommands(Spot::Console& console, Spot::Scene& scene) : m
         const std::string name = power == DeveloperMode::Power::Smite ? "smite" : "yeet";
         m_registrations.push_back(console.Register(
             {name,
-             power == DeveloperMode::Power::Smite
-                 ? "Strike a player with lethal lightning (cheats, operators or developer mode)"
-                 : "Launch a player away (cheats, operators or developer mode)",
-             ConsoleFlags::None, [this, power, name](std::span<const std::string> arguments) -> ConsoleResult {
+             power == DeveloperMode::Power::Smite ? "Strike a player with lethal lightning (cheats or operators)"
+                                                  : "Launch a player away (cheats or operators)",
+             ConsoleFlags::Cheat, [this, power, name](std::span<const std::string> arguments) -> ConsoleResult {
                  if (arguments.size() != 1) {
                      return {false, "Usage: " + name + " <player>"};
-                 }
-                 const auto* mode = Gameplay::Players::FindComponent<DeveloperMode>(m_scene);
-                 if (mode && mode->IsUnlocked()) {
-                     return DeveloperMode::UseLocalPower(m_scene, power, arguments[0]);
                  }
                  // On a client, the server strikes, if this player may cheat there; here, where the room or the
                  // game alone is run, whoever types it may.
@@ -84,15 +79,14 @@ SandboxCommands::SandboxCommands(Spot::Console& console, Spot::Scene& scene) : m
                                 ? ConsoleResult{true, "Sent to the server"}
                                 : ConsoleResult{false, "Not connected to the room"};
                  }
-                 const auto* body = Gameplay::Players::GetBody(m_scene);
-                 return DeveloperMode::Strike(m_scene, power, arguments[0], body ? &body->GetEntity() : nullptr);
+                 return DeveloperMode::UseLocalPower(m_scene, power, arguments[0]);
              }}));
         if (auto* commands = Gameplay::SessionCommands::Get()) {
             commands->AllowRemote(name, Gameplay::SessionCommands::Permission::Cheat);
         }
     }
     m_registrations.push_back(
-        console.Register({"imthegamedev", "Unlock the developer easter egg for your player", ConsoleFlags::None,
+        console.Register({"imthegamedev", "Unlock the developer easter egg for your player", ConsoleFlags::Cheat,
                           [this](std::span<const std::string> arguments) -> ConsoleResult {
                               if (!arguments.empty()) {
                                   return {false, "Usage: imthegamedev"};

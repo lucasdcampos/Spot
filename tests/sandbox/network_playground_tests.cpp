@@ -28,6 +28,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
+#include <fstream>
 #include <memory>
 #include <string>
 
@@ -194,7 +195,7 @@ Spot::Vector3 InFront(Gameplay::Pawn& pawn, float distance) {
 
 } // namespace
 
-TEST_CASE("Developer smite and yeet reach another client and reject callers without developer mode",
+TEST_CASE("Developer smite and yeet reach another client and reject callers without cheats",
           "[sandbox][network][developer][powers]") {
     Room room(true);
     auto* caster = Gameplay::Players::GetBody(room.guest.scene);
@@ -216,14 +217,18 @@ TEST_CASE("Developer smite and yeet reach another client and reject callers with
     Spot::Console console;
     SandboxCommands commands(console, room.guest.scene);
     CHECK_FALSE(console.Execute("smite Friend"));
-    // Bypassing the console still requires the sending player's server-side unlock.
+    // Even with developer mode unlocked on the server, powers require cheats or operator permission.
+    auto* guestOnHost = room.GetGuestOnHost();
+    REQUIRE(guestOnHost);
+    guestOnHost->GetComponent<DeveloperMode>()->Unlock();
+    Spot::Console::Get().SetCheatsEnabled(false);
     auto* object = Spot::Network::GetObject(caster->GetEntity());
     REQUIRE(object);
     room.guest.system->SendToServer(*object, ForgedPower{});
     room.Run(10);
     CHECK_FALSE(health->IsDead());
-    REQUIRE(console.Execute("imthegamedev"));
-    room.Run(20);
+    Spot::Console::Get().SetCheatsEnabled(true);
+    console.SetCheatsEnabled(true);
     targetPawn->Teleport({0, 30, 0}, {}, {});
     room.Run(4);
     Gameplay::VehicleSeat* seat = nullptr;
@@ -273,21 +278,33 @@ TEST_CASE("A developer guest unlocks only its own Ray Gun on the server and both
     REQUIRE(other);
     REQUIRE(onHost);
     CHECK_FALSE(guest->IsUnlocked());
-    SECTION("The command works on a client with cheats disabled") {
+    SECTION("The command requires cheats") {
         Spot::Console console;
         SandboxCommands commands(console, room.guest.scene);
         REQUIRE_FALSE(console.AreCheatsEnabled());
+        CHECK_FALSE(console.Execute("imthegamedev"));
+        console.SetCheatsEnabled(true);
+        Spot::Console::Get().SetCheatsEnabled(false);
+        REQUIRE(console.Execute("imthegamedev"));
+        room.Run(10);
+        CHECK_FALSE(guest->IsUnlocked());
+        Spot::Console::Get().SetCheatsEnabled(true);
         REQUIRE(console.Execute("imthegamedev"));
     }
-    SECTION("The server recognizes the nickname") {
-        bool found = false;
-        for (auto* info : Gameplay::PlayerInfos::GetAll(room.host.scene)) {
-            if (info->pawn == onHost->GetId()) {
-                info->name = "lucasof";
-                found = true;
-            }
+    SECTION("The server authenticates the guest's private key by challenge-response") {
+        constexpr DeveloperMode::Seed TestSeed = {0x9d, 0x61, 0xb1, 0x9d, 0xef, 0xfd, 0x5a, 0x60, 0xba, 0x84, 0x4a,
+                                                  0xf4, 0x92, 0xec, 0x2c, 0xc4, 0x44, 0x49, 0xc5, 0x69, 0x7b, 0x32,
+                                                  0x69, 0x19, 0x70, 0x3b, 0xac, 0x03, 0x1c, 0xae, 0x7f, 0x60};
+        onHost->GetComponent<DeveloperMode>()->SetPublicKey(DeveloperMode::DerivePublicKey(TestSeed));
+        const auto keyFile = room.guest.userData.GetPath() / DeveloperMode::KeyFileName;
+        static constexpr char Digits[] = "0123456789abcdef";
+        std::string hex;
+        for (const std::uint8_t b : TestSeed) {
+            hex.push_back(Digits[b >> 4]);
+            hex.push_back(Digits[b & 0x0f]);
         }
-        REQUIRE(found);
+        std::ofstream(keyFile) << hex << '\n';
+        guest->SetKeyPath(keyFile);
     }
     room.Run(30);
     REQUIRE(guest->IsUnlocked());

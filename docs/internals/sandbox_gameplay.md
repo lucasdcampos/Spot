@@ -515,8 +515,8 @@ server tells each client (`RoomPermissions`), whose console then permits cheats 
 cheat commands follow, and `NetworkPlayers` puts back a client flying through everything only when it may not cheat.
 On a client, the room's commands, and those a game allows (`SessionCommands::AllowRemote()`), go to the server
 (`RemoteCommand`), which runs them for that player if it is an operator, or, for those allowed as cheats, if it may
-cheat, and sends back the answer, logged there as `Server: ...`. The sandbox allows `smite` and `yeet` as cheats: the
-server strikes with `DeveloperMode::Strike()`, whoever asked; a player in developer mode still strikes as before.
+cheat, and sends back the answer, logged there as `Server: ...`. The sandbox allows `smite` and `yeet` as cheats:
+the server strikes with `DeveloperMode::Strike()` for operators and while cheats are enabled.
 
 `Session` keeps why it failed (`GetLastErrorKind()`): what was asked could not be done (`Request`, as an invalid
 address or a room that cannot start), nothing answered (`Unreachable`, the engine's `NetHost::CouldNotConnect` or the

@@ -1,4 +1,5 @@
 #include "../playground_fixture.h"
+#include "temp_directory.h"
 
 #include "developer_mode.h"
 #include "gameplay/camera/first_person_view.h"
@@ -12,6 +13,9 @@
 
 #include <catch2/catch_approx.hpp>
 
+#include <fstream>
+#include <string>
+
 namespace {
 
 Gameplay::Firearm* FindRayGun(const Gameplay::Inventory& inventory) {
@@ -23,9 +27,21 @@ Gameplay::Firearm* FindRayGun(const Gameplay::Inventory& inventory) {
     return nullptr;
 }
 
+std::string HexEncode(std::span<const std::uint8_t> bytes) {
+    static constexpr char Digits[] = "0123456789abcdef";
+    std::string out;
+    out.reserve(bytes.size() * 2);
+    for (const std::uint8_t b : bytes) {
+        out.push_back(Digits[b >> 4]);
+        out.push_back(Digits[b & 0x0f]);
+    }
+    return out;
+}
+
 } // namespace
 
-TEST_CASE("The developer console easter egg adds only the developer skin and Ray Gun", "[sandbox][developer]") {
+TEST_CASE("The developer console easter egg requires cheats and adds only the developer skin and Ray Gun",
+          "[sandbox][developer]") {
     SandboxTests::Playground game;
     auto* mode = Gameplay::Players::FindComponent<DeveloperMode>(game.scene);
     auto* inventory = Gameplay::Players::FindComponent<Gameplay::Inventory>(game.scene);
@@ -36,6 +52,9 @@ TEST_CASE("The developer console easter egg adds only the developer skin and Ray
     const int count = inventory->GetItemCount();
     Spot::Console console;
     SandboxCommands commands(console, game.scene);
+    CHECK_FALSE(console.Execute("imthegamedev"));
+    CHECK_FALSE(mode->IsUnlocked());
+    console.SetCheatsEnabled(true);
     CHECK_FALSE(console.Execute("imthegamedev unexpected"));
     CHECK_FALSE(mode->IsUnlocked());
     REQUIRE(console.Execute("imthegamedev"));
@@ -82,25 +101,67 @@ TEST_CASE("The developer console easter egg adds only the developer skin and Ray
     CHECK(gun->GetAmmo() == ammo);
 }
 
-TEST_CASE("Only the exact developer nickname automatically unlocks its character", "[sandbox][developer]") {
+TEST_CASE("Only a matching Ed25519 private key in developer.key automatically unlocks the character",
+          "[sandbox][developer]") {
+    // RFC 8032 test vector 1.
+    constexpr DeveloperMode::Seed RfcSeed = {0x9d, 0x61, 0xb1, 0x9d, 0xef, 0xfd, 0x5a, 0x60, 0xba, 0x84, 0x4a,
+                                             0xf4, 0x92, 0xec, 0x2c, 0xc4, 0x44, 0x49, 0xc5, 0x69, 0x7b, 0x32,
+                                             0x69, 0x19, 0x70, 0x3b, 0xac, 0x03, 0x1c, 0xae, 0x7f, 0x60};
+    constexpr DeveloperMode::PublicKey RfcPublic = {0xd7, 0x5a, 0x98, 0x01, 0x82, 0xb1, 0x0a, 0xb7, 0xd5, 0x4b, 0xfe,
+                                                    0xd3, 0xc9, 0x64, 0x07, 0x3a, 0x0e, 0xe1, 0x72, 0xf3, 0xda, 0xa6,
+                                                    0x23, 0x25, 0xaf, 0x02, 0x1a, 0x68, 0xf7, 0x07, 0x51, 0x1a};
+    CHECK(DeveloperMode::DerivePublicKey(RfcSeed) == RfcPublic);
+    const std::array<std::uint8_t, 4> message = {0x72, 0xaf, 0x01, 0x99};
+    const auto signature = DeveloperMode::Sign(RfcSeed, message);
+    CHECK(DeveloperMode::Verify(RfcPublic, message, signature));
+    CHECK_FALSE(DeveloperMode::Verify(DeveloperMode::DefaultPublicKey, message, signature));
+    auto tampered = signature;
+    tampered[0] ^= 0x01;
+    CHECK_FALSE(DeveloperMode::Verify(RfcPublic, message, tampered));
+
     SandboxTests::Playground game;
     auto* mode = Gameplay::Players::FindComponent<DeveloperMode>(game.scene);
     REQUIRE(mode);
     auto& info = game.scene.CreateEntity("Player Info").AddComponent<Gameplay::PlayerInfo>();
     info.pawn = mode->GetEntity().GetId();
-    for (const auto* name : {"Player", "Lucasof", "lucasof2"}) {
+    for (const auto* name : {"Player", "Lucasof", "lucasof"}) {
         info.name = name;
         game.Step();
         CHECK_FALSE(mode->IsUnlocked());
     }
-    info.name = "lucasof";
+
+    TempDirectory directory;
+    const auto keyFile = directory.GetPath() / DeveloperMode::KeyFileName;
+    mode->SetPublicKey(RfcPublic);
+
+    // Wrong private key is rejected.
+    DeveloperMode::Seed wrongSeed = RfcSeed;
+    wrongSeed[0] ^= 0xff;
+    std::ofstream(keyFile) << HexEncode(wrongSeed) << '\n';
+    mode->SetKeyPath(keyFile);
+    game.Step();
+    CHECK_FALSE(mode->IsUnlocked());
+
+    // Matching private key unlocks the skin and Ray Gun.
+    std::ofstream(keyFile, std::ios::trunc) << HexEncode(RfcSeed) << '\n';
+    mode->SetKeyPath(keyFile);
     game.Step();
     CHECK(mode->IsUnlocked());
     CHECK(info.developer);
     CHECK(FindRayGun(*mode->GetEntity().GetComponent<Gameplay::Inventory>()));
+
+    if (const auto realKey = DeveloperMode::GetDefaultKeyPath(); std::filesystem::is_regular_file(realKey)) {
+        SandboxTests::Playground localDev;
+        auto* localMode = Gameplay::Players::FindComponent<DeveloperMode>(localDev.scene);
+        REQUIRE(localMode);
+        localMode->SetKeyPath(realKey);
+        localDev.Step();
+        CHECK(localMode->IsUnlocked());
+    }
 }
 
-TEST_CASE("Developer commands smite and yeet only the named living player", "[sandbox][developer][powers]") {
+TEST_CASE("Developer commands smite and yeet require cheats and strike only the named living player",
+          "[sandbox][developer][powers]") {
     SandboxTests::Playground game;
     Spot::Console console;
     SandboxCommands commands(console, game.scene);
@@ -115,8 +176,16 @@ TEST_CASE("Developer commands smite and yeet only the named living player", "[sa
     REQUIRE(health);
     CHECK_FALSE(console.Execute("smite Friend"));
     CHECK_FALSE(console.Execute("yeet Friend"));
+    // Even with developer mode unlocked (as from developer.key), smite and yeet require cheats or operator permission.
+    auto* mode = Gameplay::Players::FindComponent<DeveloperMode>(game.scene);
+    REQUIRE(mode);
+    mode->Unlock();
+    REQUIRE(mode->IsUnlocked());
+    CHECK_FALSE(console.Execute("smite Friend"));
+    CHECK_FALSE(console.Execute("yeet Friend"));
     CHECK_FALSE(health->IsDead());
-    REQUIRE(console.Execute("imthegamedev"));
+
+    console.SetCheatsEnabled(true);
     CHECK_FALSE(console.Execute("smite"));
     CHECK_FALSE(console.Execute("yeet Friend extra"));
     CHECK_FALSE(console.Execute("smite Nobody"));

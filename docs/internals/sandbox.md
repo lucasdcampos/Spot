@@ -400,17 +400,18 @@ loads do not leave stale entity pointers.
 | `spawn <prop>` | Spawn a catalog item where the player aims; no arguments lists names |
 | `give <weapon>` | Equip/refill an owned firearm or add a missing one to the player's inventory |
 | `stress <count>` | Spawn 1..2000 crates in a pile in front of the player |
-| `imthegamedev` | Unlock the developer skin and Ray Gun for the local player, including as a guest; does not require cheats |
-| `smite <player>` | Developer mode: kill the player with that exact nickname with a visible lightning strike |
-| `yeet <player>` | Developer mode: launch the player with that exact nickname away and upward |
+| `imthegamedev` | Unlock the developer skin and Ray Gun for the local player (requires cheats or operator permission) |
+| `smite <player>` | Kill the player with that exact nickname with a visible lightning strike (requires cheats or operator permission) |
+| `yeet <player>` | Launch the player with that exact nickname away and upward (requires cheats or operator permission) |
 
-The developer easter egg also unlocks automatically for the exact nickname `lucasof`. `DeveloperMode` belongs to
-the player prefab: the server accepts the console request only for the sender's own character, and replicates the
-unlock. `PlayerInfo::developer` retains it for that player across respawns. It intentionally uses no authentication;
-any player can discover the command. It does not enable the console's other cheat commands.
+The developer skin and Ray Gun also unlock automatically when the local machine holds the matching Ed25519 private key
+in `Spot/developer.key` under the user data directory (`%APPDATA%/Spot/developer.key` on Windows), verified on the
+server against `DeveloperMode::DefaultPublicKey` by challenge-response. `DeveloperMode` belongs to the player prefab:
+the server replicates the unlock, and `PlayerInfo::developer` retains it for that player across respawns. Unlocking
+developer mode grants only the skin and Ray Gun, not console cheats or operator powers.
 
-`smite` and `yeet` require the caller's developer unlock on the server, including for requests sent directly over
-the network. Targets use exact nicknames; unknown, ambiguous and dead targets are refused. Smite shares a brief
+`imthegamedev`, `smite` and `yeet` require cheats or operator permission on both the console and the server, including
+for requests sent directly over the network. Targets use exact nicknames; unknown, ambiguous and dead targets are refused. Smite shares a brief
 blue-white lightning bolt and flash with every client and applies lethal damage on the server. Yeet ejects a
 seated target and uses `CharacterMovement::Push()`, including its owner notification and movement allowance, to
 launch the character without turning the normal speed checks off.
