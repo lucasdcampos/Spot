@@ -42,6 +42,11 @@ Spot::Entity* PhysicsGun::GetHolder() const {
 }
 
 void PhysicsGun::Freeze() {
+    // Frozen here, where it stays.
+    if (Spot::Entity* prop = GetScene().GetEntity(m_grabbed)) {
+        Gameplay::BodyAuthority::LetGo(*prop);
+        Gameplay::BodyAuthority::TakeBack(*prop);
+    }
     if (Spot::Rigidbody* body = GetGrabbedBody()) {
         body->SetLinearVelocity({});
         body->SetAngularVelocity({});
@@ -54,6 +59,7 @@ void PhysicsGun::Freeze() {
 void PhysicsGun::Release() {
     if (Spot::Entity* prop = GetScene().GetEntity(m_grabbed)) {
         Gameplay::BodyAuthority::KeepOnServer(*prop, false);
+        Gameplay::BodyAuthority::LetGo(*prop);
     }
     if (IsGrabbing()) {
         if (Gameplay::Pawn* pawn = GetPawn()) {
@@ -108,7 +114,11 @@ void PhysicsGun::Grab() {
     }
     const Spot::Transform& transform = prop->GetTransform();
     m_grabbed = prop->GetId();
-    Gameplay::BodyAuthority::KeepOnServer(*prop);
+    // A player on another machine holds it there, following the view at once; the server holds its own player's.
+    const Spot::NetworkObject* holder = Spot::Network::GetObject(pawn->GetEntity());
+    if (!holder || !holder->IsDecidedByClient() || !Gameplay::BodyAuthority::Hold(*prop, holder->GetOwner())) {
+        Gameplay::BodyAuthority::KeepOnServer(*prop);
+    }
     m_grabPoint = ToLocal(transform, hit->point);
     m_distance = std::max(hit->distance, minDistance);
     const Spot::Quaternion facing = Drive::GetFacing(Drive::GetYaw(view.direction));
@@ -176,6 +186,12 @@ void PhysicsGun::OnPlayerInput(Gameplay::PlayerController& player) {
     }
     if (Spot::Network::IsServer(GetScene())) {
         Gather(m_frame);
+    } else if (Spot::Entity* prop = GetScene().GetEntity(m_grabbed); prop && Spot::Network::HasAuthority(*prop)) {
+        // Held here, it moves as this player turns and pulls it, as the server will hear.
+        m_distance = std::clamp(m_distance - m_frame.pull, minDistance, range);
+        if (m_frame.turning) {
+            m_rotation = Drive::TurnByLook(m_rotation, m_frame.turn, 1.0f);
+        }
     }
 }
 
@@ -204,6 +220,16 @@ void PhysicsGun::Replicate(Spot::Archive& archive) {
     Spot::EntityId grabbed = m_grabbed;
     archive.Field("grabbed", grabbed);
     archive.Field("grabPoint", m_grabPoint);
+    // Where it holds it, for the machine it is given to, which then turns and pulls it itself.
+    float distance = m_distance;
+    Spot::Quaternion rotation = m_rotation;
+    archive.Field("distance", distance);
+    archive.Field("rotation", rotation);
+    const Spot::Entity* prop = GetScene().GetEntity(grabbed);
+    if (archive.IsLoading() && (grabbed != m_grabbed || !prop || !Spot::Network::HasAuthority(*prop))) {
+        m_distance = distance;
+        m_rotation = rotation;
+    }
     if (archive.IsLoading() && grabbed != m_grabbed) {
         m_grabbed = grabbed;
         if (!IsGrabbing()) {
@@ -218,7 +244,8 @@ void PhysicsGun::Replicate(Spot::Archive& archive) {
 void PhysicsGun::OnFixedUpdate(float fixedDeltaTime) {
     Spot::Rigidbody* body = GetGrabbedBody();
     const Gameplay::Pawn* pawn = GetPawn();
-    if (!body || !pawn) {
+    // Where the body is simulated: the server, or the holding player's machine it was given to.
+    if (!body || !pawn || !Spot::Network::HasAuthority(body->GetEntity())) {
         return;
     }
     const Gameplay::ViewPoint view = pawn->GetViewPoint();
@@ -304,5 +331,8 @@ void PhysicsGun::Serialize(Spot::Archive& archive) {
 Spot::Rigidbody* PhysicsGun::GetGrabbedBody() const {
     Spot::Entity* prop = GetScene().GetEntity(m_grabbed);
     auto* body = prop ? prop->GetComponent<Spot::Rigidbody>() : nullptr;
-    return body && body->IsActiveAndEnabled() && !body->IsKinematic() ? body : nullptr;
+    // Kinematic too where another machine simulates it.
+    return body && body->IsActiveAndEnabled() && (!body->IsKinematic() || !Spot::Network::HasAuthority(*prop))
+               ? body
+               : nullptr;
 }

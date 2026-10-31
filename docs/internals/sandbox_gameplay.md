@@ -456,8 +456,11 @@ decides: it runs the game mode and simulates every pawn, and clients show what i
   replicated body to a client to simulate: `NetworkPlayers` gives what comes within `handOffRadius` of a player's
   character or `vehicleHandOffRadius` of the vehicle it drives, and takes it back after `handBackDelay` seconds with
   nothing of that player's near; `Carrier` gives what its remote player picks up and takes it back to throw it;
-  `Damage::Apply()` and the physics gun take back what they push. Pawns, bodies held by joints and projectiles
-  (`BodyAuthority::KeepOnServer()`, also while the physics gun holds a body) are never given. A client tells the server
+  `Damage::Apply()` takes back what it pushes. Pawns, bodies held by joints and projectiles
+  (`BodyAuthority::KeepOnServer()`, also while the server's own player holds a body with the physics gun) are never
+  given. The physics gun gives what a remote player grabs to that player's machine while it is held
+  (`BodyAuthority::Hold()`, never taken back meanwhile), which moves it toward the view and turns and pulls it at once;
+  its distance and rotation replicate for that machine to start from, and freezing takes it back. A client tells the server
   of the impacts of the bodies it simulates, which plays their sounds and particles for the others. `Carrier` reads its controls as
   intents, replicates what it carries, and offers to pick up kinematic bodies another machine simulates. Authored
   bodies of the playground (dominoes, gongs, the seesaw, the wrecking ball) have network objects.

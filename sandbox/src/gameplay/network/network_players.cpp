@@ -217,9 +217,15 @@ void NetworkPlayers::HandOffBodies(const std::vector<RemoteController*>& control
                 }
             }
         }
-        // Given otherwise, as what the player carries, it is let go of the same way.
+        // Given otherwise, as what the player carries, it is let go of the same way; held with the physics gun, not
+        // while it is.
         for (const Spot::EntityId id : BodyAuthority::GetGiven(GetScene(), peer)) {
-            m_lastNear.try_emplace(id, m_time);
+            const Spot::Entity* entity = GetScene().GetEntity(id);
+            if (entity && BodyAuthority::IsHeld(*entity)) {
+                m_lastNear[id] = m_time;
+            } else {
+                m_lastNear.try_emplace(id, m_time);
+            }
         }
     }
     std::erase_if(m_lastNear, [this](const auto& entry) {

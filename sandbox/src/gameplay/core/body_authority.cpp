@@ -14,10 +14,12 @@ class GivenBodies final : public Spot::SceneSystem {
 public:
     std::unordered_map<Spot::EntityId, Spot::NetPeerId> given;
     std::unordered_set<Spot::EntityId> kept;
+    std::unordered_set<Spot::EntityId> held;
 
     // Forgets what is gone or no longer that client's, as when it left, giving the server back its say.
     void Sweep() {
         std::erase_if(kept, [this](Spot::EntityId id) { return !GetScene().GetEntity(id); });
+        std::erase_if(held, [this](Spot::EntityId id) { return !given.contains(id); });
         std::erase_if(given, [this](const auto& entry) {
             Spot::Entity* entity = GetScene().GetEntity(entry.first);
             auto* object = entity ? entity->GetComponent<Spot::NetworkObject>() : nullptr;
@@ -29,6 +31,7 @@ public:
             }
             return true;
         });
+        std::erase_if(held, [this](Spot::EntityId id) { return !given.contains(id); });
     }
 };
 
@@ -109,6 +112,27 @@ std::vector<Spot::EntityId> GetGiven(Spot::Scene& scene, Spot::NetPeerId peer) {
         }
     }
     return entities;
+}
+
+bool Hold(Spot::Entity& body, Spot::NetPeerId peer) {
+    if (!Give(body, peer)) {
+        return false;
+    }
+    body.GetScene().GetOrAddSystem<GivenBodies>().held.insert(GetBodyObject(body)->GetEntity().GetId());
+    return true;
+}
+
+void LetGo(Spot::Entity& body) {
+    const Spot::NetworkObject* object = Spot::Network::GetObject(body);
+    if (auto* given = body.GetScene().GetSystem<GivenBodies>(); given && object) {
+        given->held.erase(object->GetEntity().GetId());
+    }
+}
+
+bool IsHeld(const Spot::Entity& body) {
+    const Spot::NetworkObject* object = Spot::Network::GetObject(body);
+    const auto* given = body.GetScene().GetSystem<GivenBodies>();
+    return given && object && given->held.contains(object->GetEntity().GetId());
 }
 
 void KeepOnServer(Spot::Entity& body, bool keep) {

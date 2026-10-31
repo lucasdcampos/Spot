@@ -23,8 +23,15 @@ Spot::NetPeerId GetHolder(const Spot::Entity& body);
 // On the server: the entities of the objects given to the client, whose bodies it moves.
 std::vector<Spot::EntityId> GetGiven(Spot::Scene& scene, Spot::NetPeerId peer);
 // Gives the object of the body to no client, taking it back, while kept: as what flies and hits on its own, as a
-// rocket, whose hits are the server's, or what the server holds, as with the physics gun.
+// rocket, whose hits are the server's, or what the server's own player holds with the physics gun.
 void KeepOnServer(Spot::Entity& body, bool keep = true);
+// On the server: gives the object of the body to the client while its player holds it, as with the physics gun, so it
+// follows that player's view at once; false when it cannot be given. Let go, it is given as any other, and taken back
+// once nothing of that player's is near it for a while.
+bool Hold(Spot::Entity& body, Spot::NetPeerId peer);
+void LetGo(Spot::Entity& body);
+// Whether a client's player holds the body (Hold()).
+bool IsHeld(const Spot::Entity& body);
 
 } // namespace BodyAuthority
 

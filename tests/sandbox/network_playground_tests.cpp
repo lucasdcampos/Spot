@@ -272,6 +272,22 @@ TEST_CASE("A guest in the playground moves, switches, carries, shoots and rides 
     room.Run(30);
     CHECK(hostGun->GetGrabbed() == crate.GetId());
     CHECK(guestGun->GetGrabbed() == crateOnGuest->GetId());
+    // Held, the crate is the guest's machine's to move: it follows the guest's view there at once, before the host
+    // hears of it, and the host is shown it.
+    CHECK(crateOnGuest->GetComponent<Spot::NetworkObject>()->HasAuthority());
+    const Spot::Vector3 held = crateOnGuest->GetTransform().GetWorldPosition();
+    const Gameplay::ViewPoint aim = pawn->GetViewPoint();
+    room.LookAt(aim.position + Spot::Vector3{-aim.direction.z, 0.0f, aim.direction.x} * 3.0f);
+    for (int i = 0; i < 20; ++i) {
+        room.guest.Step();
+    }
+    CHECK(Spot::Distance(crateOnGuest->GetTransform().GetWorldPosition(), held) > 0.5f);
+    room.Run(30);
+    CHECK(Spot::Distance(crate.GetTransform().GetWorldPosition(), crateOnGuest->GetTransform().GetWorldPosition()) <
+          0.1f);
+    // Back where it was, for what follows.
+    room.LookAt(held);
+    room.Run(60);
     room.guest.input.OnEvent(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Left});
     room.Run(30);
     CHECK_FALSE(hostGun->IsGrabbing());
