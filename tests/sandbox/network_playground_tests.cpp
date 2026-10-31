@@ -278,6 +278,85 @@ TEST_CASE("Developer smite and yeet reach another client and reject callers with
     CHECK_FALSE(caster->GetEntity().GetComponent<Gameplay::Health>()->IsDead());
 }
 
+TEST_CASE("Backrooms command teleports another client into the shared maze and back without movement corrections",
+          "[sandbox][network][developer][backrooms]") {
+    Room room(true);
+    auto* victim = Gameplay::Players::GetBody(room.other.scene);
+    REQUIRE(victim);
+    auto* target = room.host.Find(victim->GetEntity());
+    REQUIRE(target);
+    auto* targetPawn = target->GetComponent<Gameplay::Pawn>();
+    REQUIRE(targetPawn);
+    for (auto* info : Gameplay::PlayerInfos::GetAll(room.host.scene)) {
+        if (info->pawn == target->GetId()) {
+            info->name = "Friend";
+        }
+    }
+    targetPawn->Teleport({4.0f, 2.0f, -6.0f}, {}, {0.0f, 0.0f, -1.0f});
+    room.Run(10);
+    const auto before = victim->GetEntity().GetTransform().GetWorldPosition();
+    const auto* players = room.host.scene.FindComponent<Gameplay::NetworkPlayers>();
+    REQUIRE(players);
+    const auto corrections = players->GetCorrections();
+
+    Spot::Console console;
+    SandboxCommands commands(console, room.guest.scene);
+    console.SetCheatsEnabled(true);
+    Spot::Console::Get().SetCheatsEnabled(true);
+
+    REQUIRE(console.Execute("backrooms Friend 0.5"));
+    room.Run(10);
+    CHECK(DeveloperMode::IsBackroomsActive(room.host.scene));
+    CHECK(DeveloperMode::IsBackroomsActive(room.guest.scene));
+    CHECK(DeveloperMode::IsBackroomsActive(room.other.scene));
+    CHECK(Spot::Length(victim->GetEntity().GetTransform().GetWorldPosition() - DeveloperMode::BackroomsOrigin) < 20.0f);
+    CHECK(players->GetCorrections() == corrections);
+
+    room.Run(40);
+    CHECK_FALSE(DeveloperMode::IsBackroomsActive(room.host.scene));
+    CHECK_FALSE(DeveloperMode::IsBackroomsActive(room.guest.scene));
+    CHECK_FALSE(DeveloperMode::IsBackroomsActive(room.other.scene));
+    CHECK(Spot::Length(victim->GetEntity().GetTransform().GetWorldPosition() - before) < 0.75f);
+    CHECK(players->GetCorrections() == corrections);
+}
+
+TEST_CASE("Messagebox command delivers a modal message box only to the targeted client",
+          "[sandbox][network][developer][messagebox]") {
+    Room room(true);
+    auto* casterMode = Gameplay::Players::FindComponent<DeveloperMode>(room.guest.scene);
+    auto* victimMode = Gameplay::Players::FindComponent<DeveloperMode>(room.other.scene);
+    REQUIRE(casterMode);
+    REQUIRE(victimMode);
+    auto* target = room.host.Find(victimMode->GetEntity());
+    REQUIRE(target);
+    for (auto* info : Gameplay::PlayerInfos::GetAll(room.host.scene)) {
+        if (info->pawn == target->GetId()) {
+            info->name = "Friend";
+        }
+    }
+    room.Run(10);
+
+    Spot::Console console;
+    SandboxCommands commands(console, room.guest.scene);
+    console.SetCheatsEnabled(true);
+    Spot::Console::Get().SetCheatsEnabled(false);
+
+    // Rejected on the server while server cheats are disabled.
+    REQUIRE(console.Execute("messagebox Friend error \"Unauthorized\""));
+    room.Run(10);
+    CHECK_FALSE(victimMode->GetLastMessageBox().has_value());
+    CHECK_FALSE(casterMode->GetLastMessageBox().has_value());
+
+    Spot::Console::Get().SetCheatsEnabled(true);
+    REQUIRE(console.Execute("messagebox Friend error \"Diagnostic Alert\" \"Shader cache mismatch\""));
+    room.Run(10);
+    REQUIRE(victimMode->GetLastMessageBox().has_value());
+    CHECK(victimMode->GetLastMessageBox()->title == "Diagnostic Alert");
+    CHECK(victimMode->GetLastMessageBox()->message == "Shader cache mismatch");
+    CHECK(victimMode->GetLastMessageBox()->icon == Spot::MessageBoxIcon::Error);
+    CHECK_FALSE(casterMode->GetLastMessageBox().has_value());
+}
+
 TEST_CASE("A developer guest unlocks only its own Ray Gun on the server and both clients",
           "[sandbox][network][developer]") {
     Room room(true);

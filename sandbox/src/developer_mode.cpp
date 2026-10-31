@@ -1,5 +1,6 @@
 #include "developer_mode.h"
 
+#include "gameplay/character/carrier.h"
 #include "gameplay/character/character_movement.h"
 #include "gameplay/character/character_visual.h"
 #include "gameplay/core/player_name.h"
@@ -11,8 +12,10 @@
 #include "gameplay/network/player_info.h"
 #include "gameplay/network/remote_controller.h"
 #include "gameplay/network/session.h"
+#include "gameplay/persistence/world_save.h"
 #include "gameplay/vehicles/vehicle_seat.h"
 #include "gameplay/weapons/firearm.h"
+#include "physics_gun.h"
 #include <spot/scene/audio/audio_system.h>
 
 #include <algorithm>
@@ -20,12 +23,15 @@
 #include <bit>
 #include <cmath>
 #include <cstring>
+#include <format>
 #include <fstream>
 #include <limits>
 #include <optional>
 #include <random>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 SPOT_COMPONENT(DeveloperMode);
 
@@ -530,6 +536,52 @@ struct SmiteStrike {
     void Serialize(Spot::Archive& archive) { archive.Field("position", position); }
 };
 
+struct BackroomsRequest {
+    static constexpr std::string_view NetName = "Sandbox.BackroomsRequest";
+    std::string targetName;
+    float duration = 0.0f;
+
+    void Serialize(Spot::Archive& archive) {
+        archive.Field("targetName", targetName);
+        archive.Field("duration", duration);
+    }
+};
+
+struct BackroomsSync {
+    static constexpr std::string_view NetName = "Sandbox.BackroomsSync";
+    bool active = false;
+
+    void Serialize(Spot::Archive& archive) { archive.Field("active", active); }
+};
+
+struct DeveloperMessageBoxRequest {
+    static constexpr std::string_view NetName = "Sandbox.DeveloperMessageBoxRequest";
+    std::string targetName;
+    std::string title;
+    std::string message;
+    Spot::MessageBoxIcon icon = Spot::MessageBoxIcon::Information;
+
+    void Serialize(Spot::Archive& archive) {
+        archive.Field("targetName", targetName);
+        archive.Field("title", title);
+        archive.Field("message", message);
+        archive.Field("icon", icon);
+    }
+};
+
+struct DeveloperMessageBox {
+    static constexpr std::string_view NetName = "Sandbox.DeveloperMessageBox";
+    std::string title;
+    std::string message;
+    Spot::MessageBoxIcon icon = Spot::MessageBoxIcon::Information;
+
+    void Serialize(Spot::Archive& archive) {
+        archive.Field("title", title);
+        archive.Field("message", message);
+        archive.Field("icon", icon);
+    }
+};
+
 void ShowSmite(Spot::Scene& scene, Spot::Vector3 position, const Spot::AssetRef<Spot::Sound>& sound = {}) {
     Gameplay::ParticleLayer layer;
     layer.settings.maxParticles = 256;
@@ -599,12 +651,19 @@ Target FindTarget(Spot::Scene& scene, std::string_view name) {
         }
         target.entity = scene.GetEntity(info->pawn);
     }
-    if (infos.empty() && !Spot::Network::IsClient(scene)) {
-        const auto* settings = scene.FindComponent<Gameplay::SettingsMenu>();
-        const std::string localName = settings ? settings->GetSettings().playerName : "Player";
-        if (name == localName) {
-            if (auto* pawn = Gameplay::Players::GetBody(scene)) {
-                target.entity = &pawn->GetEntity();
+    if (!Spot::Network::IsClient(scene)) {
+        if (auto* pawn = Gameplay::Players::GetBody(scene)) {
+            const bool hasInfo =
+                std::ranges::any_of(infos, [&](const auto* info) { return info->pawn == pawn->GetEntity().GetId(); });
+            if (!hasInfo) {
+                const auto* settings = scene.FindComponent<Gameplay::SettingsMenu>();
+                const std::string localName = settings ? settings->GetSettings().playerName : "Player";
+                if (name == localName) {
+                    if (target.entity) {
+                        return {nullptr, "More than one player has that nickname"};
+                    }
+                    target.entity = &pawn->GetEntity();
+                }
             }
         }
     }
@@ -613,6 +672,630 @@ Target FindTarget(Spot::Scene& scene, std::string_view name) {
     }
     return target;
 }
+
+struct TargetList {
+    std::vector<Spot::Entity*> entities;
+    std::string error;
+};
+
+TargetList FindBackroomsTargets(Spot::Scene& scene, std::string_view targetName) {
+    if (targetName == "all") {
+        std::vector<Spot::Entity*> candidates;
+        const auto addCandidate = [&](Spot::Entity* entity) {
+            if (entity && std::ranges::find(candidates, entity) == candidates.end()) {
+                candidates.push_back(entity);
+            }
+        };
+        for (const auto* info : Gameplay::PlayerInfos::GetAll(scene)) {
+            addCandidate(scene.GetEntity(info->pawn));
+        }
+        if (!Spot::Network::IsClient(scene)) {
+            if (auto* body = Gameplay::Players::GetBody(scene)) {
+                addCandidate(&body->GetEntity());
+            }
+            scene.ForEachComponent<Gameplay::RemoteController>([&](auto& controller) {
+                if (auto* body = controller.GetPlayerPawn()) {
+                    addCandidate(&body->GetEntity());
+                }
+            });
+        }
+        TargetList result;
+        for (Spot::Entity* entity : candidates) {
+            const auto* health = entity->GetComponent<Gameplay::Health>();
+            if (health && !health->IsDead() && entity->GetComponent<Gameplay::Pawn>()) {
+                result.entities.push_back(entity);
+            }
+        }
+        if (result.entities.empty()) {
+            result.error = candidates.empty() ? "No player character in this scene" : "The player is not alive";
+        }
+        return result;
+    }
+    const Target single = FindTarget(scene, targetName);
+    if (!single.entity) {
+        return {{}, single.error};
+    }
+    const auto* health = single.entity->GetComponent<Gameplay::Health>();
+    if (!health || health->IsDead()) {
+        return {{}, "The player is not alive"};
+    }
+    if (!single.entity->GetComponent<Gameplay::Pawn>()) {
+        return {{}, "No player character in this scene"};
+    }
+    return {{single.entity}, {}};
+}
+
+TargetList FindMessageBoxTargets(Spot::Scene& scene, std::string_view targetName) {
+    if (targetName == "all") {
+        TargetList result;
+        const auto addCandidate = [&](Spot::Entity* entity) {
+            if (entity && entity->GetComponent<Gameplay::Pawn>() &&
+                std::ranges::find(result.entities, entity) == result.entities.end()) {
+                result.entities.push_back(entity);
+            }
+        };
+        for (const auto* info : Gameplay::PlayerInfos::GetAll(scene)) {
+            addCandidate(scene.GetEntity(info->pawn));
+        }
+        if (!Spot::Network::IsClient(scene)) {
+            if (auto* body = Gameplay::Players::GetBody(scene)) {
+                addCandidate(&body->GetEntity());
+            }
+            scene.ForEachComponent<Gameplay::RemoteController>([&](auto& controller) {
+                if (auto* body = controller.GetPlayerPawn()) {
+                    addCandidate(&body->GetEntity());
+                }
+            });
+        }
+        if (result.entities.empty()) {
+            result.error = "No player character in this scene";
+        }
+        return result;
+    }
+    const Target single = FindTarget(scene, targetName);
+    if (!single.entity) {
+        return {{}, single.error};
+    }
+    if (!single.entity->GetComponent<Gameplay::Pawn>()) {
+        return {{}, "No player character in this scene"};
+    }
+    return {{single.entity}, {}};
+}
+
+void EjectAndRelease(Spot::Scene& scene, Spot::Entity& entity) {
+    scene.ForEachComponent<Gameplay::VehicleSeat>([&](auto& seat) {
+        auto* occupant = seat.GetOccupant();
+        if (occupant && &occupant->GetEntity() == &entity) {
+            seat.Exit();
+        }
+    });
+    if (auto* carrier = entity.GetComponent<Gameplay::Carrier>()) {
+        carrier->Drop();
+    }
+    if (auto* gun = entity.GetComponentInChildren<PhysicsGun>()) {
+        gun->Release();
+    }
+}
+
+struct BackroomsTexel {
+    Spot::Color color = Spot::Color::White;
+    float height = 0.0f;
+};
+
+float BackroomsHash(int x, int y, std::uint32_t seed) {
+    std::uint32_t h =
+        static_cast<std::uint32_t>(x) * 374761393u + static_cast<std::uint32_t>(y) * 668265263u + seed * 2246822519u;
+    h = (h ^ (h >> 13)) * 1274126177u;
+    return static_cast<float>((h ^ (h >> 16)) & 0xffffu) / 65535.0f;
+}
+
+float BackroomsSmoothNoise(float u, float v, int period, std::uint32_t seed) {
+    const float x = u * static_cast<float>(period);
+    const float y = v * static_cast<float>(period);
+    const int x0 = static_cast<int>(std::floor(x));
+    const int y0 = static_cast<int>(std::floor(y));
+    const float tx = x - static_cast<float>(x0);
+    const float ty = y - static_cast<float>(y0);
+    const float sx = tx * tx * (3.0f - 2.0f * tx);
+    const float sy = ty * ty * (3.0f - 2.0f * ty);
+    const auto wrap = [period](int c) {
+        const int r = c % period;
+        return r < 0 ? r + period : r;
+    };
+    const float n00 = BackroomsHash(wrap(x0), wrap(y0), seed);
+    const float n10 = BackroomsHash(wrap(x0 + 1), wrap(y0), seed);
+    const float n01 = BackroomsHash(wrap(x0), wrap(y0 + 1), seed);
+    const float n11 = BackroomsHash(wrap(x0 + 1), wrap(y0 + 1), seed);
+    const float top = n00 + (n10 - n00) * sx;
+    const float bottom = n01 + (n11 - n01) * sx;
+    return top + (bottom - top) * sy;
+}
+
+template <typename F>
+void ApplyBackroomsTextures(Spot::Material& material, F&& painter) {
+    auto* app = Spot::Application::TryGet();
+    if (!app || !app->HasGraphicsDevice()) {
+        return;
+    }
+    constexpr int Size = 256;
+    std::vector<BackroomsTexel> texels(static_cast<std::size_t>(Size * Size));
+    for (int y = 0; y < Size; ++y) {
+        for (int x = 0; x < Size; ++x) {
+            const float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(Size);
+            const float v = (static_cast<float>(y) + 0.5f) / static_cast<float>(Size);
+            texels[static_cast<std::size_t>(y * Size + x)] = painter(x, y, u, v);
+        }
+    }
+    const auto at = [&](int x, int y) -> const BackroomsTexel& {
+        return texels[static_cast<std::size_t>((y & (Size - 1)) * Size + (x & (Size - 1)))];
+    };
+    const auto toByte = [](float value) {
+        return static_cast<std::uint8_t>(std::clamp(value, 0.0f, 1.0f) * 255.0f + 0.5f);
+    };
+    std::vector<std::uint8_t> colorPixels(static_cast<std::size_t>(Size * Size * 4));
+    std::vector<std::uint8_t> normalPixels(static_cast<std::size_t>(Size * Size * 4));
+    for (int y = 0; y < Size; ++y) {
+        for (int x = 0; x < Size; ++x) {
+            const BackroomsTexel& texel = at(x, y);
+            const std::size_t i = static_cast<std::size_t>(y * Size + x) * 4;
+            colorPixels[i] = toByte(texel.color.r);
+            colorPixels[i + 1] = toByte(texel.color.g);
+            colorPixels[i + 2] = toByte(texel.color.b);
+            colorPixels[i + 3] = 255;
+
+            const float dx = (at(x + 1, y).height - at(x - 1, y).height) * 0.5f;
+            const float dy = (at(x, y - 1).height - at(x, y + 1).height) * 0.5f;
+            const float len = std::sqrt(dx * dx + dy * dy + 1.0f);
+            normalPixels[i] = toByte(-dx / len * 0.5f + 0.5f);
+            normalPixels[i + 1] = toByte(-dy / len * 0.5f + 0.5f);
+            normalPixels[i + 2] = toByte(1.0f / len * 0.5f + 0.5f);
+            normalPixels[i + 3] = 255;
+        }
+    }
+    auto& device = app->GetGraphicsDevice();
+    material.baseColor = Spot::Color::White;
+    material.baseColorTexture =
+        device.CreateTexture(Spot::Image(Size, Size, std::move(colorPixels)), true, Spot::TextureFormat::Rgba8Srgb);
+    material.normalTexture =
+        device.CreateTexture(Spot::Image(Size, Size, std::move(normalPixels)), true, Spot::TextureFormat::Rgba8);
+}
+
+Spot::Material MakeBackroomsCarpetMaterial() {
+    Spot::Material material;
+    material.baseColor = {0.72f, 0.63f, 0.30f, 1.0f};
+    material.emissive = {0.11f, 0.09f, 0.024f, 1.0f};
+    material.roughness = 0.98f;
+    material.metallic = 0.0f;
+    material.normalScale = 1.15f;
+    material.worldTextureSize = 1.2f;
+    ApplyBackroomsTextures(material, [](int x, int y, float u, float v) -> BackroomsTexel {
+        // Damp yellow-ochre loop-pile carpet, slightly darker than the wallpaper walls, with woven tuft rows and
+        // stains.
+        const float damp = BackroomsSmoothNoise(u, v, 4, 701) * 0.65f + BackroomsSmoothNoise(u, v, 9, 702) * 0.35f;
+        const float patch = BackroomsSmoothNoise(u, v, 18, 703);
+        const int tuftX = (x + (y / 2) % 2) / 2;
+        const int tuftY = y / 2;
+        const float tuftTone = BackroomsHash(tuftX, tuftY, 704);
+        const float fiber = BackroomsHash(x, y, 705);
+        const float grooveX = (x % 2 == 0) ? 1.0f : 0.35f;
+        const float grooveY = (y % 3 == 0) ? 0.35f : 1.0f;
+        const float loop = grooveX * grooveY * (0.7f + tuftTone * 0.3f);
+        const float shade = (0.80f + damp * 0.24f) * (0.92f + patch * 0.12f) * (0.88f + loop * 0.16f + fiber * 0.05f);
+        return {
+            .color = {0.72f * shade, 0.63f * shade, 0.30f * shade, 1.0f},
+            .height = loop * 1.6f + fiber * 0.45f,
+        };
+    });
+    return material;
+}
+
+Spot::Material MakeBackroomsWallpaperMaterial() {
+    Spot::Material material;
+    material.baseColor = {0.86f, 0.77f, 0.39f, 1.0f};
+    material.emissive = {0.16f, 0.13f, 0.035f, 1.0f};
+    material.roughness = 0.86f;
+    material.metallic = 0.0f;
+    material.normalScale = 0.85f;
+    material.worldTextureSize = 1.6f;
+    ApplyBackroomsTextures(material, [](int x, int y, float u, float v) -> BackroomsTexel {
+        // Classic Level 0 Backrooms yellow wallpaper: vertical strips, ornamental chevron/diamond damask motif,
+        // subtle roll seams and aged paper linen grain.
+        const float age = BackroomsSmoothNoise(u, v, 3, 801) * 0.7f + BackroomsSmoothNoise(u, v, 8, 802) * 0.3f;
+        const float linen = (BackroomsHash(x, y / 2, 803) + BackroomsHash(x / 2, y, 804)) * 0.5f - 0.5f;
+
+        // 4 vertical wallpaper strips across each tile.
+        const float stripCoord = u * 4.0f;
+        const float su = stripCoord - std::floor(stripCoord);
+        const float dx = std::abs(su - 0.5f) * 2.0f;
+
+        // 6 repeating ornamental medallions vertically along each strip.
+        const float cellCoord = v * 6.0f;
+        const float sv = cellCoord - std::floor(cellCoord);
+        const float dy = std::abs(sv - 0.5f) * 2.0f;
+
+        const auto band = [](float dist, float center, float halfWidth) {
+            return std::clamp(1.0f - std::abs(dist - center) / halfWidth, 0.0f, 1.0f);
+        };
+
+        // Vertical framing pinstripes near strip borders.
+        const float pinstripe = std::max(band(dx, 0.78f, 0.045f), band(dx, 0.88f, 0.03f) * 0.65f);
+        // Outer diamond lattice + inner chevron/leaf medallion.
+        const float diamondDist = dx * 0.85f + dy * 0.75f;
+        const float outerDiamond = band(diamondDist, 0.56f, 0.075f);
+        const float innerChevron =
+            band(std::abs(dx - dy * 0.65f), 0.18f, 0.065f) * (dx < 0.52f && dy < 0.65f ? 1.0f : 0.0f);
+        const float centerRosette = std::clamp(1.0f - std::sqrt(dx * dx + dy * dy) / 0.16f, 0.0f, 1.0f);
+        const float crownDot = std::clamp(1.0f - std::sqrt(dx * dx + (dy - 0.78f) * (dy - 0.78f)) / 0.11f, 0.0f, 1.0f);
+
+        const float motif = std::clamp(
+            std::max({pinstripe * 0.75f, outerDiamond, innerChevron * 0.9f, centerRosette * 0.85f, crownDot * 0.7f}),
+            0.0f, 1.0f);
+
+        // Faint wallpaper roll seam every 2 strips.
+        const float seamDist = std::min(u * 2.0f - std::floor(u * 2.0f), 1.0f - (u * 2.0f - std::floor(u * 2.0f)));
+        const float seam = std::clamp(1.0f - seamDist / 0.015f, 0.0f, 1.0f);
+
+        const Spot::Color paperBase = {0.86f, 0.77f, 0.39f, 1.0f};
+        const Spot::Color motifInk = {0.61f, 0.51f, 0.19f, 1.0f};
+        const float ageTint = 0.91f + age * 0.14f + linen * 0.035f - seam * 0.10f;
+        const float r = (paperBase.r + (motifInk.r - paperBase.r) * motif) * ageTint;
+        const float g = (paperBase.g + (motifInk.g - paperBase.g) * motif) * ageTint;
+        const float b = (paperBase.b + (motifInk.b - paperBase.b) * motif) * ageTint;
+
+        return {
+            .color = {r, g, b, 1.0f},
+            .height = motif * 0.95f + linen * 0.25f - seam * 1.1f,
+        };
+    });
+    return material;
+}
+
+Spot::Material MakeBackroomsCeilingMaterial() {
+    Spot::Material material;
+    material.baseColor = {1.0f, 1.0f, 1.0f, 1.0f};
+    material.emissive = {0.10f, 0.085f, 0.025f, 1.0f};
+    material.roughness = 0.92f;
+    material.metallic = 0.0f;
+    material.normalScale = 0.7f;
+    material.worldTextureSize = 2.0f;
+    ApplyBackroomsTextures(material, [](int x, int y, float u, float v) -> BackroomsTexel {
+        // Acoustic drop-ceiling tiles with recessed T-bar grid and mineral-fiber pinholes.
+        const float tu = u * 2.0f - std::floor(u * 2.0f);
+        const float tv = v * 2.0f - std::floor(v * 2.0f);
+        const float edge = std::min({tu, 1.0f - tu, tv, 1.0f - tv});
+        const float speckle = BackroomsHash(x, y, 901);
+        const float pinhole = speckle < 0.08f ? 1.0f : 0.0f;
+        if (edge < 0.025f) {
+            return {
+                .color = {0.58f, 0.53f, 0.34f, 1.0f},
+                .height = -1.4f,
+            };
+        }
+        const float shade = 0.96f + (speckle - 0.5f) * 0.05f - pinhole * 0.22f;
+        return {
+            .color = {0.83f * shade, 0.78f * shade, 0.52f * shade, 1.0f},
+            .height = -pinhole * 0.8f + speckle * 0.15f,
+        };
+    });
+    return material;
+}
+
+Spot::Entity& BuildBackrooms(Spot::Scene& scene) {
+    auto& root = scene.CreateEntity("Backrooms");
+    root.AddComponent<Gameplay::Transient>();
+    root.GetTransform().SetPosition(DeveloperMode::BackroomsOrigin);
+
+    const auto cubeMesh = Spot::Assets::Load<Spot::Mesh>(Spot::BuiltInAssets::CubeMesh);
+    const Spot::Material carpetMaterial = MakeBackroomsCarpetMaterial();
+    const Spot::Material wallMaterial = MakeBackroomsWallpaperMaterial();
+    const Spot::Material ceilingMaterial = MakeBackroomsCeilingMaterial();
+
+    // Crisp white fluorescent ceiling light panels.
+    Spot::Material panelMaterial;
+    panelMaterial.baseColor = {1.0f, 1.0f, 1.0f, 1.0f};
+    panelMaterial.emissive = {9.0f, 9.2f, 9.5f, 1.0f};
+    panelMaterial.roughness = 0.2f;
+    panelMaterial.metallic = 0.0f;
+
+    const auto addBox = [&](std::string_view name, Spot::Vector3 position, Spot::Vector3 scale,
+                            const Spot::Material& material) -> Spot::Entity& {
+        auto& part = root.CreateChild(std::string(name));
+        part.GetTransform().SetPosition(position);
+        part.GetTransform().SetScale(scale);
+        part.AddComponent<Spot::BoxCollider>();
+        part.AddComponent<Spot::MeshRenderer>(cubeMesh, material);
+        return part;
+    };
+
+    addBox("Backrooms Floor", {0.0f, -0.25f, 0.0f}, {36.4f, 0.5f, 36.4f}, carpetMaterial);
+    addBox("Backrooms Ceiling", {0.0f, 3.85f, 0.0f}, {36.4f, 0.5f, 36.4f}, ceilingMaterial);
+
+    // Outer enclosure walls.
+    addBox("Backrooms Wall", {0.0f, 1.8f, -18.0f}, {36.4f, 3.6f, 0.4f}, wallMaterial);
+    addBox("Backrooms Wall", {0.0f, 1.8f, 18.0f}, {36.4f, 3.6f, 0.4f}, wallMaterial);
+    addBox("Backrooms Wall", {-18.0f, 1.8f, 0.0f}, {0.4f, 3.6f, 36.0f}, wallMaterial);
+    addBox("Backrooms Wall", {18.0f, 1.8f, 0.0f}, {0.4f, 3.6f, 36.0f}, wallMaterial);
+
+    // Classic Level 0 interior labyrinth partitions and structural pillars.
+    struct WallSegment {
+        Spot::Vector3 position;
+        Spot::Vector3 scale;
+    };
+    static constexpr std::array<WallSegment, 22> LabyrinthWalls = {{
+        {{-5.0f, 1.8f, -2.0f}, {6.0f, 3.6f, 0.3f}},   {{5.0f, 1.8f, 2.0f}, {6.0f, 3.6f, 0.3f}},
+        {{-2.0f, 1.8f, 5.0f}, {0.3f, 3.6f, 6.0f}},    {{2.0f, 1.8f, -5.0f}, {0.3f, 3.6f, 6.0f}},
+        {{-10.0f, 1.8f, -10.0f}, {8.0f, 3.6f, 0.3f}}, {{-10.0f, 1.8f, -6.0f}, {0.3f, 3.6f, 8.0f}},
+        {{10.0f, 1.8f, -10.0f}, {0.3f, 3.6f, 8.0f}},  {{6.0f, 1.8f, -12.0f}, {8.0f, 3.6f, 0.3f}},
+        {{-12.0f, 1.8f, 6.0f}, {8.0f, 3.6f, 0.3f}},   {{-6.0f, 1.8f, 10.0f}, {0.3f, 3.6f, 8.0f}},
+        {{10.0f, 1.8f, 8.0f}, {8.0f, 3.6f, 0.3f}},    {{12.0f, 1.8f, 2.0f}, {0.3f, 3.6f, 8.0f}},
+        {{0.0f, 1.8f, -12.0f}, {6.0f, 3.6f, 0.3f}},   {{0.0f, 1.8f, 12.0f}, {6.0f, 3.6f, 0.3f}},
+        {{-14.0f, 1.8f, 0.0f}, {0.3f, 3.6f, 6.0f}},   {{14.0f, 1.8f, -4.0f}, {4.0f, 3.6f, 0.3f}},
+        {{-6.0f, 1.8f, 2.0f}, {0.7f, 3.6f, 0.7f}},    {{6.0f, 1.8f, -2.0f}, {0.7f, 3.6f, 0.7f}},
+        {{-12.0f, 1.8f, 12.0f}, {0.7f, 3.6f, 0.7f}},  {{12.0f, 1.8f, 12.0f}, {0.7f, 3.6f, 0.7f}},
+        {{-12.0f, 1.8f, -14.0f}, {0.7f, 3.6f, 0.7f}}, {{14.0f, 1.8f, -14.0f}, {0.7f, 3.6f, 0.7f}},
+    }};
+    for (const auto& segment : LabyrinthWalls) {
+        addBox("Backrooms Wall", segment.position, segment.scale, wallMaterial);
+    }
+
+    // White fluorescent ceiling fixtures and white ceiling lights, paired with warm yellow ambient bounce lights.
+    static constexpr std::array<float, 4> LightCoords = {-12.0f, -4.0f, 4.0f, 12.0f};
+    for (const float x : LightCoords) {
+        for (const float z : LightCoords) {
+            auto& panel = root.CreateChild("Backrooms Light Panel");
+            panel.GetTransform().SetPosition({x, 3.57f, z});
+            panel.GetTransform().SetScale({1.4f, 0.06f, 0.5f});
+            auto& renderer = panel.AddComponent<Spot::MeshRenderer>(cubeMesh, panelMaterial);
+            renderer.SetCastingShadows(false);
+
+            auto& light = root.CreateChild("Backrooms Light");
+            light.GetTransform().SetPosition({x, 3.35f, z});
+            light.AddComponent<Spot::PointLight>(Spot::Color{1.0f, 1.0f, 1.0f, 1.0f}, 4.8f, 10.5f);
+        }
+    }
+
+    static constexpr std::array<float, 3> AmbientCoords = {-10.0f, 0.0f, 10.0f};
+    for (const float x : AmbientCoords) {
+        for (const float z : AmbientCoords) {
+            auto& ambient = root.CreateChild("Backrooms Ambient");
+            ambient.GetTransform().SetPosition({x, 1.5f, z});
+            ambient.AddComponent<Spot::PointLight>(Spot::Color{1.0f, 0.84f, 0.26f, 1.0f}, 3.2f, 18.0f);
+        }
+    }
+
+    return root;
+}
+
+class BackroomsSystem final : public Spot::SceneSystem {
+public:
+    static BackroomsSystem& Get(Spot::Scene& scene) { return scene.GetOrAddSystem<BackroomsSystem>(); }
+
+    bool HasRoom() const { return GetScene().GetEntity(m_room) != nullptr; }
+
+    std::optional<float> GetTimeLeft(Spot::EntityId id) const {
+        for (const auto& inmate : m_inmates) {
+            if (inmate.entity == id) {
+                return inmate.infinite ? 0.0f : inmate.timeLeft;
+            }
+        }
+        return std::nullopt;
+    }
+
+    Spot::ConsoleResult Send(std::string_view targetName, float duration) {
+        if (!Spot::Network::IsServer(GetScene())) {
+            return {false, "Only the server sends players to the Backrooms"};
+        }
+        if (!std::isfinite(duration) || duration < 0.0f) {
+            return {false, "Usage: backrooms <player|all> <duration>"};
+        }
+        const TargetList targets = FindBackroomsTargets(GetScene(), targetName);
+        if (targets.entities.empty()) {
+            return {false, targets.error};
+        }
+        EnsureRoom();
+
+        static constexpr std::array<Spot::Vector3, 8> SpawnOffsets = {{
+            {0.0f, 1.0f, 0.0f},
+            {4.0f, 1.0f, 0.0f},
+            {-4.0f, 1.0f, 0.0f},
+            {0.0f, 1.0f, 4.0f},
+            {0.0f, 1.0f, -4.0f},
+            {8.0f, 1.0f, 4.0f},
+            {-8.0f, 1.0f, -4.0f},
+            {8.0f, 1.0f, -4.0f},
+        }};
+
+        auto* system = Spot::Network::Get(GetScene());
+        for (Spot::Entity* entity : targets.entities) {
+            if (auto* mode = entity->GetComponent<DeveloperMode>()) {
+                mode->SetInBackrooms(true);
+            }
+            if (system) {
+                if (auto* object = Spot::Network::GetObject(*entity)) {
+                    system->SendToClients(*object, BackroomsSync{true});
+                }
+            }
+        }
+
+        for (Spot::Entity* entity : targets.entities) {
+            auto* pawn = entity->GetComponent<Gameplay::Pawn>();
+            auto* health = entity->GetComponent<Gameplay::Health>();
+            if (!pawn || !health || health->IsDead()) {
+                continue;
+            }
+            const Spot::EntityId id = entity->GetId();
+            auto existing = std::ranges::find(m_inmates, id, &Inmate::entity);
+            if (existing == m_inmates.end()) {
+                EjectAndRelease(GetScene(), *entity);
+                const Spot::Vector3 returnPosition = entity->GetTransform().GetWorldPosition();
+                const Spot::Vector3 viewDirection = pawn->GetViewPoint().direction;
+                const Spot::Vector3 returnForward = {viewDirection.x, 0.0f, viewDirection.z};
+
+                Inmate inmate;
+                inmate.entity = id;
+                inmate.returnPosition = returnPosition;
+                inmate.returnForward = returnForward;
+                inmate.infinite = (duration == 0.0f);
+                inmate.timeLeft = duration;
+                inmate.died = health->OnDied.Connect([this, id](const Gameplay::DamageInfo&) { Evict(id, false); });
+                m_inmates.push_back(std::move(inmate));
+
+                const Spot::Vector3 spawnPos =
+                    DeveloperMode::BackroomsOrigin + SpawnOffsets[m_nextSlot++ % SpawnOffsets.size()];
+                pawn->Teleport(spawnPos, {0.0f, 0.0f, -1.0f}, {});
+            } else {
+                existing->infinite = (duration == 0.0f);
+                existing->timeLeft = duration;
+            }
+        }
+
+        CleanupRoomIfEmpty();
+        SyncMusic();
+        return {true, std::format("Sent {} to the Backrooms", targetName)};
+    }
+
+    void SyncClientRoom() {
+        if (Spot::Network::IsServer(GetScene())) {
+            return;
+        }
+        bool anyInBackrooms = false;
+        GetScene().ForEachComponent<DeveloperMode>(
+            [&](const DeveloperMode& mode) { anyInBackrooms = anyInBackrooms || mode.IsInBackrooms(); });
+        if (anyInBackrooms) {
+            EnsureRoom();
+        } else {
+            DestroyRoom();
+        }
+        SyncMusic();
+    }
+
+protected:
+    void OnUpdate(float deltaTime) override {
+        if (!Spot::Network::IsServer(GetScene())) {
+            SyncClientRoom();
+            return;
+        }
+        std::vector<std::pair<Spot::EntityId, bool>> evictions;
+        for (auto& inmate : m_inmates) {
+            Spot::Entity* entity = GetScene().GetEntity(inmate.entity);
+            const auto* health = entity ? entity->GetComponent<Gameplay::Health>() : nullptr;
+            if (!entity || !health || health->IsDead()) {
+                evictions.emplace_back(inmate.entity, false);
+                continue;
+            }
+            if (!inmate.infinite) {
+                inmate.timeLeft -= deltaTime;
+                if (inmate.timeLeft <= 0.0f) {
+                    evictions.emplace_back(inmate.entity, true);
+                }
+            }
+        }
+        for (const auto& [id, teleportBack] : evictions) {
+            Evict(id, teleportBack);
+        }
+        CleanupRoomIfEmpty();
+        SyncMusic();
+    }
+
+private:
+    struct Inmate {
+        Spot::EntityId entity = Spot::EntityId::Invalid;
+        Spot::Vector3 returnPosition;
+        Spot::Vector3 returnForward;
+        float timeLeft = 0.0f;
+        bool infinite = false;
+        Spot::SignalConnection died;
+    };
+
+    void EnsureRoom() {
+        if (GetScene().GetEntity(m_room)) {
+            return;
+        }
+        if (Spot::Entity* existing = GetScene().FindEntity("Backrooms")) {
+            m_room = existing->GetId();
+            return;
+        }
+        m_room = BuildBackrooms(GetScene()).GetId();
+    }
+
+    void DestroyRoom() {
+        if (Spot::Entity* room = GetScene().GetEntity(m_room)) {
+            room->Destroy();
+        } else if (Spot::Entity* existing = GetScene().FindEntity("Backrooms")) {
+            existing->Destroy();
+        }
+        m_room = Spot::EntityId::Invalid;
+    }
+
+    void Evict(Spot::EntityId id, bool teleportBack) {
+        const auto found = std::ranges::find(m_inmates, id, &Inmate::entity);
+        if (found == m_inmates.end()) {
+            return;
+        }
+        Inmate inmate = std::move(*found);
+        inmate.died.Disconnect();
+        m_inmates.erase(found);
+
+        if (Spot::Entity* entity = GetScene().GetEntity(id)) {
+            if (auto* mode = entity->GetComponent<DeveloperMode>()) {
+                mode->SetInBackrooms(false);
+            }
+            if (teleportBack) {
+                const auto* health = entity->GetComponent<Gameplay::Health>();
+                auto* pawn = entity->GetComponent<Gameplay::Pawn>();
+                if (pawn && health && !health->IsDead()) {
+                    EjectAndRelease(GetScene(), *entity);
+                    pawn->Teleport(inmate.returnPosition, inmate.returnForward, {});
+                }
+            }
+        }
+        CleanupRoomIfEmpty();
+    }
+
+    void CleanupRoomIfEmpty() {
+        if (!m_inmates.empty()) {
+            return;
+        }
+        const bool hadRoom = HasRoom();
+        DestroyRoom();
+        if (hadRoom) {
+            if (auto* system = Spot::Network::Get(GetScene()); system && system->IsServer()) {
+                Spot::NetworkObject* anyObject = nullptr;
+                GetScene().ForEachComponent<DeveloperMode>([&](DeveloperMode& mode) {
+                    if (!anyObject) {
+                        anyObject = Spot::Network::GetObject(mode.GetEntity());
+                    }
+                });
+                if (anyObject) {
+                    system->SendToClients(*anyObject, BackroomsSync{false});
+                }
+            }
+        }
+    }
+
+    void SyncMusic() {
+        const auto* localMode = Gameplay::Players::FindComponent<DeveloperMode>(GetScene());
+        const bool suppress = localMode && localMode->IsInBackrooms();
+        GetScene().ForEachComponent<Spot::AudioSource>([&](Spot::AudioSource& source) {
+            if (source.bus != "Music" && source.GetEntity().GetName() != "Music") {
+                return;
+            }
+            if (suppress) {
+                if (source.IsPlaying()) {
+                    source.Stop();
+                }
+            } else if (m_musicSuppressed && source.playOnStart && !source.IsPlaying()) {
+                source.Play();
+            }
+        });
+        m_musicSuppressed = suppress;
+    }
+
+    std::vector<Inmate> m_inmates;
+    Spot::EntityId m_room = Spot::EntityId::Invalid;
+    std::size_t m_nextSlot = 0;
+    bool m_musicSuppressed = false;
+};
 
 Gameplay::PlayerInfo* FindInfo(Spot::Entity& character) {
     for (auto* info : Gameplay::PlayerInfos::GetAll(character.GetScene())) {
@@ -760,6 +1443,26 @@ void DeveloperMode::Bind() {
             const auto* mode = object.GetEntity().GetComponent<DeveloperMode>();
             ShowSmite(object.GetScene(), strike.position, mode ? mode->smiteSound : Spot::AssetRef<Spot::Sound>{});
         });
+        system->OnObjectMessage<BackroomsSync>([](Spot::NetworkObject& object, Spot::NetPeerId, BackroomsSync& sync) {
+            if (sync.active) {
+                if (auto* mode = object.GetEntity().GetComponent<DeveloperMode>()) {
+                    mode->SetInBackrooms(true);
+                }
+            } else {
+                object.GetScene().ForEachComponent<DeveloperMode>(
+                    [](DeveloperMode& mode) { mode.SetInBackrooms(false); });
+            }
+            BackroomsSystem::Get(object.GetScene()).SyncClientRoom();
+        });
+        system->OnObjectMessage<DeveloperMessageBox>([](Spot::NetworkObject& object, Spot::NetPeerId,
+                                                        DeveloperMessageBox& popup) {
+            if (auto* mode = object.GetEntity().GetComponent<DeveloperMode>()) {
+                mode->ShowLocalMessageBox(popup.title, popup.message, popup.icon);
+            } else {
+                Spot::Window* window = Spot::Application::TryGet() ? &Spot::Application::Get().GetWindow() : nullptr;
+                Spot::MessageBox::Show(popup.title, popup.message, popup.icon, window);
+            }
+        });
         system->OnObjectMessage<DeveloperChallenge>(
             [](Spot::NetworkObject& object, Spot::NetPeerId, DeveloperChallenge& message) {
                 Challenge challenge{};
@@ -819,6 +1522,33 @@ void DeveloperMode::Bind() {
                 const auto result = Strike(object.GetScene(), request.power, request.playerName, &mode->GetEntity());
                 if (!result) {
                     Spot::Log::Warning("Developer power refused: {}", result.message);
+                }
+            }
+        });
+        system->OnObjectMessage<BackroomsRequest>(
+            [](Spot::NetworkObject& object, Spot::NetPeerId from, BackroomsRequest& request) {
+                if (!MayUseDeveloperCommands(from)) {
+                    Spot::Log::Warning("Backrooms refused: cheats or operator permission are required");
+                    return;
+                }
+                if (Sender(object, from)) {
+                    const auto result = SendToBackrooms(object.GetScene(), request.targetName, request.duration);
+                    if (!result) {
+                        Spot::Log::Warning("Backrooms refused: {}", result.message);
+                    }
+                }
+            });
+        system->OnObjectMessage<DeveloperMessageBoxRequest>([](Spot::NetworkObject& object, Spot::NetPeerId from,
+                                                               DeveloperMessageBoxRequest& request) {
+            if (!MayUseDeveloperCommands(from)) {
+                Spot::Log::Warning("Message box refused: cheats or operator permission are required");
+                return;
+            }
+            if (Sender(object, from)) {
+                const auto result =
+                    SendMessageBox(object.GetScene(), request.targetName, request.title, request.message, request.icon);
+                if (!result) {
+                    Spot::Log::Warning("Message box refused: {}", result.message);
                 }
             }
         });
@@ -996,6 +1726,97 @@ Spot::ConsoleResult DeveloperMode::Strike(Spot::Scene& scene, Power power, std::
     return {true, std::string(power == Power::Smite ? "Smote " : "Yeeted ") + std::string(playerName)};
 }
 
+Spot::ConsoleResult DeveloperMode::UseLocalBackrooms(Spot::Scene& scene, std::string_view targetName, float duration) {
+    if (!std::isfinite(duration) || duration < 0.0f) {
+        return {false, "Usage: backrooms <player|all> <duration>"};
+    }
+    const auto targets = FindBackroomsTargets(scene, targetName);
+    if (targets.entities.empty()) {
+        return {false, targets.error};
+    }
+    if (auto* system = Spot::Network::Get(scene); system && system->IsClient()) {
+        auto* mode = Gameplay::Players::FindComponent<DeveloperMode>(scene);
+        auto* object = mode ? Spot::Network::GetObject(mode->GetEntity()) : nullptr;
+        if (!object) {
+            return {false, "No network player character"};
+        }
+        system->SendToServer(*object, BackroomsRequest{std::string(targetName), duration});
+        return {true, "Backrooms requested for " + std::string(targetName)};
+    }
+    return SendToBackrooms(scene, targetName, duration);
+}
+
+Spot::ConsoleResult DeveloperMode::SendToBackrooms(Spot::Scene& scene, std::string_view targetName, float duration) {
+    return BackroomsSystem::Get(scene).Send(targetName, duration);
+}
+
+bool DeveloperMode::IsBackroomsActive(const Spot::Scene& scene) {
+    const auto* system = scene.GetSystem<BackroomsSystem>();
+    return system && system->HasRoom();
+}
+
+std::optional<float> DeveloperMode::GetBackroomsTimeLeft(const Spot::Entity& entity) {
+    const auto* system = entity.GetScene().GetSystem<BackroomsSystem>();
+    return system ? system->GetTimeLeft(entity.GetId()) : std::nullopt;
+}
+
+void DeveloperMode::ShowLocalMessageBox(std::string_view title, std::string_view message, Spot::MessageBoxIcon icon) {
+    m_lastMessageBox = MessageBoxRecord{std::string(title), std::string(message), icon};
+    Spot::Window* window = Spot::Application::TryGet() ? &Spot::Application::Get().GetWindow() : nullptr;
+    Spot::MessageBox::Show(title, message, icon, window);
+}
+
+Spot::ConsoleResult DeveloperMode::UseLocalMessageBox(Spot::Scene& scene, std::string_view targetName,
+                                                      std::string_view title, std::string_view message,
+                                                      Spot::MessageBoxIcon icon) {
+    if (title.empty() || message.empty()) {
+        return {false, "Usage: messagebox <player|all> [info|warning|error] [title] <message>"};
+    }
+    const auto targets = FindMessageBoxTargets(scene, targetName);
+    if (targets.entities.empty()) {
+        return {false, targets.error};
+    }
+    if (auto* system = Spot::Network::Get(scene); system && system->IsClient()) {
+        auto* mode = Gameplay::Players::FindComponent<DeveloperMode>(scene);
+        auto* object = mode ? Spot::Network::GetObject(mode->GetEntity()) : nullptr;
+        if (!object) {
+            return {false, "No network player character"};
+        }
+        system->SendToServer(*object, DeveloperMessageBoxRequest{std::string(targetName), std::string(title),
+                                                                 std::string(message), icon});
+        return {true, "Message box requested for " + std::string(targetName)};
+    }
+    return SendMessageBox(scene, targetName, title, message, icon);
+}
+
+Spot::ConsoleResult DeveloperMode::SendMessageBox(Spot::Scene& scene, std::string_view targetName,
+                                                  std::string_view title, std::string_view message,
+                                                  Spot::MessageBoxIcon icon) {
+    if (!Spot::Network::IsServer(scene)) {
+        return {false, "Only the server sends message boxes"};
+    }
+    if (title.empty() || message.empty()) {
+        return {false, "Usage: messagebox <player|all> [info|warning|error] [title] <message>"};
+    }
+    const auto targets = FindMessageBoxTargets(scene, targetName);
+    if (targets.entities.empty()) {
+        return {false, targets.error};
+    }
+    auto* system = Spot::Network::Get(scene);
+    for (Spot::Entity* entity : targets.entities) {
+        auto* object = Spot::Network::GetObject(*entity);
+        if (system && object && object->GetOwner() != Spot::NetPeerId::Invalid) {
+            system->SendToOwner(*object, DeveloperMessageBox{std::string(title), std::string(message), icon});
+        } else if (auto* mode = entity->GetComponent<DeveloperMode>()) {
+            mode->ShowLocalMessageBox(title, message, icon);
+        } else {
+            Spot::Window* window = Spot::Application::TryGet() ? &Spot::Application::Get().GetWindow() : nullptr;
+            Spot::MessageBox::Show(title, message, icon, window);
+        }
+    }
+    return {true, std::format("Shown message box to {}", targetName)};
+}
+
 void DeveloperMode::Authenticate() {
     if (!Spot::Network::IsServer(GetScene())) {
         return;
@@ -1079,6 +1900,18 @@ void DeveloperMode::OnStart() {
     }
 }
 
+void DeveloperMode::OnDisable() {
+    if (!m_inBackrooms) {
+        return;
+    }
+    m_inBackrooms = false;
+    if (GetScene().IsLoaded() && Spot::Network::IsClient(GetScene())) {
+        if (auto* system = GetScene().GetSystem<BackroomsSystem>()) {
+            system->SyncClientRoom();
+        }
+    }
+}
+
 void DeveloperMode::OnUpdate(float deltaTime) {
     m_immortalTime = std::max(0.0f, m_immortalTime - deltaTime);
     if (const auto* health = GetEntity().GetComponent<Gameplay::Health>(); !health || !health->IsGod()) {
@@ -1103,8 +1936,10 @@ void DeveloperMode::Replicate(Spot::Archive& archive) {
     archive.Field("unlocked", m_unlocked);
     archive.Field("immortalTime", m_immortalTime);
     archive.Field("authenticated", m_authenticated);
+    archive.Field("inBackrooms", m_inBackrooms);
     if (archive.IsLoading()) {
         Apply();
+        BackroomsSystem::Get(GetScene()).SyncClientRoom();
     }
 }
 

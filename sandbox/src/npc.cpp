@@ -336,12 +336,12 @@ void Npc::UseItem(bool fire) {
 }
 
 Gameplay::ViewPoint Npc::GetViewPoint() const {
-    Gameplay::ViewPoint view = Pawn::GetViewPoint();
-    if (m_aim) {
-        view.direction = *m_aim;
-        view.rotation = Spot::Quaternion::LookRotation(*m_aim);
-    }
-    return view;
+    const Spot::Entity* from = GetScene().GetEntity(eye);
+    const Spot::Quaternion rotation =
+        m_aim ? Spot::Quaternion::LookRotation(*m_aim) : GetEntity().GetTransform().GetWorldRotation();
+    return {.position = (from ? *from : GetEntity()).GetTransform().GetWorldPosition(),
+            .direction = m_aim ? *m_aim : rotation * Spot::Vector3{0.0f, 0.0f, -1.0f},
+            .rotation = rotation};
 }
 
 void Npc::OnFixedUpdate(float deltaTime) {

@@ -318,3 +318,194 @@ TEST_CASE("Player labels project nearby nicknames and hide distant occluded and 
     game.Run(2);
     CHECK(GetPlayerLabels(game.scene, size).empty());
 }
+
+TEST_CASE("Backrooms command builds a shared yellow maze on demand with per-player timers and death cleanup",
+          "[sandbox][developer][backrooms]") {
+    SandboxTests::Playground game(true);
+    REQUIRE(game.audio);
+    const auto run = [&](int frames) {
+        std::array<float, 1600> samples{};
+        for (int frame = 0; frame < frames; ++frame) {
+            game.Step();
+            game.audio->Render(samples);
+        }
+    };
+    Spot::Console console;
+    SandboxCommands commands(console, game.scene);
+    auto* musicEntity = game.scene.FindEntity("Music");
+    REQUIRE(musicEntity);
+    auto* musicSource = musicEntity->GetComponent<Spot::AudioSource>();
+    REQUIRE(musicSource);
+    auto* localBody = Gameplay::Players::GetBody(game.scene);
+    REQUIRE(localBody);
+    auto& localEntity = localBody->GetEntity();
+    auto* localPawn = localEntity.GetComponent<Gameplay::Pawn>();
+    REQUIRE(localPawn);
+    localPawn->Teleport({-8.0f, 1.0f, 6.0f}, {}, {0.0f, 0.0f, -1.0f});
+
+    auto* friendEntity = game.scene.Instantiate(game.assets.Load<Spot::Prefab>("prefabs/actors/player.prefab"));
+    REQUIRE(friendEntity);
+    auto* friendPawn = friendEntity->GetComponent<Gameplay::Pawn>();
+    REQUIRE(friendPawn);
+    friendPawn->Teleport({12.0f, 1.0f, -4.0f}, {}, {1.0f, 0.0f, 0.0f});
+    auto& friendInfo = game.scene.CreateEntity("Friend Info").AddComponent<Gameplay::PlayerInfo>();
+    friendInfo.name = "Friend";
+    friendInfo.pawn = friendEntity->GetId();
+    run(15);
+    REQUIRE(musicSource->IsPlaying());
+
+    const auto localBefore = localEntity.GetTransform().GetWorldPosition();
+    const auto friendBefore = friendEntity->GetTransform().GetWorldPosition();
+    CHECK_FALSE(DeveloperMode::IsBackroomsActive(game.scene));
+
+    // Requires cheats and valid arguments.
+    CHECK_FALSE(console.Execute("backrooms Friend 10"));
+    console.SetCheatsEnabled(true);
+    CHECK_FALSE(console.Execute("backrooms"));
+    CHECK_FALSE(console.Execute("backrooms Friend"));
+    CHECK_FALSE(console.Execute("backrooms Friend -5"));
+    CHECK_FALSE(console.Execute("backrooms Friend nope"));
+    CHECK_FALSE(console.Execute("backrooms Nobody 10"));
+    CHECK_FALSE(DeveloperMode::IsBackroomsActive(game.scene));
+
+    // Send Player for 60s and Friend for 2s into the same Backrooms instance.
+    REQUIRE(console.Execute("backrooms Player 60"));
+    REQUIRE(DeveloperMode::IsBackroomsActive(game.scene));
+    CHECK_FALSE(musicSource->IsPlaying());
+    auto* backrooms = game.scene.FindEntity("Backrooms");
+    REQUIRE(backrooms);
+    std::size_t ceilingLights = 0;
+    std::size_t ambientLights = 0;
+    for (auto* child : backrooms->GetChildren()) {
+        if (const auto* light = child->GetComponent<Spot::PointLight>()) {
+            if (child->GetName() == "Backrooms Light") {
+                CHECK(light->GetColor() == Spot::Color::White);
+                ++ceilingLights;
+            } else if (child->GetName() == "Backrooms Ambient") {
+                CHECK(light->GetColor().r > light->GetColor().b);
+                ++ambientLights;
+            }
+        }
+    }
+    CHECK(ceilingLights >= 9);
+    CHECK(ambientLights >= 9);
+
+    REQUIRE(console.Execute("backrooms Friend 2"));
+    CHECK(game.scene.FindEntity("Backrooms") == backrooms);
+    CHECK(Spot::Length(localEntity.GetTransform().GetWorldPosition() - DeveloperMode::BackroomsOrigin) < 20.0f);
+    CHECK(Spot::Length(friendEntity->GetTransform().GetWorldPosition() - DeveloperMode::BackroomsOrigin) < 20.0f);
+    REQUIRE(DeveloperMode::GetBackroomsTimeLeft(localEntity).has_value());
+    REQUIRE(DeveloperMode::GetBackroomsTimeLeft(*friendEntity).has_value());
+    CHECK(*DeveloperMode::GetBackroomsTimeLeft(localEntity) > 50.0f);
+    CHECK(*DeveloperMode::GetBackroomsTimeLeft(*friendEntity) <= 2.0f);
+
+    // Advance 2.5 seconds: Friend's 2s timer expires and returns Friend to their last position; Player remains inside.
+    run(150);
+    CHECK_FALSE(DeveloperMode::GetBackroomsTimeLeft(*friendEntity).has_value());
+    CHECK(Spot::Length(friendEntity->GetTransform().GetWorldPosition() - friendBefore) < 0.5f);
+    REQUIRE(DeveloperMode::GetBackroomsTimeLeft(localEntity).has_value());
+    CHECK(*DeveloperMode::GetBackroomsTimeLeft(localEntity) > 55.0f);
+    CHECK(Spot::Length(localEntity.GetTransform().GetWorldPosition() - DeveloperMode::BackroomsOrigin) < 20.0f);
+    CHECK(DeveloperMode::IsBackroomsActive(game.scene));
+    CHECK_FALSE(musicSource->IsPlaying());
+
+    // Duration 0 keeps Friend in the Backrooms until death; updating Player's timer to 1s preserves Player's return
+    // spot.
+    REQUIRE(console.Execute("backrooms Friend 0"));
+    REQUIRE(DeveloperMode::GetBackroomsTimeLeft(*friendEntity).has_value());
+    CHECK(*DeveloperMode::GetBackroomsTimeLeft(*friendEntity) == 0.0f);
+    REQUIRE(console.Execute("backrooms Player 1"));
+    run(90);
+    CHECK_FALSE(DeveloperMode::GetBackroomsTimeLeft(localEntity).has_value());
+    CHECK(Spot::Length(localEntity.GetTransform().GetWorldPosition() - localBefore) < 0.5f);
+    CHECK(musicSource->IsPlaying());
+    // Friend is still inside with duration 0 after 1.5s, so the Backrooms stay alive.
+    REQUIRE(DeveloperMode::GetBackroomsTimeLeft(*friendEntity).has_value());
+    CHECK(DeveloperMode::IsBackroomsActive(game.scene));
+
+    // When Friend dies in the Backrooms, their tracking is removed and the empty Backrooms disappear immediately.
+    REQUIRE(console.Execute("smite Friend"));
+    run(1);
+    CHECK(friendEntity->GetComponent<Gameplay::Health>()->IsDead());
+    CHECK_FALSE(DeveloperMode::GetBackroomsTimeLeft(*friendEntity).has_value());
+    CHECK_FALSE(DeveloperMode::IsBackroomsActive(game.scene));
+
+    // Respawn Friend and verify "backrooms all <duration>" sends every living player and cleans up when they return.
+    friendEntity->GetComponent<Gameplay::Health>()->Restore();
+    friendPawn->Teleport(friendBefore, {}, {1.0f, 0.0f, 0.0f});
+    run(2);
+    REQUIRE(console.Execute("backrooms all 1"));
+    CHECK(DeveloperMode::IsBackroomsActive(game.scene));
+    CHECK(DeveloperMode::GetBackroomsTimeLeft(localEntity).has_value());
+    CHECK(DeveloperMode::GetBackroomsTimeLeft(*friendEntity).has_value());
+    run(90);
+    CHECK_FALSE(DeveloperMode::GetBackroomsTimeLeft(localEntity).has_value());
+    CHECK_FALSE(DeveloperMode::GetBackroomsTimeLeft(*friendEntity).has_value());
+    CHECK_FALSE(DeveloperMode::IsBackroomsActive(game.scene));
+    CHECK(Spot::Length(localEntity.GetTransform().GetWorldPosition() - localBefore) < 0.5f);
+    CHECK(Spot::Length(friendEntity->GetTransform().GetWorldPosition() - friendBefore) < 0.5f);
+}
+
+TEST_CASE("Messagebox command requires cheats and shows diagnostic and error pop-ups on the target player",
+          "[sandbox][developer][messagebox]") {
+    SandboxTests::Playground game;
+    Spot::Console console;
+    SandboxCommands commands(console, game.scene);
+    auto* localMode = Gameplay::Players::FindComponent<DeveloperMode>(game.scene);
+    REQUIRE(localMode);
+
+    auto* friendEntity = game.scene.Instantiate(game.assets.Load<Spot::Prefab>("prefabs/actors/player.prefab"));
+    REQUIRE(friendEntity);
+    auto* friendMode = friendEntity->GetComponent<DeveloperMode>();
+    REQUIRE(friendMode);
+    auto& friendInfo = game.scene.CreateEntity("Friend Info").AddComponent<Gameplay::PlayerInfo>();
+    friendInfo.name = "Friend";
+    friendInfo.pawn = friendEntity->GetId();
+    game.Run(2);
+
+    std::vector<DeveloperMode::MessageBoxRecord> shown;
+    Spot::MessageBox::SetHandler(
+        [&](std::string_view title, std::string_view message, Spot::MessageBoxIcon icon, Spot::Window*) {
+            shown.push_back({std::string(title), std::string(message), icon});
+            return true;
+        });
+
+    CHECK_FALSE(console.Execute("messagebox Friend Hello"));
+    CHECK(shown.empty());
+    console.SetCheatsEnabled(true);
+    CHECK_FALSE(console.Execute("messagebox"));
+    CHECK_FALSE(console.Execute("messagebox Friend"));
+    CHECK_FALSE(console.Execute("messagebox Friend error"));
+    CHECK_FALSE(console.Execute("messagebox Nobody Hello"));
+    CHECK(shown.empty());
+
+    REQUIRE(console.Execute("messagebox Friend Hello there"));
+    REQUIRE(shown.size() == 1);
+    CHECK(shown.back().title == "Sandbox");
+    CHECK(shown.back().message == "Hello there");
+    CHECK(shown.back().icon == Spot::MessageBoxIcon::Information);
+    REQUIRE(friendMode->GetLastMessageBox().has_value());
+    CHECK(friendMode->GetLastMessageBox()->message == "Hello there");
+    CHECK_FALSE(localMode->GetLastMessageBox().has_value());
+
+    REQUIRE(console.Execute("messagebox Player error \"Out of memory\""));
+    REQUIRE(shown.size() == 2);
+    CHECK(shown.back().title == "Error");
+    CHECK(shown.back().message == "Out of memory");
+    CHECK(shown.back().icon == Spot::MessageBoxIcon::Error);
+    REQUIRE(localMode->GetLastMessageBox().has_value());
+    CHECK(localMode->GetLastMessageBox()->icon == Spot::MessageBoxIcon::Error);
+
+    REQUIRE(console.Execute("messagebox Friend warning \"Disk Space\" \"Low disk space\""));
+    REQUIRE(shown.size() == 3);
+    CHECK(shown.back().title == "Disk Space");
+    CHECK(shown.back().message == "Low disk space");
+    CHECK(shown.back().icon == Spot::MessageBoxIcon::Warning);
+
+    REQUIRE(console.Execute("messagebox all info \"Broadcast check\""));
+    CHECK(shown.size() == 5);
+    CHECK(localMode->GetLastMessageBox()->message == "Broadcast check");
+    CHECK(friendMode->GetLastMessageBox()->message == "Broadcast check");
+
+    Spot::MessageBox::SetHandler({});
+}

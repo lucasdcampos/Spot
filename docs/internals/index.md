@@ -60,7 +60,7 @@ leaves it out. A module header compiles on its own (`tests/module_headers/`).
 | Folder | Header | What it holds |
 |---|---|---|
 | `core/` | `<spot/core.h>` | Logging, assertions, memory, files, math, time, jobs, archives (`Archive`), the profiler, ids, asset references, bounds, colors, curves |
-| `platform/` | `<spot/platform.h>` | Windows, events, the input state and actions, processes, shared libraries, the crash handler, RenderDoc capture; SDL3 behind `platform/sdl3/` |
+| `platform/` | `<spot/platform.h>` | Windows, events, the input state and actions, file dialogs, message boxes, processes, shared libraries, the crash handler, RenderDoc capture; SDL3 behind `platform/sdl3/` |
 | `assets/` | `<spot/assets.h>` | Loading imported assets, the built-in assets and their primitive meshes (`PrimitiveMeshes`) |
 | `graphics/` | `<spot/graphics.h>` | The graphics API and its backends (rendering level 1), and the CPU data it uploads: images and meshes (`MeshData`) |
 | `render/`, `audio/`, `physics/`, `animation/`, `particles/` | `<spot/render.h>`, `<spot/audio.h>`… | The systems' APIs, without scenes: the code-only renderers (rendering level 2), the mixer, the physics simulations, poses and clips, particle simulation |

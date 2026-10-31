@@ -415,6 +415,8 @@ loads do not leave stale entity pointers.
 | `imthegamedev` | Unlock the developer skin and Ray Gun for the local player (requires cheats or operator permission) |
 | `smite <player>` | Kill the player with that exact nickname with a visible lightning strike and thunderclap (requires cheats or operator permission) |
 | `yeet <player>` | Launch the player with that exact nickname far away and upward, out of the map (requires cheats or operator permission) |
+| `backrooms <player\|all> <duration>` | Send a player (or `all` living players) to the Backrooms maze for `<duration>` seconds, or `0` until death (requires cheats or operator permission) |
+| `messagebox <player\|all> [info\|warning\|error] [title] <message>` | Open a native modal message box on the target player's window, or on every player's window with `all` (requires cheats or operator permission) |
 
 The developer skin and Ray Gun also unlock automatically when the local machine holds the matching Ed25519 private key
 in `Spot/developer.key` under the user data directory (`%APPDATA%/Spot/developer.key` on Windows), verified on the
@@ -422,11 +424,19 @@ server against `DeveloperMode::DefaultPublicKey` by challenge-response. `Develop
 the server replicates the unlock, and `PlayerInfo::developer` retains it for that player across respawns. Unlocking
 developer mode grants only the skin and Ray Gun, not console cheats or operator powers.
 
-`imthegamedev`, `smite` and `yeet` require cheats or operator permission on both the console and the server, including
-for requests sent directly over the network. Targets use exact nicknames; unknown, ambiguous and dead targets are refused. Smite shares a brief
+`imthegamedev`, `smite`, `yeet`, `backrooms` and `messagebox` require cheats or operator permission on both the console and the server, including
+for requests sent directly over the network. Targets use exact nicknames (or `all` for `backrooms` and `messagebox`); unknown, ambiguous and dead targets are refused. Smite shares a brief
 blue-white lightning bolt, flash and thunderclap (`generated/sounds/thunder.wav`) with every client and applies lethal damage on the server. Yeet ejects a
 seated target and uses `CharacterMovement::Push()`, including its owner notification and movement allowance, to
-launch the character out of the map without turning the normal speed checks off.
+launch the character out of the map without turning the normal speed checks off. `backrooms` creates a transient yellow
+corridor maze (`Backrooms`) around `DeveloperMode::BackroomsOrigin` on demand with patterned yellow wallpaper walls, a
+darker damp loop-pile carpet floor, acoustic ceiling tiles, white fluorescent ceiling panels/lights and warm yellow
+ambient bounce lighting, stops the sandbox music while the local player is inside, saves each player's pre-Backrooms
+world position and forward direction, and tracks an independent return timer per player (`0` keeps the player there until
+death). Dying removes the player from the Backrooms so normal respawn returns them to the map, and the maze entity
+disappears as soon as no players remain inside. `messagebox` routes a
+`Spot::MessageBox::Show()` request to the target player's client (or displays it locally on the host/singleplayer window),
+temporarily releasing relative mouse capture while the native OS dialog is open.
 
 Player nicknames contain 1 to 64 UTF-8 bytes, without whitespace or control characters. `IsValidPlayerName()` in
 `gameplay/core/player_name.h` is shared by admission, host/join validation, preferences and the nickname fields.

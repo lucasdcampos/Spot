@@ -217,6 +217,12 @@ TEST_CASE("Generated humanoid NPCs patrol with blended root motion, footsteps an
     playground.Run(1.0f);
     CHECK(Spot::Length(entity.GetTransform().GetWorldPosition() - start) > 0.3f);
     CHECK(npc->GetFootsteps() > 0);
+    const auto* eyes = playground.scene.GetEntity(npc->eye);
+    REQUIRE(eyes);
+    const Spot::Vector3 facing = entity.GetTransform().GetWorldRotation() * Spot::Vector3{0, 0, -1};
+    const Spot::Vector3 headForward = eyes->GetTransform().GetWorldRotation() * Spot::Vector3{0, 0, -1};
+    CHECK(Spot::Dot(npc->GetViewPoint().direction, facing) > 0.99f);
+    CHECK(Spot::Dot(headForward, facing) > 0.99f);
     auto* ragdoll = entity.GetComponent<Spot::Ragdoll>();
     REQUIRE(ragdoll);
     const auto hitPosition = entity.GetTransform().GetWorldPosition();

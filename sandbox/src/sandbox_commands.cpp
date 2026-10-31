@@ -56,6 +56,52 @@ void RemoveSpawnable(Spot::Entity& entity) {
         RemoveSpawnable(*child);
     }
 }
+
+std::string FormatCommand(std::string_view name, std::span<const std::string> arguments) {
+    std::string line(name);
+    for (const std::string& argument : arguments) {
+        line += ' ';
+        if (!argument.empty() && argument.find_first_of(" \t\"'\\") == std::string::npos) {
+            line += argument;
+            continue;
+        }
+        line += '"';
+        for (const char c : argument) {
+            if (c == '"' || c == '\\') {
+                line += '\\';
+            }
+            line += c;
+        }
+        line += '"';
+    }
+    return line;
+}
+
+std::optional<Spot::MessageBoxIcon> ParseMessageBoxIcon(std::string_view value) {
+    const std::string key = ItemKey(value);
+    if (key == "info" || key == "information") {
+        return Spot::MessageBoxIcon::Information;
+    }
+    if (key == "warn" || key == "warning") {
+        return Spot::MessageBoxIcon::Warning;
+    }
+    if (key == "error") {
+        return Spot::MessageBoxIcon::Error;
+    }
+    return std::nullopt;
+}
+
+std::string_view DefaultMessageBoxTitle(Spot::MessageBoxIcon icon) {
+    switch (icon) {
+    case Spot::MessageBoxIcon::Information:
+        return "Information";
+    case Spot::MessageBoxIcon::Warning:
+        return "Warning";
+    case Spot::MessageBoxIcon::Error:
+        return "Error";
+    }
+    return "Sandbox";
+}
 } // namespace
 
 SandboxCommands::SandboxCommands(Spot::Console& console, Spot::Scene& scene) : m_scene(scene) {
@@ -93,6 +139,66 @@ SandboxCommands::SandboxCommands(Spot::Console& console, Spot::Scene& scene) : m
         if (auto* commands = Gameplay::SessionCommands::Get()) {
             commands->AllowRemote(name, Gameplay::SessionCommands::Permission::Cheat);
         }
+    }
+    m_registrations.push_back(console.Register(
+        {"backrooms",
+         "Send a player or all players to the Backrooms: backrooms <player|all> <duration> (cheats or operators)",
+         ConsoleFlags::Cheat, [this](std::span<const std::string> arguments) -> ConsoleResult {
+             float duration = 0.0f;
+             if (arguments.size() != 2 || !Spot::ParseConsoleValue(arguments[1], duration) ||
+                 !std::isfinite(duration) || duration < 0.0f) {
+                 return {false, "Usage: backrooms <player|all> <duration>"};
+             }
+             auto* commands = Gameplay::SessionCommands::Get();
+             if (commands && commands->IsRemote()) {
+                 return commands->Forward("backrooms " + arguments[0] + " " + arguments[1])
+                            ? ConsoleResult{true, "Sent to the server"}
+                            : ConsoleResult{false, "Not connected to the room"};
+             }
+             return DeveloperMode::UseLocalBackrooms(m_scene, arguments[0], duration);
+         }}));
+    if (auto* commands = Gameplay::SessionCommands::Get()) {
+        commands->AllowRemote("backrooms", Gameplay::SessionCommands::Permission::Cheat);
+    }
+    m_registrations.push_back(console.Register(
+        {"messagebox",
+         "Show a modal message box on a player's window: messagebox <player|all> [info|warning|error] [title] "
+         "<message> (cheats or operators)",
+         ConsoleFlags::Cheat, [this](std::span<const std::string> arguments) -> ConsoleResult {
+             if (arguments.size() < 2) {
+                 return {false, "Usage: messagebox <player|all> [info|warning|error] [title] <message>"};
+             }
+             Spot::MessageBoxIcon icon = Spot::MessageBoxIcon::Information;
+             std::string title = "Sandbox";
+             std::string message;
+             if (const auto parsedIcon = ParseMessageBoxIcon(arguments[1])) {
+                 if (arguments.size() < 3) {
+                     return {false, "Usage: messagebox <player|all> [info|warning|error] [title] <message>"};
+                 }
+                 icon = *parsedIcon;
+                 if (arguments.size() == 3) {
+                     title = DefaultMessageBoxTitle(icon);
+                     message = arguments[2];
+                 } else {
+                     title = arguments[2];
+                     message = ItemName(arguments.subspan(3));
+                 }
+             } else {
+                 message = ItemName(arguments.subspan(1));
+             }
+             if (title.empty() || message.empty()) {
+                 return {false, "Usage: messagebox <player|all> [info|warning|error] [title] <message>"};
+             }
+             auto* commands = Gameplay::SessionCommands::Get();
+             if (commands && commands->IsRemote()) {
+                 return commands->Forward(FormatCommand("messagebox", arguments))
+                            ? ConsoleResult{true, "Sent to the server"}
+                            : ConsoleResult{false, "Not connected to the room"};
+             }
+             return DeveloperMode::UseLocalMessageBox(m_scene, arguments[0], title, message, icon);
+         }}));
+    if (auto* commands = Gameplay::SessionCommands::Get()) {
+        commands->AllowRemote("messagebox", Gameplay::SessionCommands::Permission::Cheat);
     }
     m_registrations.push_back(
         console.Register({"imthegamedev", "Unlock the developer easter egg for your player", ConsoleFlags::Cheat,

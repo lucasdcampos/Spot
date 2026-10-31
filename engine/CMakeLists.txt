@@ -414,6 +414,7 @@ add_library(spot_objects OBJECT
     spot/scene/tween_system.cpp
     spot/platform/clipboard.h
     spot/platform/file_dialog.h
+    spot/platform/message_box.h
     spot/platform/shell.cpp
     spot/platform/shell.h
     spot/platform/window.h
@@ -588,6 +589,7 @@ if(SPOT_PLATFORM STREQUAL "SDL3")
         spot/platform/sdl3/sdl3_clipboard.cpp
         spot/platform/sdl3/sdl3_events.cpp
         spot/platform/sdl3/sdl3_file_dialog.cpp
+        spot/platform/sdl3/sdl3_message_box.cpp
         spot/platform/sdl3/sdl3_mouse_capture.h
         spot/platform/sdl3/sdl3_paths.cpp
         spot/platform/sdl3/sdl3_platform.cpp

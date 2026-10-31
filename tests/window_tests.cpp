@@ -106,3 +106,32 @@ TEST_CASE("File URLs percent-encode what URLs cannot hold", "[window]") {
     CHECK(Spot::Shell::ToFileUrl(std::filesystem::path(u8R"(C:\Games\a#b)")) == "file:///C:/Games/a%23b");
 #endif
 }
+
+TEST_CASE("Message boxes forward their title, message, icon and parent window to the handler", "[window][messagebox]") {
+    const auto window = Spot::Window::Create({.title = "Diagnostic Parent"});
+    REQUIRE(window != nullptr);
+
+    // Without a custom handler, the dummy video driver succeeds without opening a blocking native dialog.
+    CHECK(Spot::MessageBox::Show("Title", "Message", Spot::MessageBoxIcon::Information, window.get()));
+
+    std::string capturedTitle;
+    std::string capturedMessage;
+    Spot::MessageBoxIcon capturedIcon = Spot::MessageBoxIcon::Information;
+    Spot::Window* capturedWindow = nullptr;
+
+    Spot::MessageBox::SetHandler(
+        [&](std::string_view title, std::string_view message, Spot::MessageBoxIcon icon, Spot::Window* parent) {
+            capturedTitle = title;
+            capturedMessage = message;
+            capturedIcon = icon;
+            capturedWindow = parent;
+            return true;
+        });
+    CHECK(Spot::MessageBox::Show("Fatal Error", "Out of video memory", Spot::MessageBoxIcon::Error, window.get()));
+    Spot::MessageBox::SetHandler({});
+
+    CHECK(capturedTitle == "Fatal Error");
+    CHECK(capturedMessage == "Out of video memory");
+    CHECK(capturedIcon == Spot::MessageBoxIcon::Error);
+    CHECK(capturedWindow == window.get());
+}
