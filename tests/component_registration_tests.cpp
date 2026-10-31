@@ -18,7 +18,7 @@ TEST_CASE("System components register explicitly without an application", "[scen
     Spot::RegisterScriptComponents();
 
     const auto names = Spot::GetComponentTypeNames();
-    REQUIRE(names.size() == 54);
+    REQUIRE(names.size() == 56);
     for (const std::string& name : names) {
         const auto component = Spot::CreateComponent(name);
         REQUIRE(component);

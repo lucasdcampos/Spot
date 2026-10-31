@@ -3,6 +3,7 @@
 // Each system's components and Module on scenes (scene/<module>/): rendering, physics, audio, UI, animation,
 // particles (rendering level 3) and networking.
 
+#include "spot/scene/animation/aim_ik.h"
 #include "spot/scene/animation/animation_components.h"
 #include "spot/scene/animation/animation_event_listener.h"
 #include "spot/scene/animation/animation_module.h"
@@ -10,6 +11,7 @@
 #include "spot/scene/animation/bone_attachment.h"
 #include "spot/scene/animation/ragdoll.h"
 #include "spot/scene/animation/skinned_mesh_renderer.h"
+#include "spot/scene/animation/two_bone_ik.h"
 #include "spot/scene/audio/audio_components.h"
 #include "spot/scene/audio/audio_module.h"
 #include "spot/scene/audio/audio_source.h"

@@ -9,4 +9,5 @@
 #include "spot/animation/animation_motion.h"
 #include "spot/animation/animator_controller.h"
 #include "spot/animation/blend_tree.h"
+#include "spot/animation/inverse_kinematics.h"
 #include "spot/animation/pose.h"

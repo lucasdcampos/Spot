@@ -109,6 +109,26 @@ With no target id it finds an animator in its parents. Attachments update after 
 and late gameplay, and previews refresh them too. Missing references restore the authored
 pose and log once; targeting a descendant is rejected. Disabling/destroying releases the pose.
 
+## Inverse kinematics
+
+`Pose::SolveTwoBone()` and `Pose::SolveAim()` (`engine/spot/animation/inverse_kinematics.h`) change a local pose and
+its model pose, without scenes. The two-bone solver is analytic: it bends the middle and upper joints in the plane
+of the chain until the end is as far as the goal (just short of straight when it is out of reach), swings the chain
+onto the goal, then twists it about the line to the goal toward the pole; a straight chain bends toward the pole.
+The end can take the goal's rotation, and the weight slerps the new local rotations in. The aim solver works out the
+direction the last bone should point once, limited by its maximum angle and scaled by its weight, then turns each
+bone of the chain, parents first, by its weight of what is still left.
+
+The components `AimIK` and `TwoBoneIK` (`scene/animation/`) apply them to an animator after it evaluates, through
+`Animator::ApplyConstraints()`, which `AnimationSystem` calls in the serial part of its update, after root motion and
+events and before palettes, since constraints read other entities' transforms. Aims run first, ordered by the index
+of their first bone so a spine's aim comes before a neck's look; then bone attachments are synchronized, so what hangs
+on a turned bone, as a weapon mounted on the chest, is where the limbs reach for it; then the two-bone constraints
+run. Targets are entities (or, for aims, a world position set by code) brought into the animator's model space.
+`Animator::EditPose()` is the public way to write such a constraint. Constraints run only on updates that evaluate
+the animator, so ones with an update interval keep the constrained pose in between; the editor's preview and
+ragdolls do not apply them. Tests: `inverse_kinematics_tests.cpp`.
+
 `Transform::SetWorldOverride()` is the code-only mechanism for derived poses. World queries
 and descendants see the override; local fields and scene serialization retain authored values.
 Clearing it, or editing a local TRS value, restores normal hierarchy calculation. This keeps

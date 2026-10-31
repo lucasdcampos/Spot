@@ -8,9 +8,11 @@
 #include "spot/core/debug/profiler.h"
 #include "spot/core/io/archive.h"
 #include "spot/core/jobs/job_system.h"
+#include "spot/scene/animation/aim_ik.h"
 #include "spot/scene/animation/bone_attachment.h"
 #include "spot/scene/animation/ragdoll.h"
 #include "spot/scene/animation/skinned_mesh_renderer.h"
+#include "spot/scene/animation/two_bone_ik.h"
 #include "spot/scene/scene.h"
 
 #include <algorithm>
@@ -383,6 +385,59 @@ void Animator::RefreshRenderers(std::span<SkinnedMeshRenderer* const> renderers,
     }
 }
 
+void Animator::ApplyConstraints() {
+    std::vector<AimIK*> aims;
+    GetScene().ForEachComponent<AimIK>([&](AimIK& aim) {
+        if (aim.FindAnimator() == this) {
+            aims.push_back(&aim);
+        }
+    });
+    std::vector<TwoBoneIK*> limbs;
+    GetScene().ForEachComponent<TwoBoneIK>([&](TwoBoneIK& limb) {
+        if (limb.FindAnimator() == this) {
+            limbs.push_back(&limb);
+        }
+    });
+    std::vector<BoneAttachment*> attachments;
+    GetScene().ForEachComponent<BoneAttachment>([&](BoneAttachment& attachment) {
+        if (attachment.GetAnimator() == GetEntity().GetId() || attachment.GetAnimator() == EntityId::Invalid) {
+            attachments.push_back(&attachment);
+        }
+    });
+    ApplyConstraints(aims, limbs, attachments);
+}
+
+void Animator::ApplyConstraints(std::span<AimIK* const> aims, std::span<TwoBoneIK* const> limbs,
+                                std::span<BoneAttachment* const> attachments) {
+    if (!m_skeleton || m_model.empty() || (aims.empty() && limbs.empty())) {
+        return;
+    }
+    // Parents first, so a neck looking after the spine aims does not turn twice.
+    std::vector<AimIK*> ordered(aims.begin(), aims.end());
+    std::ranges::stable_sort(ordered, {}, [&](const AimIK* aim) { return aim->GetFirstBoneIndex(*this); });
+    for (AimIK* aim : ordered) {
+        if (aim->IsActiveAndEnabled()) {
+            aim->RunGuarded("AimIK", [&] { aim->Apply(*this); });
+        }
+    }
+    const bool reaching = std::ranges::any_of(
+        limbs, [](const TwoBoneIK* limb) { return limb->IsActiveAndEnabled() && limb->GetWeight() > 0; });
+    if (!reaching) {
+        return;
+    }
+    // What the limbs reach may hang on bones the aims just turned.
+    for (BoneAttachment* attachment : attachments) {
+        if (attachment->IsActiveAndEnabled()) {
+            attachment->RunGuarded("BoneAttachment", [&] { attachment->Synchronize(); });
+        }
+    }
+    for (TwoBoneIK* limb : limbs) {
+        if (limb->IsActiveAndEnabled()) {
+            limb->RunGuarded("TwoBoneIK", [&] { limb->Apply(*this); });
+        }
+    }
+}
+
 bool Animator::SetPose(std::span<const TransformComponents> pose) {
     if (!m_skeleton || pose.size() != m_local.size()) {
         return false;
@@ -490,6 +545,18 @@ void AnimationSystem::OnUpdate(float deltaTime) {
             attachments[attachment.GetAnimator()].push_back(&attachment);
         }
     });
+    std::unordered_map<const Animator*, std::vector<AimIK*>> aims;
+    GetScene().ForEachComponent<AimIK>([&](AimIK& aim) {
+        if (const Animator* target = aim.FindAnimator()) {
+            aims[target].push_back(&aim);
+        }
+    });
+    std::unordered_map<const Animator*, std::vector<TwoBoneIK*>> limbs;
+    GetScene().ForEachComponent<TwoBoneIK>([&](TwoBoneIK& limb) {
+        if (const Animator* target = limb.FindAnimator()) {
+            limbs[target].push_back(&limb);
+        }
+    });
 
     // Poses are worked out together, on the job system's threads: each animator only touches its own state there.
     // What reaches other components, root motion and events, then goes in order, here.
@@ -517,6 +584,15 @@ void AnimationSystem::OnUpdate(float deltaTime) {
             driven = anyAttachments;
             if (const auto found = attachments.find(id); found != attachments.end()) {
                 driven.insert(driven.end(), found->second.begin(), found->second.end());
+            }
+            const auto aimed = aims.find(&animator);
+            const auto reached = limbs.find(&animator);
+            if (aimed != aims.end() || reached != limbs.end()) {
+                animator.ApplyConstraints(aimed != aims.end() ? std::span<AimIK* const>(aimed->second)
+                                                              : std::span<AimIK* const>(),
+                                          reached != limbs.end() ? std::span<TwoBoneIK* const>(reached->second)
+                                                                 : std::span<TwoBoneIK* const>(),
+                                          driven);
             }
             animator.RefreshRenderers(own != renderers.end() ? std::span<SkinnedMeshRenderer* const>(own->second)
                                                              : std::span<SkinnedMeshRenderer* const>(),

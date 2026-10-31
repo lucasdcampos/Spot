@@ -55,6 +55,21 @@ When the hips sway from side to side as the character walks, the character turns
 file and, in its **Import Settings**, add an entry to **animations** with the clip's name and **rootMotionRotation**
 off: the turning then stays in the animation, and the character keeps facing ahead.
 
+## Holding things and looking around
+
+Animations play the same whatever the character holds or looks at. Two components change the pose after them:
+
+- **AimIK** turns a chain of bones so the last one points at a target: list them from the top, as **Spine** then
+  **Chest**, or **Neck** then **Head**. Each turns its **weight** of what is left, so a last weight of 1 aims exactly;
+  **axis** is where the last bone faces (forward, -Z, for most) and **maxAngle** how far it turns at most.
+- **TwoBoneIK** makes a bone and its two parents, as a hand and its arm or a foot and its leg, reach a target entity:
+  a node of a held weapon's model, say. **pole** is where the elbow or knee points, seen from the bone above the
+  chain; **offset** where the hand goes from the target.
+
+Set their **target**, or, for an AimIK, a **target position** from code, and turn them on and off with their
+**weight**. A character's aims turn the pose before its reaches, so a spine can aim a weapon held at the chest while
+both hands hold it.
+
 ## Clip settings
 
 Each entry of a file's **animations** settings finds a clip by its name in the file:
@@ -74,3 +89,5 @@ one long animation.
 
 Blend shapes, such as facial expressions, and lights and cameras in the file are skipped. Opacity textures of their
 own are not supported: put the transparency in the base color's alpha.
+
+Players and NPCs hold weapons with both hands at the model’s grip nodes. Players bleed when shot and fall into a physical ragdoll when killed, including in multiplayer. Restoring their health returns them to their animated body and movement.

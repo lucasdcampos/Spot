@@ -18,8 +18,10 @@ namespace Spot {
 
 enum class RootMotionMode { None, Transform, CharacterController };
 
+class AimIK;
 class BoneAttachment;
 class SkinnedMeshRenderer;
+class TwoBoneIK;
 
 class Animator final : public Component {
 public:
@@ -59,6 +61,23 @@ public:
     const AssetRef<AnimationClip>& GetClip() const { return m_clip; }
     std::span<const TransformComponents> GetLocalPose() const { return m_local; }
     std::span<const Matrix4> GetModelPose() const { return m_model; }
+    // Changes the evaluated pose until the next evaluation, as constraints do after animation: edit receives the
+    // skeleton and the local and model poses, and leaves the model pose following the local one.
+    template <typename F>
+    bool EditPose(F&& edit) {
+        if (!m_skeleton || m_model.size() != m_skeleton->bones.size() || m_local.size() != m_model.size()) {
+            return false;
+        }
+        edit(*m_skeleton, std::span<TransformComponents>(m_local), std::span<Matrix4>(m_model));
+        return true;
+    }
+    // Turns the pose with the AimIK constraints on it, parents first, then makes its TwoBoneIK ones reach, as the
+    // animation system does after each update. Bone attachments follow the turned pose in between, for limbs to
+    // reach what hangs on them.
+    void ApplyConstraints();
+    // The same for the constraints and attachments it has, found beforehand.
+    void ApplyConstraints(std::span<AimIK* const> aims, std::span<TwoBoneIK* const> limbs,
+                          std::span<BoneAttachment* const> attachments);
     // Preview and gameplay use the same evaluator; seeking produces no gameplay callbacks.
     void Seek(float time);
     void Simulate(float deltaTime);

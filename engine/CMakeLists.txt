@@ -194,10 +194,16 @@ add_library(spot_objects OBJECT
     spot/scene/animation/animator_layers.cpp
     spot/scene/animation/bone_attachment.h
     spot/scene/animation/bone_attachment.cpp
+    spot/scene/animation/aim_ik.h
+    spot/scene/animation/aim_ik.cpp
+    spot/scene/animation/two_bone_ik.h
+    spot/scene/animation/two_bone_ik.cpp
     spot/scene/animation/ragdoll.h
     spot/scene/animation/ragdoll.cpp
     spot/animation/pose.h
     spot/animation/pose.cpp
+    spot/animation/inverse_kinematics.h
+    spot/animation/inverse_kinematics.cpp
     spot/animation/animation_binding.h
     spot/animation/animation_binding.cpp
     spot/animation/animation_data.h
