@@ -11,8 +11,11 @@
 #include "undo_list.h"
 
 #include "gameplay/camera/first_person_view.h"
+#include "gameplay/game/game_catalog.h"
 #include "gameplay/game/game_mode.h"
+#include "gameplay/game/map_info.h"
 #include "gameplay/game/session_controls.h"
+#include "gameplay/game/spawn_point.h"
 #include "gameplay/inventory/inventory.h"
 #include "gameplay/weapons/firearm.h"
 #include <spot/scene/ui/ui_input_system.h>
@@ -22,6 +25,7 @@
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -145,6 +149,41 @@ TEST_CASE("Sandbox main menu selects maps and navigates pages with keyboard mous
     CHECK(Spot::Time::GetTimeScale() == 1.0f);
 }
 
+TEST_CASE("Sandbox room pages expose editable settings and support keyboard cancellation", "[sandbox][ui][network]") {
+    InterfaceGame game("scenes/main_menu.scene");
+    auto* menu = game.scene.FindComponent<MainMenu>();
+    REQUIRE(menu);
+    const auto click = [&](Spot::EntityId id) { game.scene.GetEntity(id)->GetComponent<Spot::UiButton>()->Click(); };
+    click(menu->hostButton);
+    CHECK(menu->GetPage() == MainMenu::Page::Host);
+    CHECK(game.scene.GetEntity(menu->hostPanel)->IsActiveInHierarchy());
+    CHECK(game.scene.GetEntity(menu->playPanel)->IsActiveInHierarchy());
+    for (const auto id :
+         {menu->hostName, menu->hostPlayerName, menu->hostPort, menu->hostPlayers, menu->hostPassword}) {
+        const auto* entity = game.scene.GetEntity(id);
+        REQUIRE(entity);
+        CHECK(entity->IsActiveInHierarchy());
+        REQUIRE(entity->GetComponent<Spot::UiInputField>());
+    }
+    game.Send(Spot::KeyPressedEvent{Spot::Key::Escape, false});
+    game.Send(Spot::KeyReleasedEvent{Spot::Key::Escape});
+    CHECK(menu->GetPage() == MainMenu::Page::Home);
+    click(menu->joinButton);
+    CHECK(menu->GetPage() == MainMenu::Page::Join);
+    CHECK(game.scene.GetEntity(menu->joinPanel)->IsActiveInHierarchy());
+    auto* address = game.scene.GetEntity(menu->joinAddress)->GetComponent<Spot::UiInputField>();
+    REQUIRE(address);
+    CHECK(address->GetText() == "127.0.0.1:27015");
+    CHECK(game.scene.GetOrAddSystem<Spot::UiInputSystem>().GetFocusedEntity() == menu->joinAddress);
+    click(menu->joinBack);
+    CHECK(menu->GetPage() == MainMenu::Page::Home);
+    menu->ShowPage(MainMenu::Page::Connecting);
+    CHECK(game.scene.GetEntity(menu->connectingPanel)->IsActiveInHierarchy());
+    CHECK(game.scene.GetOrAddSystem<Spot::UiInputSystem>().GetFocusedEntity() == menu->cancelConnection);
+    click(menu->cancelConnection);
+    CHECK(menu->GetPage() == MainMenu::Page::Home);
+}
+
 TEST_CASE("Main menu settings save and rebinding Escape stays in settings", "[sandbox][ui][maps][settings]") {
     InterfaceGame game("scenes/main_menu.scene");
     auto* menu = game.scene.FindComponent<MainMenu>();
@@ -187,10 +226,11 @@ TEST_CASE("Sandbox empty map has a collidable debug floor and working player too
     CHECK_FALSE(game.scene.FindComponent<NpcSpawner>());
     CHECK_FALSE(game.scene.FindEntity("Workshop"));
     REQUIRE(game.scene.FindComponent<Gameplay::GameMode>());
-    CHECK(game.scene.FindComponent<Gameplay::GameMode>()->restartScene ==
+    REQUIRE(Gameplay::MapInfo::Get(game.scene));
+    CHECK(Gameplay::MapInfo::Get(game.scene)->GetRestartScene() ==
           game.assets.FindByPath("scenes/empty.scene").value());
     REQUIRE(game.scene.FindComponent<Gameplay::SessionControls>());
-    CHECK(game.scene.FindComponent<Gameplay::SessionControls>()->checkpoint == "empty_world.json");
+    CHECK(Gameplay::MapInfo::Get(game.scene)->checkpoint == "empty_world.json");
     auto* inventory = Gameplay::Players::FindComponent<Gameplay::Inventory>(game.scene);
     REQUIRE(inventory);
     CHECK(inventory->GetItems().size() == 6);
@@ -208,6 +248,39 @@ TEST_CASE("Sandbox empty map has a collidable debug floor and working player too
     CHECK(ui.pause.mainMenuScene == game.assets.FindByPath("scenes/main_menu.scene").value());
     game.scene.GetEntity(ui.pause.resumeButton)->GetComponent<Spot::UiButton>()->Click();
     CHECK(Spot::Time::GetTimeScale() == 1.0f);
+}
+
+TEST_CASE("The sandbox maps share Free rules and have sixteen distinct spawn points", "[sandbox][maps][session]") {
+    const std::string_view path = GENERATE("scenes/playground.scene", "scenes/empty.scene");
+    InterfaceGame game(path);
+    Gameplay::MapInfo* map = Gameplay::MapInfo::Get(game.scene);
+    REQUIRE(map);
+    const auto free = game.assets.FindByPath("prefabs/modes/free.prefab");
+    REQUIRE(free);
+    CHECK(map->defaultMode.GetId() == *free);
+    CHECK(map->SupportsMode(*free));
+    CHECK(map->maxPlayers == 16);
+    REQUIRE(Gameplay::GameMode::Get(game.scene));
+    CHECK(Gameplay::GameMode::Get(game.scene)->GetEntity().GetPrefabAssetId() == *free);
+    CHECK_FALSE(map->GetEntity().HasComponent<Gameplay::GameMode>());
+    CHECK_FALSE(map->GetEntity().HasComponent<Gameplay::Hud>());
+    CHECK_FALSE(map->GetEntity().HasComponent<Gameplay::SessionControls>());
+    std::vector<Spot::Vector3> positions;
+    game.scene.ForEachComponent<Gameplay::SpawnPoint>([&](Gameplay::SpawnPoint& spawn) {
+        const auto position = spawn.GetTransform().GetWorldPosition();
+        for (const auto& previous : positions) {
+            CHECK(Spot::Distance(previous, position) > 1.5f);
+        }
+        positions.push_back(position);
+    });
+    CHECK(positions.size() >= static_cast<std::size_t>(map->maxPlayers));
+    Gameplay::MapCatalog maps;
+    Gameplay::ModeCatalog modes;
+    maps.Refresh(game.assets);
+    modes.Refresh(game.assets, "prefabs/modes");
+    REQUIRE(maps.GetEntries().size() == 2);
+    REQUIRE(modes.Find(*free));
+    CHECK(modes.Find(*free)->name == "Free");
 }
 
 TEST_CASE("Sandbox authored HUD and spawn menu route Q and gamepad tabs", "[sandbox][ui]") {

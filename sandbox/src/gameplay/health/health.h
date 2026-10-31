@@ -10,8 +10,9 @@ namespace Gameplay {
 // is "Dead", which parts of it read to stop. It stays dead until the game restores it with Restore().
 //
 // A game changes how damage hurts by overriding AdjustDamage(), as armor would, or replaces Health with a receiver of
-// its own; nothing else knows it.
-class Health : public Spot::Component, public DamageReceiver {
+// its own; nothing else knows it. In a session, the server decides it: damage hurts only there, and the other machines
+// are shown its health, its hurts and its death.
+class Health : public Spot::Component, public DamageReceiver, public Spot::Replicated {
 public:
     float maxHealth = 100.0f;
     // Seconds after the last hurt before health comes back, and how much it comes back each second then.
@@ -32,6 +33,8 @@ public:
     // The damage that killed it.
     Spot::Signal<const DamageInfo&> OnDied;
     Spot::Signal<> OnRestored;
+
+    void Replicate(Spot::Archive& archive) override;
 
 protected:
     // How much health the damage takes, before what is left limits it.

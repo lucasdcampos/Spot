@@ -19,11 +19,12 @@ A shade over that view darkens it per page: lightest on Play, where the map is t
 settings. Controls have no boxes: the focused one, or the one under the pointer, brightens and steps aside, and a
 short accent bar marks it; in the map list the bar marks the selected map instead (`MainMenu::StyleText`).
 
-Home offers Play, Settings and Quit. Play lists the authored `maps`, each with its scene, name, description, details
-and preview camera position/target. Selecting one changes the view behind the menu and its details; Start
-instantiates that scene and queues its replacement through `Application::LoadScene()`. A failed load displays an
-error and leaves the menu available. Adding a map means adding its text button and entry in the scene; the
-selection is kept while moving between pages, and Home shows it too.
+Home offers Play, Settings and Quit. Play discovers scenes through `MapCatalog`, using each scene's `MapInfo` for
+its name, description, details and preview. It clones the authored `mapButtonTemplate` into `mapScroll`, which clips
+and scrolls larger catalogs, preserving keyboard and gamepad focus. Selecting a map changes its view and details;
+Start validates and instantiates its default mode prefab before queuing the scene through `Application::LoadScene()`.
+A failed load or invalid mode displays an error and leaves the menu available. Adding a scene with `MapInfo` adds
+it to the menu without editing the menu scene. Selection is kept between pages, and Home shows it too.
 
 Previews use a separate `SceneRenderer` through the public BeforeOpaque render hook. Each selected map is instantiated
 once for its preview with canvases and player cameras disabled and an authored overview camera added. This scene is
@@ -38,9 +39,10 @@ Cancel. The menu releases the cursor and never pauses simulation time.
 
 Playground remains `assets/scenes/playground.scene`. Empty Map (`assets/scenes/empty.scene`) keeps the same player,
 inventory, tools, effects and HUD, with a single 200 by 200 meter collidable floor, a sky and a directional light.
-Its `materials/debug_grid.material` uses the built-in debug checker texture, repeated every eight meters (one meter per square). `GameControls::spawnNpcs`
-is false there, so the fallback NPC population does not fill the empty map. Its restart scene points to itself
-and its checkpoint is `empty_world.json`, separate from the playground's checkpoint.
+Its `materials/debug_grid.material` uses the built-in debug checker texture, repeated every eight meters (one meter
+per square). Both maps select `prefabs/modes/free.prefab` through `MapInfo` and provide sixteen spawn points. The
+playground authors the NPC population prefab as map content; the empty map has none. Checkpoint and restart settings
+live on `MapInfo`: the empty map restarts itself and saves to `empty_world.json`.
 
 Both maps offer Main Menu in the pause menu. Returning closes the pause menu before replacing the scene, restoring
 simulation time; the startup menu releases the cursor again. The executable's `--smoke-test` exercises this route
@@ -80,10 +82,11 @@ The level's surfaces are generated PBR texture sets (grass, gravel, asphalt, pav
 corrugated steel, tread plate, rock, bark, leaves, needles and water), used by the materials in `materials/level/`,
 most projected from the world (`worldTextureSize`) so they keep their scale on boxes of any size, their normal maps
 included. Most are painted pixel by pixel from noise and cells (`generator/level_textures.cpp`); the grass, leaves
-and needles are painted stroke by stroke (`generator/foliage_textures.cpp`): the lawn from tens of thousands of
+and needles use `generator/foliage_textures.cpp`: the lawn is painted stroke by stroke from tens of thousands of
 blades in tufts over straw and soil, with rosettes of broadleaf weeds, clover and a few flowers, repeating every four
-meters, and the foliage as a twig of oak leaves and a spray
-of spruce needles cut out by their alpha, imported with `keepAlphaCoverage` so they do not thin out from afar. Its
+meters, and the foliage as an individual lobed oak leaf and a spray
+of spruce needles cut out by their alpha. The broad oak blade is evaluated per texel to keep its veins continuous;
+foliage is imported with `keepAlphaCoverage` so they do not thin out from afar. Its
 models (`generator/level_models.cpp`) are the terrain, rocks, trees, the container, the street lamp, the barrier, the
 bench, the quarter pipe and the fence panel. The terrain also contains sparse ground-cover meshes: curved,
 tapered grass blades in two greens and dry straw, small stones and fallen twigs. Fixed seeds and broad noise patches
@@ -96,14 +99,18 @@ bounds reach within `drawDistance` (25 meters by default) of its referenced play
 hysteresis at the boundary. With no player reference it follows the main camera. Distant cells submit no color,
 depth or shadow draws; the ground's grass texture remains visible. The original renderer stays available for
 authoring and is restored if the component is disabled. Generated chunk entities keep no persistent ids or physics.
-The trees are grown by `generator/trees.cpp`: branches as tapering tubes
-that split into smaller ones, with buttress roots at the trunk's foot, and foliage as double-sided cards whose normals
-point out of the crown, so it is lit as a whole. The sprays bend along their length, oaks carry fuller clusters, and
-pines have alternating side shoots and irregular branch lengths. Leaf and needle PBR maps are 1024 pixels wide,
-with mottled leaf blades, worn edges, fresh needle tips and varied roughness. Bark uses 2048-pixel PBR maps with
-longitudinal fissures, fine fibers and pores, weathered grey-brown ridges, sparse lichen and healed branch scars.
-Its relief comes from the normal map, with restrained color contrast and roughness varying between worn surfaces
-and crevices. Branch UVs have separate offsets and repeat every two meters to reduce recognizable repetition.
+The trees are grown by `generator/trees.cpp`: smoothly tapered, subtly fluted tubes split into smaller branches,
+with 32 sides around the oak trunk, denser longitudinal rings and buttress roots at its foot. Oaks carry individual
+curved leaf meshes along their woody twigs, distributed at irregular golden angles. Each blade folds around its
+midrib and curls independently; most of its shading follows its own surface, with a small crown-normal contribution.
+Pines retain texture-cutout needle sprays, subdivided and folded across both axes, with smoother trunks and branches.
+Leaf and needle PBR maps are 1024 pixels wide. The oak map covers one lobed leaf with a stalk, primary and secondary
+veins, fine surface cells, subtle mottling and rougher edges. It has no baked cluster shadow, allowing individual
+leaves to receive scene lighting. Bark uses 2048-pixel PBR maps with longitudinal fissures, fine fibers and pores,
+weathered grey-brown ridges, sparse lichen and healed branch scars. Restrained normal relief and varied roughness
+keep the wood matte without making its plates look inflated. Branch UVs have separate offsets and repeat every two
+meters to reduce recognizable repetition. Existing asset ids, branch skeletons and trunk collision dimensions remain
+compatible with the scene and wind animation.
 
 `LevelModels::GetForestTrees()` places 180 trees around the hills using fixed seeds, varied scales, a minimum
 distance between trunks and a slope limit. The paved playground remains clear. The forest still merges into three
@@ -173,7 +180,7 @@ controls are:
 | Grave (`) | Open or close the developer console |
 
 The player is the prefab `prefabs/actors/player.prefab`, the gameplay framework's `Character` (see
-[the gameplay framework](sandbox_gameplay.md)). Neither map places it: the `GameMode` on the Game entity makes it at the
+[the gameplay framework](sandbox_gameplay.md)). Neither map places it: the `GameMode` in the Free mode prefab makes it at the
 map's `SpawnPoint` for the `PlayerController` on the Player Controller entity, which possesses it and through which
 every part of the player reads its input. Its
 `FirstPersonView.head` reference points to its Head child with the active camera, which is also the pawn's `eye` and
@@ -182,8 +189,8 @@ every part of the player reads its input. Its
 yaw, and noclip also follows its pitch. Keep these references assigned in the prefab so movement, aiming and the
 rendered view agree. Use goes through the pawn's `Interactor`: the car's `VehicleSeat` and light props (`Carrier`)
 are what it can use. `GameMode` owns starting positions and respawn, and `SessionControls` owns cursor capture,
-Pause, Restart and the quick-save shortcuts. `GameControls` keeps the sandbox's console rules, NPC population and
-developer tools font. See [session and game rules](sandbox_gameplay.md#session-and-game-rules).
+Pause, Restart and the quick-save shortcuts. The mode's `GameControls` keeps the sandbox's console rules and developer
+tools font; the NPC population belongs to the map. See [session and game rules](sandbox_gameplay.md#session-and-game-rules).
 
 Gamepad bindings are in the same settings. Spawn cycles through the catalog rather than requiring a separate
 button per entry. The tool gun's right mouse/Aim action cycles colors, materials or lamp kinds in those modes.
@@ -509,6 +516,14 @@ stretched along its flight (`fx_blood_spatter` runs down its texture), and drips
 reflect light over their whole square; a bounded pool reuses the oldest, each follows the entity it is on and goes
 with it, fades by raising its cutoff, and is never saved.
 
+Both maps author a restrained blood response: six entry particles and ten exit particles, with millimeter-sized
+drops that slow down and fade within 0.3 seconds, plus a single brief mist puff on each side. Velocity stretch adds
+`speed * velocityStretch` meters to a particle's length, so blood uses values of 0.003 to 0.005 seconds to keep its
+streaks short. Characters leave two small spatter marks at most, a small mark below the wound and one nearby drip;
+their mark sizes range from 4 to 14 centimeters, with spatter limited to 2.2 meters behind the hit.
+The blood GPU test loads each map's cooked effects into a fixed view, bounds the spray's rendered footprint and
+particle count, checks that it disappears, and captures its early, dispersing and fading stages.
+
 Play-test: fire each weapon at wood, metal, the ground and the pond; detonate a barrel, a rocket on the ground and
 one on the water; throw a crate into the pond; hold, move and release a prop with the physics gun. Check that the
 flash, sparks, dust, fire, smoke, embers, debris and splashes appear and fade, that ripples spread on the water,
@@ -645,8 +660,11 @@ running it over) that does not kill it knocks it down as a ragdoll; it gets up a
 `animationNear` (12 m), and 12 times beyond `animationFar` (30 m).
 
 `prefabs/actors/npc.prefab` is unarmed; `npc_armed.prefab` adds the pistol prefab to its editable loadout. Both have
-an Inventory and the framework's WorldModel. The character prefab supplies a BoneAttachment at its right hand,
-the weapon grip offset, and the Holding animation layer and bone mask. WorldModel follows the selected item's
+an Inventory and the framework's WorldModel. The character prefab supplies the weapon mount, a BoneAttachment on the
+chest in front of the right shoulder, and the Holding animation layer and bone mask. Its Aim (Spine, Chest) and Look
+(Neck, Head) AimIK entities, which CharacterAim points where the pawn looks, pitch the body and head; its hand reach
+TwoBoneIK entities hold the weapon's RightHand and LeftHand markers with both hands, their offsets and poles fitted
+to the humanoid's hand boxes. `player_body.prefab` has the same. WorldModel follows the selected item's
 model and toggles that layer; it knows no skeleton, bone name, weapon class or sandbox asset path. Its muzzle
 position supplies the firearm's effects when there is no first-person ViewModel. NPCs carry weapons without
 reading local input; `Inventory::Use()` accepts controller/test intents for firing and reloading.
@@ -685,3 +703,27 @@ Rotor-driven branch flexion and twist now use 40% of their original amplitude. F
 instances of three sparse, articulated models, preserving the generated placements and original trunk colliders.
 Their main branches, side shoots and leaders have independent joints; needles follow their supporting branches.
 The old merged forest bark and needles renderers are disabled; the rock renderer remains active.
+
+### Grass surface generation
+
+`generator/foliage_textures.cpp` paints grass as narrow curved blades over granular soil and dry straw,
+without broadleaf rosettes or clover overlays. Independent periodic noise fields control coverage and dryness
+at several scales; shared coverage leaves irregular soil openings through the living layers. Blade counts
+are independent of output resolution, while widths and lengths scale with it, preserving the same distribution.
+Low relief and restrained occlusion keep crossings readable without deep outlines. All strokes wrap across
+tile edges, and fixed seeds keep generated albedo, normal and packed material maps reproducible.
+
+Grass tufts share a preferred direction and a width range, with individual curved, tapering and twisting
+blades. Faint longitudinal mottling and bleached tips vary their color. Coverage stays high even in thin
+patches so soil reads as small interstices. Each blade casts a restrained offset contact shadow only onto
+lower surfaces; this preserves their height and roughness, and wraps at the tile boundaries as the blades do.
+
+The lawn separates a dark organic base, short low straw and taller living tufts. Straw relief stays below
+living blades so height-tested contact shadows reach the litter. A local habitat field varies tuft stature
+and blade count, while finer independent dryness fields avoid broad yellow clouds. Upper blades use a wider
+range of ribbon widths, folded cross sections and occasional blunt tips, with fewer loose hairlike strokes.
+
+Most living blades are narrow, with a squared random width distribution reserving broad ribbons for a
+minority. Restrained cross-section shading, relief and contact shadows blend them into a continuous canopy.
+Periodic domain warping breaks up the larger green/dry regions, with finer dryness variation within them;
+creased width profiles give some blades an edge-on fold without adding high-contrast detail.

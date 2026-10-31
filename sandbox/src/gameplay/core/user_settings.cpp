@@ -49,6 +49,7 @@ void ForEachListener(Spot::Scene& scene, const std::function<void(UserSettingsLi
 } // namespace
 
 void UserSettings::Serialize(Spot::Archive& archive) {
+    archive.Field("playerName", playerName);
     archive.Field("sensitivity", sensitivity);
     archive.Field("fieldOfView", fieldOfView);
     archive.Field("masterVolume", masterVolume);
@@ -61,6 +62,10 @@ void UserSettings::Serialize(Spot::Archive& archive) {
 }
 
 void UserSettings::Validate() {
+    if (playerName.empty() || playerName.size() > 64 ||
+        std::ranges::any_of(playerName, [](unsigned char c) { return c < 32 || c == 127; })) {
+        playerName = "Player";
+    }
     sensitivity = Clamp(sensitivity, 0.0002f, 0.02f, 0.0025f);
     fieldOfView = Clamp(fieldOfView, 45.0f, 120.0f, 60.0f);
     masterVolume = Clamp(masterVolume, 0.0f, 1.0f, 1.0f);

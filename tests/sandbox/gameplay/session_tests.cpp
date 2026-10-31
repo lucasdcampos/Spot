@@ -6,6 +6,7 @@
 #include "gameplay/core/players.h"
 #include "gameplay/game/death_screen_element.h"
 #include "gameplay/game/game_mode.h"
+#include "gameplay/game/map_info.h"
 #include "gameplay/game/session_controls.h"
 #include "gameplay/game/spawn_point.h"
 #include "gameplay/health/health.h"
@@ -165,7 +166,7 @@ TEST_CASE("Session quick save and load work without sandbox components", "[sandb
     TempDirectory directory;
     auto& session = world.scene.CreateEntity("Session").AddComponent<Gameplay::SessionControls>();
     session.SetSaveDirectory(directory.GetPath());
-    session.checkpoint = "checkpoint.json";
+    world.scene.CreateEntity("Map").AddComponent<Gameplay::MapInfo>().checkpoint = "checkpoint.json";
     session.saveAction = "Save";
     session.loadAction = "Load";
     world.actions.Add(session.saveAction, Spot::InputActionType::Button).Bind(Spot::InputControl::Of(Spot::Key::F9));

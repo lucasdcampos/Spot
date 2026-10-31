@@ -25,6 +25,10 @@ Vehicle* VehicleSeat::GetVehicle() const {
 }
 
 Pawn* VehicleSeat::GetOccupant() const {
+    if (Spot::Network::IsClient(GetScene())) {
+        const Vehicle* vehicle = GetVehicle();
+        return vehicle ? vehicle->GetOccupant() : nullptr;
+    }
     const Spot::Entity* entity = GetScene().GetEntity(m_occupant);
     return entity ? entity->GetComponent<Pawn>() : nullptr;
 }
@@ -57,6 +61,9 @@ void VehicleSeat::Interact(Interactor& interactor) {
 }
 
 bool VehicleSeat::Enter(Pawn& occupant) {
+    if (!Spot::Network::IsServer(GetScene())) {
+        return false;
+    }
     Vehicle* vehicle = GetVehicle();
     Controller* controller = occupant.GetController();
     if (!IsActiveAndEnabled() || !vehicle || !vehicle->IsActiveAndEnabled() || !vehicle->IsOperational() ||
@@ -86,6 +93,9 @@ bool VehicleSeat::Enter(Pawn& occupant) {
 }
 
 void VehicleSeat::Exit() {
+    if (!Spot::Network::IsServer(GetScene())) {
+        return;
+    }
     const bool occupied = m_occupant != Spot::EntityId::Invalid;
     Pawn* occupant = GetOccupant();
     Vehicle* vehicle = GetVehicle();
@@ -173,7 +183,7 @@ Spot::Vector3 VehicleSeat::FindExit(const Vehicle& vehicle, const Pawn& occupant
 void VehicleSeat::OnLateUpdate(float /*deltaTime*/) {
     if (Pawn* occupant = GetOccupant()) {
         PlaceOccupant(*occupant);
-    } else if (m_occupant != Spot::EntityId::Invalid) {
+    } else if (Spot::Network::IsServer(GetScene()) && m_occupant != Spot::EntityId::Invalid) {
         Exit();
     }
 }

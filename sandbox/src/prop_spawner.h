@@ -3,6 +3,7 @@
 #include "spawnable.h"
 
 #include "gameplay/core/input_context.h"
+#include "gameplay/core/player_input.h"
 #include "gameplay/persistence/world_save.h"
 
 #include <spot.h>
@@ -24,8 +25,10 @@ struct SpawnableItem {
 // spawn menu is placed instead: a translucent preview of it follows the aim until Fire places it there or Aim cancels.
 // While placing, and after until Fire and Aim are released, so the press that places or cancels uses nothing else, it
 // takes them from everything else, and the player is "Placing"; getting into a vehicle, or dying, cancels it. What it
-// spawns is Persistent, so saves keep it, and tagged as spawned, so it is tracked again after a save loads.
-class PropSpawner final : public Spot::Component, public Gameplay::SaveListener {
+// spawns is Persistent, so saves keep it, and tagged as spawned, so it is tracked again after a save loads. On a
+// machine that does not decide its pawn, spawning and cleaning up are requests the server carries out, where the
+// player looked, if that is within reach.
+class PropSpawner final : public Spot::Component, public Gameplay::SaveListener, public Gameplay::PlayerInputListener {
 public:
     static constexpr std::string_view SpawnedTag = "Spawned";
 
@@ -54,6 +57,10 @@ public:
     void ClearTracked() { m_spawned.clear(); }
 
 protected:
+    // The actions are read as it updates, so the input itself does nothing.
+    void OnPlayerInput(Gameplay::PlayerController& /*player*/) override {}
+    // Saving takes the requests, which are sent once.
+    void SerializeIntent(Spot::Archive& archive) override;
     void OnAfterLoad(std::span<Spot::Entity* const> roots) override;
     void OnStart() override;
     void OnUpdate(float deltaTime) override;
@@ -67,6 +74,14 @@ private:
         // Turned to face where the player looks.
         Spot::Quaternion facing;
     };
+    struct Request {
+        int index = 0;
+        Spot::Vector3 position;
+        Spot::Quaternion facing;
+
+        void Serialize(Spot::Archive& archive);
+    };
+    Spot::Entity* SpawnAt(std::size_t index, const Placement& placement);
     std::optional<Placement> FindPlacement(const SpawnableItem& item) const;
     void UpdatePreview();
     // Tells the pawn it is placing, for the crosshair to mark where.
@@ -85,4 +100,6 @@ private:
                                                 "Spawn 7", "Spawn 8", "Spawn", "Clean Up"}}};
     Gameplay::InputContext m_place{{.name = "Place", .priority = 40, .actions = {"Fire", "Aim"}}};
     bool m_holdingClick = false;
+    std::vector<Request> m_requests;
+    bool m_cleanupRequested = false;
 };

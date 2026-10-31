@@ -96,7 +96,15 @@ void Vehicle::OnPlayerInput(PlayerController& player) {
     m_input = controls.Read(m_context);
     if (seat && m_context.IsPressed(seat->exitAction)) {
         m_context.Consume(seat->exitAction);
-        seat->Exit();
+        Request("Gameplay.ExitVehicle");
+    }
+}
+
+void Vehicle::OnPlayerRequest(std::string_view request) {
+    if (request == "Gameplay.ExitVehicle") {
+        if (VehicleSeat* seat = GetSeat()) {
+            seat->Exit();
+        }
     }
 }
 

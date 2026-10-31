@@ -4,35 +4,34 @@
       "active": true,
       "components": [
         {
-          "data": {
-            "cheats": true,
-            "npcs": null
-          },
+          "type": "MapInfo",
+          "id": "8833253683124a86b93275fff89e62dd",
           "enabled": true,
-          "id": "20bf8bf7e39e62a3eee0d6f3f9eccd7c",
-          "type": "GameControls"
-        },
-        {
           "data": {
-            "fallHeight": -20.0,
-            "respawnTime": 4.0,
+            "name": "Playground",
+            "description": "Discover the valley, drive vehicles and experiment with physics in a world built for play.",
+            "details": "EXPLORATION   /   VEHICLES   /   PHYSICS",
+            "previewPosition": [
+              38,
+              28,
+              45
+            ],
+            "previewTarget": [
+              0,
+              1,
+              -6
+            ],
+            "order": 0,
+            "maxPlayers": 16,
+            "preview": null,
+            "modes": [
+              "990f1d465c2b98a39678b6aeec2583c3"
+            ],
+            "defaultMode": "990f1d465c2b98a39678b6aeec2583c3",
+            "checkpoint": "world.json",
             "restartScene": "72c16925ad8b47f25561eaf729da4319",
-            "playerPrefab": "58afa6cb32bc1eae562a0603ef2ca4d4"
-          },
-          "enabled": true,
-          "id": "a0646f3eb2525162dc48dba7ee2f7393",
-          "type": "GameMode"
-        },
-        {
-          "data": {
-            "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "interface": "33112ac78713dfacea15cc45836f8de1",
-            "introTime": 12.0,
-            "playerIndex": 0
-          },
-          "enabled": true,
-          "id": "ff07ebf144035909c063b80d05df8e18",
-          "type": "Hud"
+            "introTime": 12.0
+          }
         },
         {
           "data": {
@@ -1250,7 +1249,7 @@
               {
                 "layers": [
                   {
-                    "count": 30,
+                    "count": 5,
                     "lit": true,
                     "offset": 0.0,
                     "scale": 1.0,
@@ -1280,7 +1279,7 @@
                               1.0,
                               1.0
                             ],
-                            "time": 0.8
+                            "time": 0.35
                           },
                           {
                             "color": [
@@ -1293,7 +1292,7 @@
                           }
                         ]
                       },
-                      "coneAngle": 0.9,
+                      "coneAngle": 0.7,
                       "duration": 5.0,
                       "emissionRate": 0.0,
                       "facing": 1,
@@ -1306,13 +1305,13 @@
                         0.0
                       ],
                       "lifetime": {
-                        "max": 0.9,
-                        "min": 0.35
+                        "min": 0.1,
+                        "max": 0.22
                       },
                       "loop": false,
                       "maxParticles": 512,
                       "playOnStart": false,
-                      "radius": 0.029999999329447746,
+                      "radius": 0.012,
                       "rotation": {
                         "max": 0.0,
                         "min": 0.0
@@ -1330,47 +1329,59 @@
                       "seed": 7,
                       "shape": 2,
                       "size": {
-                        "max": 0.026,
-                        "min": 0.008
+                        "min": 0.003,
+                        "max": 0.011
                       },
                       "sizeOverLifetime": {
                         "keys": [
                           {
-                            "inTangent": 0.0,
-                            "outTangent": 0.0,
+                            "inTangent": -0.35,
+                            "outTangent": -0.35,
                             "time": 0.0,
                             "value": 1.0
+                          },
+                          {
+                            "inTangent": -0.35,
+                            "outTangent": -0.35,
+                            "time": 1.0,
+                            "value": 0.65
                           }
                         ]
                       },
-                      "softDistance": 0.0,
+                      "softDistance": 0.015,
                       "space": 1,
                       "speed": {
-                        "max": 4.0,
-                        "min": 0.8
+                        "min": 0.8,
+                        "max": 2.5
                       },
                       "speedOverLifetime": {
                         "keys": [
                           {
-                            "inTangent": 0.0,
-                            "outTangent": 0.0,
+                            "inTangent": -0.65,
+                            "outTangent": -0.65,
                             "time": 0.0,
                             "value": 1.0
+                          },
+                          {
+                            "inTangent": -0.65,
+                            "outTangent": -0.65,
+                            "time": 1.0,
+                            "value": 0.35
                           }
                         ]
                       },
                       "startColor": [
                         0.16,
+                        0.006,
                         0.004,
-                        0.003,
-                        1.0
+                        0.9
                       ],
-                      "velocityStretch": 0.35
+                      "velocityStretch": 0.004
                     },
                     "texture": null
                   },
                   {
-                    "count": 8,
+                    "count": 1,
                     "lit": true,
                     "offset": 0.0,
                     "scale": 1.0,
@@ -1400,7 +1411,7 @@
                               1.0,
                               1.0
                             ],
-                            "time": 0.20000000298023224
+                            "time": 0.1
                           },
                           {
                             "color": [
@@ -1413,7 +1424,7 @@
                           }
                         ]
                       },
-                      "coneAngle": 0.800000011920929,
+                      "coneAngle": 0.65,
                       "duration": 5.0,
                       "emissionRate": 0.0,
                       "facing": 0,
@@ -1426,16 +1437,16 @@
                         0.0
                       ],
                       "lifetime": {
-                        "max": 0.6,
-                        "min": 0.25
+                        "min": 0.08,
+                        "max": 0.14
                       },
                       "loop": false,
                       "maxParticles": 512,
                       "playOnStart": false,
-                      "radius": 0.029999999329447746,
+                      "radius": 0.012,
                       "rotation": {
-                        "max": 0.0,
-                        "min": 0.0
+                        "min": 0.0,
+                        "max": 6.283185307179586
                       },
                       "rotationOverLifetime": {
                         "keys": [
@@ -1450,46 +1461,52 @@
                       "seed": 8,
                       "shape": 2,
                       "size": {
-                        "max": 0.12,
-                        "min": 0.05
+                        "min": 0.025,
+                        "max": 0.045
                       },
                       "sizeOverLifetime": {
                         "keys": [
                           {
-                            "inTangent": 2.0,
-                            "outTangent": 2.0,
+                            "inTangent": 0.6000000000000001,
+                            "outTangent": 0.6000000000000001,
                             "time": 0.0,
                             "value": 1.0
                           },
                           {
-                            "inTangent": 2.0,
-                            "outTangent": 2.0,
+                            "inTangent": 0.6000000000000001,
+                            "outTangent": 0.6000000000000001,
                             "time": 1.0,
-                            "value": 3.0
+                            "value": 1.6
                           }
                         ]
                       },
-                      "softDistance": 0.30000001192092896,
+                      "softDistance": 0.04,
                       "space": 1,
                       "speed": {
-                        "max": 1.0,
-                        "min": 0.2
+                        "min": 0.15,
+                        "max": 0.55
                       },
                       "speedOverLifetime": {
                         "keys": [
                           {
-                            "inTangent": 0.0,
-                            "outTangent": 0.0,
+                            "inTangent": -0.85,
+                            "outTangent": -0.85,
                             "time": 0.0,
                             "value": 1.0
+                          },
+                          {
+                            "inTangent": -0.85,
+                            "outTangent": -0.85,
+                            "time": 1.0,
+                            "value": 0.15
                           }
                         ]
                       },
                       "startColor": [
-                        0.2,
+                        0.18,
                         0.01,
                         0.008,
-                        0.45
+                        0.18
                       ],
                       "velocityStretch": 0.10000000149011612
                     },
@@ -1501,7 +1518,7 @@
               {
                 "layers": [
                   {
-                    "count": 45,
+                    "count": 7,
                     "lit": true,
                     "offset": 0.0,
                     "scale": 1.0,
@@ -1531,7 +1548,7 @@
                               1.0,
                               1.0
                             ],
-                            "time": 0.8
+                            "time": 0.35
                           },
                           {
                             "color": [
@@ -1544,7 +1561,7 @@
                           }
                         ]
                       },
-                      "coneAngle": 0.35,
+                      "coneAngle": 0.28,
                       "duration": 5.0,
                       "emissionRate": 0.0,
                       "facing": 1,
@@ -1557,13 +1574,13 @@
                         0.0
                       ],
                       "lifetime": {
-                        "max": 1.1,
-                        "min": 0.4
+                        "min": 0.12,
+                        "max": 0.26
                       },
                       "loop": false,
                       "maxParticles": 512,
                       "playOnStart": false,
-                      "radius": 0.029999999329447746,
+                      "radius": 0.012,
                       "rotation": {
                         "max": 0.0,
                         "min": 0.0
@@ -1581,47 +1598,59 @@
                       "seed": 9,
                       "shape": 2,
                       "size": {
-                        "max": 0.03,
-                        "min": 0.006
+                        "min": 0.004,
+                        "max": 0.014
                       },
                       "sizeOverLifetime": {
                         "keys": [
                           {
-                            "inTangent": 0.0,
-                            "outTangent": 0.0,
+                            "inTangent": -0.35,
+                            "outTangent": -0.35,
                             "time": 0.0,
                             "value": 1.0
+                          },
+                          {
+                            "inTangent": -0.35,
+                            "outTangent": -0.35,
+                            "time": 1.0,
+                            "value": 0.65
                           }
                         ]
                       },
-                      "softDistance": 0.0,
+                      "softDistance": 0.015,
                       "space": 1,
                       "speed": {
-                        "max": 9.0,
-                        "min": 3.0
+                        "min": 1.4,
+                        "max": 3.8
                       },
                       "speedOverLifetime": {
                         "keys": [
                           {
-                            "inTangent": 0.0,
-                            "outTangent": 0.0,
+                            "inTangent": -0.65,
+                            "outTangent": -0.65,
                             "time": 0.0,
                             "value": 1.0
+                          },
+                          {
+                            "inTangent": -0.65,
+                            "outTangent": -0.65,
+                            "time": 1.0,
+                            "value": 0.35
                           }
                         ]
                       },
                       "startColor": [
                         0.16,
+                        0.006,
                         0.004,
-                        0.003,
-                        1.0
+                        0.9
                       ],
-                      "velocityStretch": 0.5
+                      "velocityStretch": 0.005
                     },
                     "texture": null
                   },
                   {
-                    "count": 14,
+                    "count": 2,
                     "lit": true,
                     "offset": 0.0,
                     "scale": 1.0,
@@ -1651,7 +1680,7 @@
                               1.0,
                               1.0
                             ],
-                            "time": 0.8
+                            "time": 0.4
                           },
                           {
                             "color": [
@@ -1664,7 +1693,7 @@
                           }
                         ]
                       },
-                      "coneAngle": 0.6,
+                      "coneAngle": 0.45,
                       "duration": 5.0,
                       "emissionRate": 0.0,
                       "facing": 1,
@@ -1677,13 +1706,13 @@
                         0.0
                       ],
                       "lifetime": {
-                        "max": 0.9,
-                        "min": 0.4
+                        "min": 0.16,
+                        "max": 0.3
                       },
                       "loop": false,
                       "maxParticles": 512,
                       "playOnStart": false,
-                      "radius": 0.029999999329447746,
+                      "radius": 0.012,
                       "rotation": {
                         "max": 0.0,
                         "min": 0.0
@@ -1701,32 +1730,44 @@
                       "seed": 10,
                       "shape": 2,
                       "size": {
-                        "max": 0.045,
-                        "min": 0.02
+                        "min": 0.009,
+                        "max": 0.016
                       },
                       "sizeOverLifetime": {
                         "keys": [
                           {
-                            "inTangent": 0.0,
-                            "outTangent": 0.0,
+                            "inTangent": -0.25,
+                            "outTangent": -0.25,
                             "time": 0.0,
                             "value": 1.0
+                          },
+                          {
+                            "inTangent": -0.25,
+                            "outTangent": -0.25,
+                            "time": 1.0,
+                            "value": 0.75
                           }
                         ]
                       },
-                      "softDistance": 0.0,
+                      "softDistance": 0.015,
                       "space": 1,
                       "speed": {
-                        "max": 3.0,
-                        "min": 1.0
+                        "min": 0.5,
+                        "max": 1.2
                       },
                       "speedOverLifetime": {
                         "keys": [
                           {
-                            "inTangent": 0.0,
-                            "outTangent": 0.0,
+                            "inTangent": -0.44999999999999996,
+                            "outTangent": -0.44999999999999996,
                             "time": 0.0,
                             "value": 1.0
+                          },
+                          {
+                            "inTangent": -0.44999999999999996,
+                            "outTangent": -0.44999999999999996,
+                            "time": 1.0,
+                            "value": 0.55
                           }
                         ]
                       },
@@ -1736,12 +1777,12 @@
                         0.002,
                         1.0
                       ],
-                      "velocityStretch": 0.25
+                      "velocityStretch": 0.003
                     },
                     "texture": null
                   },
                   {
-                    "count": 10,
+                    "count": 1,
                     "lit": true,
                     "offset": 0.0,
                     "scale": 1.0,
@@ -1771,7 +1812,7 @@
                               1.0,
                               1.0
                             ],
-                            "time": 0.20000000298023224
+                            "time": 0.1
                           },
                           {
                             "color": [
@@ -1784,7 +1825,7 @@
                           }
                         ]
                       },
-                      "coneAngle": 0.800000011920929,
+                      "coneAngle": 0.65,
                       "duration": 5.0,
                       "emissionRate": 0.0,
                       "facing": 0,
@@ -1797,16 +1838,16 @@
                         0.0
                       ],
                       "lifetime": {
-                        "max": 0.8,
-                        "min": 0.3
+                        "min": 0.08,
+                        "max": 0.14
                       },
                       "loop": false,
                       "maxParticles": 512,
                       "playOnStart": false,
-                      "radius": 0.029999999329447746,
+                      "radius": 0.012,
                       "rotation": {
-                        "max": 0.0,
-                        "min": 0.0
+                        "min": 0.0,
+                        "max": 6.283185307179586
                       },
                       "rotationOverLifetime": {
                         "keys": [
@@ -1821,38 +1862,44 @@
                       "seed": 11,
                       "shape": 2,
                       "size": {
-                        "max": 0.2,
-                        "min": 0.08
+                        "min": 0.025,
+                        "max": 0.045
                       },
                       "sizeOverLifetime": {
                         "keys": [
                           {
-                            "inTangent": 3.0,
-                            "outTangent": 3.0,
+                            "inTangent": 0.6000000000000001,
+                            "outTangent": 0.6000000000000001,
                             "time": 0.0,
                             "value": 1.0
                           },
                           {
-                            "inTangent": 3.0,
-                            "outTangent": 3.0,
+                            "inTangent": 0.6000000000000001,
+                            "outTangent": 0.6000000000000001,
                             "time": 1.0,
-                            "value": 4.0
+                            "value": 1.6
                           }
                         ]
                       },
-                      "softDistance": 0.30000001192092896,
+                      "softDistance": 0.04,
                       "space": 1,
                       "speed": {
-                        "max": 3.5,
-                        "min": 1.0
+                        "min": 0.15,
+                        "max": 0.55
                       },
                       "speedOverLifetime": {
                         "keys": [
                           {
-                            "inTangent": 0.0,
-                            "outTangent": 0.0,
+                            "inTangent": -0.85,
+                            "outTangent": -0.85,
                             "time": 0.0,
                             "value": 1.0
+                          },
+                          {
+                            "inTangent": -0.85,
+                            "outTangent": -0.85,
+                            "time": 1.0,
+                            "value": 0.15
                           }
                         ]
                       },
@@ -1860,7 +1907,7 @@
                         0.18,
                         0.01,
                         0.008,
-                        0.4
+                        0.18
                       ],
                       "velocityStretch": 0.10000000149011612
                     },
@@ -3834,22 +3881,6 @@
           "enabled": true,
           "id": "de14143dab7865bbd518e0f66edd905c",
           "type": "ScriptComponent"
-        },
-        {
-          "data": {
-            "clickSound": "740b4adc271ec8e9467bedbd8163a294"
-          },
-          "enabled": true,
-          "id": "9ad4b197648b24574e05063e6416618e",
-          "type": "SessionControls"
-        },
-        {
-          "data": {
-            "repeatedFrames": 3
-          },
-          "enabled": true,
-          "id": "cbeaf9d20630eb977fbda8750d1198c6",
-          "type": "NetworkPlayers"
         }
       ],
       "id": 71,
@@ -3876,6 +3907,16 @@
     {
       "active": true,
       "components": [
+        {
+          "data": {
+            "authority": 0,
+            "priority": 0.2,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "af9a6b69f528b83eb8bbd79ae538992a",
+          "type": "NetworkObject"
+        },
         {
           "data": {
             "castsShadows": true,
@@ -25727,6 +25768,27 @@
       "components": [
         {
           "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "f11ece3633c19fb9c375fc971240c0a2",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "c3b0e24fc5de4d0a21386bde9bbb5bfd",
+          "type": "NetworkTransform"
+        },
+        {
+          "data": {
             "center": [
               0.0,
               0.0,
@@ -26062,6 +26124,27 @@
       "components": [
         {
           "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "85d97f0dc0891e1025f7d501a5cecfd5",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "aa59356be798d719200efc93afa93f22",
+          "type": "NetworkTransform"
+        },
+        {
+          "data": {
             "center": [
               0.0,
               0.0,
@@ -26216,6 +26299,27 @@
       "components": [
         {
           "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "9dddd94154afb9f4fcea7463405305c0",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "7aacfa8a8e6275df9f5ccd4ee2bef233",
+          "type": "NetworkTransform"
+        },
+        {
+          "data": {
             "center": [
               0.0,
               0.0,
@@ -26343,6 +26447,27 @@
     {
       "active": true,
       "components": [
+        {
+          "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "5963521f9e26d05e60584e3457fa234d",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "af047ba476f64612e52c4d91aba38766",
+          "type": "NetworkTransform"
+        },
         {
           "data": {
             "center": [
@@ -26474,6 +26599,27 @@
       "components": [
         {
           "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "52c97b44367e6a9ae6b320aa343cc661",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "7523a8190db5a4cc950e1cd21b30b731",
+          "type": "NetworkTransform"
+        },
+        {
+          "data": {
             "center": [
               0.0,
               0.0,
@@ -26601,6 +26747,27 @@
     {
       "active": true,
       "components": [
+        {
+          "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "2cc492af277c40aadd44720b8a98078f",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "b3946f0c4a69f92e7be09250f01edcd9",
+          "type": "NetworkTransform"
+        },
         {
           "data": {
             "center": [
@@ -26732,6 +26899,27 @@
       "components": [
         {
           "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "a73f75650a6072735a5585fe99bbb228",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "1e7690d91500efc9633ddcf2df85d740",
+          "type": "NetworkTransform"
+        },
+        {
+          "data": {
             "center": [
               0.0,
               0.0,
@@ -26859,6 +27047,27 @@
     {
       "active": true,
       "components": [
+        {
+          "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "01ba18ca7f317569665d5aaeb9b12c29",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "7bdce9cadc76321d38ed1130dd8dfd15",
+          "type": "NetworkTransform"
+        },
         {
           "data": {
             "center": [
@@ -26990,6 +27199,27 @@
       "components": [
         {
           "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "bd616e94b02ab623fefabcba9ae55b6f",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "0ae2ff308def2a69e742cf2b9eb94647",
+          "type": "NetworkTransform"
+        },
+        {
+          "data": {
             "center": [
               0.0,
               0.0,
@@ -27117,6 +27347,27 @@
     {
       "active": true,
       "components": [
+        {
+          "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "cf34bd2eefa5206ee4d05877f2658757",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "e655096e9f26d498ba14a6605bc4b837",
+          "type": "NetworkTransform"
+        },
         {
           "data": {
             "center": [
@@ -27248,6 +27499,27 @@
       "components": [
         {
           "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "84862a213ccfecb007451f7c1e892fc4",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "c7b0b8c269bf8f3b38cb5087eddd36d1",
+          "type": "NetworkTransform"
+        },
+        {
+          "data": {
             "center": [
               0.0,
               0.0,
@@ -27375,6 +27647,27 @@
     {
       "active": true,
       "components": [
+        {
+          "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "20ded49a2c10170d611c2a9bd5518a1f",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "fb9b775c93a4ab520c0b9800fba22f34",
+          "type": "NetworkTransform"
+        },
         {
           "data": {
             "center": [
@@ -27506,6 +27799,27 @@
       "components": [
         {
           "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "c8ce7d952ad43acb15211e02d5ee7dba",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "30387d1befa8d09fdefd5ac909c034ed",
+          "type": "NetworkTransform"
+        },
+        {
+          "data": {
             "center": [
               0.0,
               0.0,
@@ -27633,6 +27947,27 @@
     {
       "active": true,
       "components": [
+        {
+          "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "64f4fd67a5c1885f45993b6ba4250a15",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "ab326ccc7ace6f847f9da0dc458d5d78",
+          "type": "NetworkTransform"
+        },
         {
           "data": {
             "center": [
@@ -27764,6 +28099,27 @@
       "components": [
         {
           "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "6b7fb4f01bb6e67446c15ef9f1709ad0",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "2b423898f3efb0e3fdb74af3e7e5e66e",
+          "type": "NetworkTransform"
+        },
+        {
+          "data": {
             "center": [
               0.0,
               0.0,
@@ -27891,6 +28247,27 @@
     {
       "active": true,
       "components": [
+        {
+          "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "3e8004577008854076851d6280bb1094",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "3147c9d2afbfac0914d521793e3798da",
+          "type": "NetworkTransform"
+        },
         {
           "data": {
             "center": [
@@ -28022,6 +28399,27 @@
       "components": [
         {
           "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "4d5023ac12b756008dc18feaab929dc6",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "018790976b0cfebfbd98e7671e72dcbe",
+          "type": "NetworkTransform"
+        },
+        {
+          "data": {
             "center": [
               0.0,
               0.0,
@@ -28149,6 +28547,27 @@
     {
       "active": true,
       "components": [
+        {
+          "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "68561c79656235a2598f5d0f3dba36f4",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "47ab6679d769ffbc96ae688386eb2036",
+          "type": "NetworkTransform"
+        },
         {
           "data": {
             "center": [
@@ -30925,6 +31344,27 @@
       "components": [
         {
           "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "88872a8417fe71d0f0faf59500f8de15",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "4cbb346eaa6247c7a3986485bb42100b",
+          "type": "NetworkTransform"
+        },
+        {
+          "data": {
             "center": [
               0.0,
               0.0,
@@ -31079,6 +31519,27 @@
       "components": [
         {
           "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "1cc8a93058257e95caf38cea0d855d01",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "37c8319970f9942b1fa34ae14ab886b5",
+          "type": "NetworkTransform"
+        },
+        {
+          "data": {
             "center": [
               0.0,
               0.0,
@@ -31231,6 +31692,27 @@
     {
       "active": true,
       "components": [
+        {
+          "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "f08d79100ac2b953cd89028bb6c35923",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "23252c1a3ac9607a26e8a203e8d8837a",
+          "type": "NetworkTransform"
+        },
         {
           "data": {
             "center": [
@@ -66302,6 +66784,508 @@
         1,
         1,
         1
+      ],
+      "tags": []
+    },
+    {
+      "id": 201428,
+      "prefab": "e93fc780b2cd7864fa7987af6f572c66",
+      "entityIds": {},
+      "overrides": {},
+      "removedEntities": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "00cb80d63b794d7db0175accaeb99ed3",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201429,
+      "layer": 0,
+      "name": "Spawn Point 2",
+      "position": [
+        -9,
+        1.5,
+        10
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "f152539c57e245839224a84338ea9402",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201430,
+      "layer": 0,
+      "name": "Spawn Point 3",
+      "position": [
+        -3,
+        1.5,
+        10
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "3b8cd8ee49254911af7d0759df3995ea",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201431,
+      "layer": 0,
+      "name": "Spawn Point 4",
+      "position": [
+        3,
+        1.5,
+        10
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "633cd6f3f6dc430987d4f3c93e85ba96",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201432,
+      "layer": 0,
+      "name": "Spawn Point 5",
+      "position": [
+        9,
+        1.5,
+        10
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "c592ac2950544a419a1623299472ba11",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201433,
+      "layer": 0,
+      "name": "Spawn Point 6",
+      "position": [
+        -9,
+        1.5,
+        16
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "ca3b233a65744d30bcf121c176014d65",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201434,
+      "layer": 0,
+      "name": "Spawn Point 7",
+      "position": [
+        -3,
+        1.5,
+        16
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "9e77902f81f14f52878ed8193d8d21e1",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201435,
+      "layer": 0,
+      "name": "Spawn Point 8",
+      "position": [
+        3,
+        1.5,
+        16
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "91155b08dd7a4b72863c36a7600b3083",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201436,
+      "layer": 0,
+      "name": "Spawn Point 9",
+      "position": [
+        9,
+        1.5,
+        16
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "7af60c6b1ad040a8a3542f2bb2e750be",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201437,
+      "layer": 0,
+      "name": "Spawn Point 10",
+      "position": [
+        -9,
+        1.5,
+        22
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "72ae9834aab1400596351a4491110009",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201438,
+      "layer": 0,
+      "name": "Spawn Point 11",
+      "position": [
+        -3,
+        1.5,
+        22
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "a3f52fc06ae34accb216e6e887d653c7",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201439,
+      "layer": 0,
+      "name": "Spawn Point 12",
+      "position": [
+        3,
+        1.5,
+        22
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "fff4e52e89004dcca79211c91a79265c",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201440,
+      "layer": 0,
+      "name": "Spawn Point 13",
+      "position": [
+        9,
+        1.5,
+        22
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "fa5306ef142a44a9ac8b9efa5e46a6be",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201441,
+      "layer": 0,
+      "name": "Spawn Point 14",
+      "position": [
+        -9,
+        1.5,
+        28
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "50916666c0ee4832812372eb461908f3",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201442,
+      "layer": 0,
+      "name": "Spawn Point 15",
+      "position": [
+        -3,
+        1.5,
+        28
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "d05674de96d241d9a3a1b456affcfbfe",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201443,
+      "layer": 0,
+      "name": "Spawn Point 16",
+      "position": [
+        3,
+        1.5,
+        28
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
       ],
       "tags": []
     }

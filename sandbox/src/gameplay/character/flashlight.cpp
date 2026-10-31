@@ -1,6 +1,7 @@
 #include "gameplay/character/flashlight.h"
 
 #include "gameplay/core/pawn.h"
+#include "gameplay/core/player_controller.h"
 
 namespace Gameplay {
 
@@ -26,7 +27,10 @@ void Flashlight::ForEachLight(F&& visit) const {
 }
 
 void Flashlight::Toggle() {
-    const bool on = !IsOn();
+    SetOn(!IsOn());
+}
+
+void Flashlight::SetOn(bool on) {
     ForEachLight([&](Spot::Light& found) { found.SetEnabled(on); });
 }
 
@@ -36,13 +40,31 @@ bool Flashlight::IsOn() const {
     return on;
 }
 
-void Flashlight::OnUpdate(float /*deltaTime*/) {
+void Flashlight::OnPlayerInput(PlayerController& player) {
     if (!m_input.Takes(action)) {
         m_input.SetActions({action});
     }
-    m_input.Activate(Pawn::GetControllerOf(GetEntity()));
+    m_input.Activate(&player);
     if (m_input.IsPressed(action)) {
         Toggle();
+    }
+}
+
+void Flashlight::SerializeIntent(Spot::Archive& archive) {
+    bool on = IsOn();
+    archive.Field("on", on);
+    if (archive.IsLoading()) {
+        SetOn(on);
+    }
+}
+
+void Flashlight::Replicate(Spot::Archive& archive) {
+    bool on = IsOn();
+    archive.Field("on", on);
+    // Its own player's machine switches it as the player does.
+    const Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
+    if (archive.IsLoading() && !(object && object->IsOwnedLocally())) {
+        SetOn(on);
     }
 }
 

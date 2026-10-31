@@ -50,7 +50,8 @@ struct DamageApplied {
     DamageInfo damage;
 };
 
-// The damage of a scene, for listening to it all.
+// The damage of a scene, for listening to it all. A server tells its clients of each, so their hit markers and kill
+// feeds show what it decided.
 class DamageSystem final : public Spot::SceneSystem {
 public:
     static DamageSystem& Get(Spot::Scene& scene);
@@ -59,6 +60,16 @@ public:
     Spot::Signal<const DamageApplied&> OnDamageApplied;
     // Each time damage killed what it reached: the target is the entity of the Health that ran out.
     Spot::Signal<const DamageApplied&> OnKilled;
+
+    // Emits the signal, and tells the clients of a server.
+    void Report(const DamageApplied& applied, bool killed);
+
+protected:
+    void OnUpdate(float deltaTime) override;
+
+private:
+    // The session whose server's reports this client hears.
+    const Spot::NetworkSession* m_session = nullptr;
 };
 
 namespace Damage {

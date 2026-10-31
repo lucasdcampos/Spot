@@ -63,7 +63,8 @@ struct EffectOptions {
 
 // The effects of a scene by name, so what plays one names it rather than holding its particles: a weapon plays its
 // "muzzle" and the surface hit its "impact.wood". The library is data, on an entity of the scene; a new effect is a
-// new entry, and a game that takes the effects brings its own. Effects the library does not have play nothing.
+// new entry, and a game that takes the effects brings its own. Effects the library does not have play nothing. What a
+// server plays, its clients play too.
 class EffectLibrary : public Spot::Component {
 public:
     std::vector<EffectDefinition> effects;
@@ -82,11 +83,33 @@ public:
     // Sends the effect's particles flying from one point to the other at their speed, gone as they get there, as a
     // tracer; nothing when they are too close to see it fly.
     static void PlayTo(Spot::Scene& scene, std::string_view name, Spot::Vector3 from, Spot::Vector3 to);
+    // Plays a sound once where the position is, as Spot::AudioSystem::PlayOneShot() does, and on a server's clients
+    // too, for sounds of what only the server simulates, as shots and footsteps.
+    static void PlaySound(Spot::Scene& scene, const Spot::AssetRef<Spot::Sound>& sound, Spot::Vector3 position,
+                          const Spot::OneShotParams& params);
 
     const EffectDefinition* Get(std::string_view name) const;
 
+    // While one lives on a server, what plays is what the machine of the player whose predicted pawn the entity is
+    // part of already played itself, as that player's own shots: the server sends it to every other client only.
+    class Predicted {
+    public:
+        explicit Predicted(const Spot::Entity& entity);
+        ~Predicted();
+        Predicted(const Predicted&) = delete;
+        Predicted& operator=(const Predicted&) = delete;
+
+    private:
+        Spot::NetPeerId m_previous;
+    };
+
 protected:
+    void OnUpdate(float deltaTime) override;
     void Serialize(Spot::Archive& archive) override;
+
+private:
+    // The session whose server's effects this client plays.
+    const Spot::NetworkSession* m_session = nullptr;
 };
 
 } // namespace Gameplay

@@ -60,6 +60,9 @@ public:
     float minSpeed = 1.0f;
     float fullSpeed = 8.0f;
 
+    // Sounds an impact at that speed there, unless one just did.
+    void Play(float speed, Spot::Vector3 where);
+
 protected:
     void OnStart() override;
     void OnCollisionEnter(const Spot::Collision& collision) override;
@@ -75,6 +78,9 @@ class ImpactParticles : public Spot::Component, public Spot::CollisionListener {
 public:
     // Meters per second along the contact's normal.
     float minSpeed = 1.5f;
+
+    // Bursts at an impact at that speed there, unless one just did.
+    void Play(float speed, Spot::Vector3 where, Spot::Vector3 normal);
 
 protected:
     void OnStart() override;

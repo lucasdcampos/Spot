@@ -42,6 +42,20 @@ float ItemInput::GetValue(std::string_view action) const {
     return found ? found->value : 0.0f;
 }
 
+void ItemInput::Serialize(Spot::Archive& archive) {
+    archive.Field("active", active);
+    archive.Field("canUse", canUse);
+    archive.Field("actions", m_actions);
+}
+
+void ItemInput::Action::Serialize(Spot::Archive& archive) {
+    archive.Field("name", name);
+    archive.Field("down", down);
+    archive.Field("pressed", pressed);
+    archive.Field("released", released);
+    archive.Field("value", value);
+}
+
 ItemInput ItemInput::Read(const InputContext& input, bool canUse) {
     ItemInput read;
     read.active = input.IsActive();

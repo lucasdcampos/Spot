@@ -16,8 +16,49 @@
 #include <algorithm>
 #include <cmath>
 #include <format>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace Gameplay {
+
+namespace {
+
+// Reported hits waiting for the shots that allow them, at most.
+constexpr std::size_t MaxPendingHits = 32;
+
+// From the machine of a player predicting its pawn: what the pellets of the firearm in hand hit there.
+struct ShotHitsMessage {
+    static constexpr std::string_view NetName = "Gameplay.ShotHits";
+    std::vector<Firearm::ReportedHit> hits;
+
+    void Serialize(Spot::Archive& archive) { archive.Field("hits", hits); }
+};
+
+// On servers, gives the firearm in hand of a pawn the hits its owner reports.
+class ReportedHitsSystem final : public Spot::SceneSystem {
+protected:
+    void OnUpdate(float /*deltaTime*/) override {
+        Spot::NetworkSystem* system = Spot::Network::Get(GetScene());
+        if (!system || system == m_bound || !system->IsServer()) {
+            return;
+        }
+        m_bound = system;
+        system->OnObjectMessage<ShotHitsMessage>(
+            [](Spot::NetworkObject& object, Spot::NetPeerId from, ShotHitsMessage& message) {
+                const auto* inventory = object.GetEntity().GetComponent<Inventory>();
+                auto* firearm = inventory ? dynamic_cast<Firearm*>(inventory->GetEquipped()) : nullptr;
+                if (firearm && object.GetOwner() == from && object.IsPredicted()) {
+                    firearm->ApplyReportedHits(std::move(message.hits));
+                }
+            });
+    }
+
+private:
+    const Spot::NetworkSystem* m_bound = nullptr;
+};
+
+} // namespace
 
 SPOT_COMPONENT(Firearm);
 
@@ -41,6 +82,10 @@ bool Firearm::TakeShot() {
         return false;
     }
     --m_ammo;
+    // Its pellets may be reported hitting, for a moment.
+    m_hitAllowance = std::min(m_hitAllowance + static_cast<float>(std::max(pellets, 1)),
+                              static_cast<float>(std::max(pellets, 1) * 3));
+    ApplyPendingHits();
     m_cooldown = fireInterval > 0.0f ? Invoke(fireInterval, [] {}) : Spot::InvokeId::Invalid;
     return true;
 }
@@ -98,9 +143,10 @@ void Firearm::PlaySound(const Spot::AssetRef<Spot::Sound>& sound, float volume) 
     if (!sound || !pawn) {
         return;
     }
+    const EffectLibrary::Predicted predicted(GetEntity());
     // Close to full volume for whoever holds it, and heard far around.
-    GetScene().GetOrAddSystem<Spot::AudioSystem>().PlayOneShot(
-        sound.GetShared(), pawn->GetViewPoint().position,
+    EffectLibrary::PlaySound(
+        GetScene(), sound, pawn->GetViewPoint().position,
         {.volume = volume,
          .bus = "Effects",
          .spatialSettings = {.minDistance = 3.0f, .maxDistance = 100.0f},
@@ -136,8 +182,11 @@ void Firearm::Fire() {
         Spot::Input::RumbleGamepad(0.2f, projectile ? 0.8f : 0.5f, 0.08f);
     }
     PlaySound(fireSound, 1.0f);
-    EffectLibrary::Play(GetScene(), muzzleEffect, muzzle, eyes.direction,
-                        {.scale = std::clamp(muzzleFlash, 0.1f, 4.0f)});
+    {
+        const EffectLibrary::Predicted predicted(GetEntity());
+        EffectLibrary::Play(GetScene(), muzzleEffect, muzzle, eyes.direction,
+                            {.scale = std::clamp(muzzleFlash, 0.1f, 4.0f)});
+    }
     FireShot(eyes.position, eyes.direction, muzzle);
     if (auto* look = holder.GetComponent<FirstPersonView>()) {
         look->Kick(cameraRecoil * (m_aiming ? 0.65f : 1.0f), recoilRecovery);
@@ -153,6 +202,10 @@ void Firearm::FireShot(Spot::Vector3 eye, Spot::Vector3 aim, Spot::Vector3 muzzl
 }
 
 void Firearm::Launch(Spot::Vector3 eye, Spot::Vector3 aim, Spot::Vector3 muzzle) {
+    // What it launches is the server's, which every machine is then shown.
+    if (!Spot::Network::HasAuthority(GetEntity())) {
+        return;
+    }
     const Pawn* pawn = GetPawn();
     const Spot::EntityId shooter = pawn ? pawn->GetEntity().GetId() : GetEntity().GetId();
     auto& physics = GetScene().GetOrAddSystem<Spot::PhysicsWorld>();
@@ -174,6 +227,11 @@ void Firearm::FirePellets(Spot::Vector3 eye, Spot::Vector3 aim, Spot::Vector3 mu
     const Pawn* pawn = GetPawn();
     const Spot::EntityId shooter = pawn ? pawn->GetEntity().GetId() : GetEntity().GetId();
     const float cone = m_aiming ? spread * aimSpread : spread;
+    // Where the shooter predicts its pawn, its machine says what replicated objects were hit.
+    Spot::NetworkObject* own = Spot::Network::GetObject(GetEntity());
+    const bool decides = Spot::Network::HasAuthority(GetEntity());
+    const bool reports = own && own->IsPredicted();
+    std::vector<ReportedHit> reported;
     for (int pellet = 0; pellet < pellets; ++pellet) {
         const Spot::Vector3 direction = Scatter(aim, cone);
         const auto hit =
@@ -181,6 +239,7 @@ void Firearm::FirePellets(Spot::Vector3 eye, Spot::Vector3 aim, Spot::Vector3 mu
         const auto volume = Traces::Raycast(GetScene(), eye, direction, hit ? hit->distance : range);
         // A streak of light from the muzzle to where the pellet went; every other one of a spread is enough.
         if (pellet % 2 == 0) {
+            const EffectLibrary::Predicted predicted(GetEntity());
             EffectLibrary::PlayTo(GetScene(), tracerEffect, muzzle,
                                   volume ? volume->point
                                   : hit  ? hit->point
@@ -207,8 +266,22 @@ void Firearm::FirePellets(Spot::Vector3 eye, Spot::Vector3 aim, Spot::Vector3 mu
         }
         if (!volume) {
             if (const auto* surface = SurfaceLibrary::Of(GetScene(), entity)) {
+                const EffectLibrary::Predicted predicted(GetEntity());
                 EffectLibrary::Play(GetScene(), surface->impactEffect, hit->point, hit->normal);
             }
+        }
+        const Spot::NetworkObject* target = Spot::Network::GetObject(*entity);
+        if (reports && target) {
+            if (!decides) {
+                reported.push_back({.target = target->GetEntity().GetId(),
+                                    .point = hit->point,
+                                    .direction = direction,
+                                    .share = push});
+            }
+            continue;
+        }
+        if (!decides) {
+            continue;
         }
         Damage::Apply(GetScene(), hit->entity,
                       {.amount = damage * push,
@@ -218,6 +291,57 @@ void Firearm::FirePellets(Spot::Vector3 eye, Spot::Vector3 aim, Spot::Vector3 mu
                        .instigator = shooter,
                        .source = GetEntity().GetId()});
     }
+    Spot::NetworkSystem* system = Spot::Network::Get(GetScene());
+    if (!reported.empty() && system && own) {
+        system->SendToServer(*own, ShotHitsMessage{.hits = std::move(reported)});
+    }
+}
+
+void Firearm::ReportedHit::Serialize(Spot::Archive& archive) {
+    archive.Field("target", target);
+    archive.Field("point", point);
+    archive.Field("direction", direction);
+    archive.Field("share", share);
+}
+
+void Firearm::ApplyReportedHits(std::vector<ReportedHit> hits) {
+    for (ReportedHit& hit : hits) {
+        m_pendingHits.push_back(std::move(hit));
+    }
+    // Those waiting longest go first, as shots arrive after what they hit is reported.
+    while (m_pendingHits.size() > MaxPendingHits) {
+        m_pendingHits.erase(m_pendingHits.begin());
+    }
+    ApplyPendingHits();
+}
+
+void Firearm::ApplyPendingHits() {
+    const Pawn* pawn = GetPawn();
+    if (!pawn) {
+        return;
+    }
+    const Spot::Vector3 eye = pawn->GetViewPoint().position;
+    std::size_t used = 0;
+    for (; used < m_pendingHits.size() && m_hitAllowance >= 1.0f; ++used) {
+        const ReportedHit& hit = m_pendingHits[used];
+        m_hitAllowance -= 1.0f;
+        // Within reach of where the server has the shooter, with some room for the time the report took.
+        if (!GetScene().GetEntity(hit.target) || Spot::Distance(eye, hit.point) > range + 5.0f ||
+            !std::isfinite(hit.share)) {
+            continue;
+        }
+        const float share = std::clamp(hit.share, 0.0f, 1.0f);
+        const Spot::Vector3 direction =
+            Spot::LengthSquared(hit.direction) > 1e-6f ? Spot::Normalize(hit.direction) : pawn->GetViewPoint().direction;
+        Damage::Apply(GetScene(), hit.target,
+                      {.amount = damage * share,
+                       .type = damageType,
+                       .point = hit.point,
+                       .impulse = direction * impulse * share,
+                       .instigator = pawn->GetEntity().GetId(),
+                       .source = GetEntity().GetId()});
+    }
+    m_pendingHits.erase(m_pendingHits.begin(), m_pendingHits.begin() + static_cast<std::ptrdiff_t>(used));
 }
 
 Spot::Vector3 Firearm::Scatter(Spot::Vector3 aim, float cone) {
@@ -258,6 +382,35 @@ void Firearm::OnDisable() {
     SetAiming(false);
 }
 
+void Firearm::Replicate(Spot::Archive& archive) {
+    int ammo = m_ammo;
+    int reserve = m_reserve;
+    bool aiming = m_aiming;
+    float reloadLeft = IsReloading() ? GetInvokeTimeLeft(m_reload) : 0.0f;
+    archive.Field("ammo", ammo);
+    archive.Field("reserve", reserve);
+    archive.Field("aiming", aiming);
+    archive.Field("reloadLeft", reloadLeft);
+    if (!archive.IsLoading()) {
+        return;
+    }
+    m_ammo = ammo;
+    m_reserve = reserve;
+    // Its player's machine aims and starts reloading at once itself (OnPredictedUse()).
+    const Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
+    const bool predicted = object && object->IsPredicted();
+    if (aiming != m_aiming && !predicted) {
+        SetAiming(aiming);
+    }
+    // Shown as reloading for as long as the server's reload has left; the rounds come with the server's state.
+    if (reloadLeft > 0.0f && !IsReloading()) {
+        m_reload = Invoke(reloadLeft, [] {});
+    } else if (reloadLeft <= 0.0f && IsReloading() && !predicted) {
+        CancelInvoke(m_reload);
+        m_reload = Spot::InvokeId::Invalid;
+    }
+}
+
 ItemStatus Firearm::DescribeStatus() const {
     ItemStatus status = HeldItem::DescribeStatus();
     status.count = std::to_string(m_ammo);
@@ -283,6 +436,7 @@ ItemPose Firearm::DescribePose() const {
 }
 
 void Firearm::OnStart() {
+    GetScene().GetOrAddSystem<ReportedHitsSystem>();
     GetInput().SetActions({fireAction, aimAction, reloadAction});
     const int capacity = std::max(0, magazineSize);
     m_ammo = m_ammo < 0 ? capacity : std::clamp(m_ammo, 0, capacity);

@@ -5,7 +5,8 @@
 namespace Gameplay {
 
 // Shakes the view of its entity's pawn, as a blast nearby does, for the view to add to where it looks (GetRotation()).
-// Whatever shakes the world calls Add(scene, ...), and every view within reach shakes, so a blast knows no viewer.
+// Whatever shakes the world calls Add(scene, ...), and every view within reach shakes, so a blast knows no viewer. What
+// a server shakes, its clients' views shake with too.
 class CameraShake : public Spot::Component {
 public:
     // The most it turns the view by, in radians, however strong the shakes.
@@ -21,6 +22,7 @@ public:
     Spot::Quaternion GetRotation() const;
 
 protected:
+    void OnStart() override;
     void OnUpdate(float deltaTime) override;
     void OnDisable() override;
     void Serialize(Spot::Archive& archive) override;

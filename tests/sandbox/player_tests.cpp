@@ -5,6 +5,7 @@
 #include "tool_gun.h"
 
 #include "gameplay/camera/first_person_view.h"
+#include "gameplay/character/character.h"
 #include "gameplay/character/character_movement.h"
 #include "gameplay/health/health.h"
 #include "gameplay/inventory/inventory.h"
@@ -235,4 +236,60 @@ TEST_CASE("Long falls and explosions hurt the player, who heals, dies and comes 
     CHECK(player.health.GetHealth() == player.health.maxHealth);
     CHECK(Spot::Distance(player.GetPosition(), start) < 1.0f);
     CHECK_FALSE(Find(game, ui.deathOverlay)->IsActiveSelf());
+}
+
+TEST_CASE("First-person hands follow every held item and disappear with the view model", "[sandbox][player][arms]") {
+    Playground game;
+    Player player{game};
+    REQUIRE(player.view.armsModel);
+    for (int slot = 0; slot < player.holder.GetItemCount(); ++slot) {
+        player.holder.Select(slot);
+        game.Run(30);
+        REQUIRE(player.view.GetArmEntities().size() == 4);
+        for (auto id : player.view.GetArmEntities()) {
+            const auto* arm = game.scene.GetEntity(id);
+            REQUIRE(arm);
+            REQUIRE(arm->GetComponent<Spot::MeshRenderer>());
+            const auto position = arm->GetTransform().GetWorldPosition();
+            CHECK(Spot::Length(position - player.controller.GetEyePosition()) < 1.5f);
+            CHECK_FALSE(arm->GetComponent<Spot::MeshRenderer>()->IsCastingShadows());
+        }
+    }
+    player.holder.Select(1);
+    game.Run(30);
+    const auto ids = player.view.GetArmEntities();
+    const auto before = game.scene.GetEntity(ids[1])->GetTransform().GetWorldPosition();
+    player.view.Kick();
+    game.Run(2);
+    CHECK(Spot::Length(game.scene.GetEntity(ids[1])->GetTransform().GetWorldPosition() - before) > 0.005f);
+    player.controller.SetLook(0.8f, 0.4f);
+    game.Run(2);
+    CHECK(Spot::Length(game.scene.GetEntity(ids[1])->GetTransform().GetWorldPosition() - before) > 0.1f);
+    auto* pistol = SandboxTests::GetFirearm(player.holder);
+    REQUIRE(pistol);
+    pistol->Fire();
+    REQUIRE(pistol->StartReload());
+    const auto gripDistance = [&] {
+        return Spot::Length(game.scene.GetEntity(ids[3])->GetTransform().GetWorldPosition() -
+                            game.scene.GetEntity(ids[1])->GetTransform().GetWorldPosition());
+    };
+    const float holding = gripDistance();
+    for (int frame = 0; frame < 120 && pistol->GetReloadProgress() < 0.45f; ++frame) {
+        game.Step();
+    }
+    CHECK(gripDistance() > holding + 0.10f);
+    auto* character = player.holder.GetEntity().GetComponent<Gameplay::Character>();
+    REQUIRE(character);
+    REQUIRE(character->SetThirdPerson(true));
+    game.Step();
+    CHECK(player.view.GetArmEntities().empty());
+    for (auto id : ids) {
+        CHECK_FALSE(game.scene.GetEntity(id));
+    }
+    REQUIRE(character->SetThirdPerson(false));
+    game.Run(30);
+    CHECK(player.view.GetArmEntities().size() == 4);
+    player.view.SetEnabled(false);
+    game.Step();
+    CHECK(player.view.GetArmEntities().empty());
 }

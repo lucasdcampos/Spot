@@ -19,6 +19,7 @@
 #include "gameplay/camera/first_person_view.h"
 #include "gameplay/character/carrier.h"
 #include "gameplay/character/character.h"
+#include "gameplay/character/character_death.h"
 #include "gameplay/character/character_movement.h"
 #include "gameplay/character/character_visual.h"
 #include "gameplay/character/flashlight.h"
@@ -433,6 +434,23 @@ TEST_CASE("World checkpoints restore NPC populations and ragdoll ownership", "[s
             ++armed;
             REQUIRE(visual.GetModelEntity());
             CHECK(visual.GetModelEntity()->GetParent() == playground.scene.GetEntity(visual.mount));
+            // Both hands hold the pistol at its hand nodes.
+            const auto* animator = visual.animator.Get(playground.scene);
+            REQUIRE(animator);
+            for (const auto* hand : {visual.rightHand.Get(playground.scene), visual.leftHand.Get(playground.scene)}) {
+                REQUIRE(hand);
+                const auto* grip = playground.scene.GetEntity(hand->GetTarget());
+                REQUIRE(grip);
+                CHECK(hand->GetWeight() == 1);
+                const auto goal = grip->GetTransform().GetWorldMatrix() *
+                                  Spot::Matrix4::Translation(hand->GetOffset().translation) * Spot::Vector4{0, 0, 0, 1};
+                const auto bone = animator->GetSkeleton()->FindBone(hand->GetBone());
+                REQUIRE(bone);
+                const auto reached = animator->GetEntity().GetTransform().GetWorldMatrix() *
+                                     animator->GetModelPose()[*bone] * Spot::Vector4{0, 0, 0, 1};
+                CHECK(Spot::Distance(Spot::Vector3{goal.x, goal.y, goal.z},
+                                     Spot::Vector3{reached.x, reached.y, reached.z}) < 0.01f);
+            }
         }
     });
     CHECK(armed == 1);
@@ -2172,4 +2190,56 @@ TEST_CASE("Shot NPCs bleed onto what is around them, and the blood fades", "[san
     CHECK(decals->GetCount() > before);
     playground.Run(50.0f);
     CHECK(shown() == 0);
+}
+
+TEST_CASE("Players bleed, fall as ragdolls and recover when restored", "[sandbox][player][ragdoll]") {
+    Playground playground;
+    playground.Run(0.5f);
+    auto* death = playground.player->GetComponent<Gameplay::CharacterDeath>();
+    REQUIRE(death);
+    auto* ragdoll = death->ragdoll.Get(playground.scene);
+    REQUIRE(ragdoll);
+    auto* health = playground.player->GetComponent<Gameplay::Health>();
+    REQUIRE(health);
+    const auto point = playground.player->GetTransform().GetWorldPosition() + Spot::Vector3{0, 1.2f, 0};
+    Gameplay::Damage::Apply(playground.scene, playground.player->GetId(),
+                            {.amount = 5, .type = "Bullet", .point = point, .impulse = {0, 0, 10}});
+    auto* decals = playground.scene.GetSystem<Gameplay::Decals>();
+    REQUIRE(decals);
+    CHECK(decals->GetCount() > 0);
+    Gameplay::Damage::Apply(playground.scene, playground.player->GetId(),
+                            {.amount = 1000, .type = "Bullet", .point = point, .impulse = {0, 0, 10}});
+    REQUIRE(ragdoll->IsActive());
+    CHECK_FALSE(playground.player->GetComponent<Spot::CharacterController>()->IsEnabled());
+    REQUIRE(ragdoll->GetBodies().size() == 17);
+    const auto before = decals->GetCount();
+    CHECK(Gameplay::Damage::Apply(playground.scene, ragdoll->GetBodies().front(),
+                                  {.amount = 5, .type = "Bullet", .point = point, .impulse = {0, 0, 10}}));
+    CHECK(decals->GetCount() > before);
+    health->Restore();
+    CHECK_FALSE(ragdoll->IsActive());
+    CHECK(playground.player->GetComponent<Spot::CharacterController>()->IsEnabled());
+}
+
+TEST_CASE("Spawnable NPCs use both hand constraints for their weapons", "[sandbox][npc][ik]") {
+    Playground playground;
+    playground.Run(0.5f);
+    for (const char* kind : {"ally", "enemy", "neutral"}) {
+        auto& npc = SpawnNpc(playground, kind, InFront(playground, 6), {0, 0, 1});
+        auto* model = npc.GetEntity().GetComponent<Gameplay::WorldModel>();
+        REQUIRE(model);
+        REQUIRE(model->aim.Get(playground.scene));
+        REQUIRE(model->rightHand.Get(playground.scene));
+        REQUIRE(model->leftHand.Get(playground.scene));
+        auto* inventory = npc.GetEntity().GetComponent<Gameplay::Inventory>();
+        REQUIRE(inventory);
+        if (inventory->GetItemCount() == 0) {
+            inventory->AddFromPrefab(playground.assets.Load<Spot::Prefab>(
+                playground.assets.FindByPath("prefabs/spawnables/weapons/pistol.prefab").value()));
+        }
+        model->Synchronize();
+        REQUIRE(model->GetModelEntity());
+        CHECK(model->rightHand.Get(playground.scene)->GetWeight() == 1.0f);
+        CHECK(model->leftHand.Get(playground.scene)->GetWeight() == 1.0f);
+    }
 }

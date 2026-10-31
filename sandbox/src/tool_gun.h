@@ -21,7 +21,10 @@ class UndoList;
 // is clicked, facing out of the surface, on the prop clicked so it moves with it: a point or a spot light, casting
 // shadows or not, in the palette's color. Aim picks the next color, material or lamp. Everything it does goes on the
 // UndoList.
-class ToolGun final : public Gameplay::HeldItem {
+//
+// In a session the server clicks, from where it has the player look; the player's machine clicks and kicks at once,
+// and is shown the mode and options the server keeps, and what the clicks change (PropEdits).
+class ToolGun final : public Gameplay::HeldItem, public Spot::Replicated {
 public:
     enum class Mode { Weld, Rope, Remover, Color, Material, Lamp };
     static constexpr std::array<std::string_view, 6> ModeNames = {"Weld",  "Rope",     "Remover",
@@ -89,8 +92,11 @@ public:
 
     Gameplay::ItemStatus DescribeStatus() const override;
 
+    void Replicate(Spot::Archive& archive) override;
+
 protected:
     void OnUse(const Gameplay::ItemInput& input) override;
+    void OnPredictedUse(const Gameplay::ItemInput& input) override;
     void OnUnequip() override { m_first.reset(); }
     void OnEnable() override;
     void OnDisable() override;

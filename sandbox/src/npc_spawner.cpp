@@ -8,7 +8,8 @@ void NpcSpawn::Serialize(Spot::Archive& archive) {
 }
 
 void NpcSpawner::OnStart() {
-    if (!m_npcs.empty()) {
+    // Clients are shown the server's NPCs.
+    if (!m_npcs.empty() || !Spot::Network::IsServer(GetScene())) {
         return;
     }
     for (const auto& spawn : spawns) {

@@ -5,6 +5,27 @@
       "components": [
         {
           "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 150.0
+          },
+          "enabled": true,
+          "id": "a5d4b407d603a845d04fdea77c0bc4aa",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "5e1eb6e9bbe1ba6186e66f82d1dbacd5",
+          "type": "NetworkTransform"
+        },
+        {
+          "data": {
             "castsShadows": true,
             "material": "5a8379de642942e28ca594a802ae836d",
             "mesh": "00000000000000000000000000000001",

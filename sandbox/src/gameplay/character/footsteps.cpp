@@ -1,4 +1,5 @@
 #include "gameplay/character/footsteps.h"
+
 #include <spot/scene/audio/audio_system.h>
 #include <spot/scene/physics/physics_world.h>
 
@@ -41,6 +42,10 @@ void Footsteps::Play(float loudness) {
         m_footstep += 1 + static_cast<std::size_t>(Next() * static_cast<float>(count - 1));
     }
     const Spot::AssetRef<Spot::Sound>& sound = sounds->footsteps[m_footstep % count];
+    if (!sound) {
+        return;
+    }
+    // Every machine walks each character's steps itself (CharacterMovement), so each plays them only for itself.
     GetScene().GetOrAddSystem<Spot::AudioSystem>().PlayOneShot(
         sound.GetShared(), feet,
         {.volume = volume * loudness * (0.85f + Next() * 0.15f),

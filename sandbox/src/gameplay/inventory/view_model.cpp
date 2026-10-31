@@ -2,6 +2,7 @@
 #include <spot/scene/physics/physics_world.h>
 
 #include "gameplay/core/pawn.h"
+#include "gameplay/core/players.h"
 #include "gameplay/inventory/held_item.h"
 #include "gameplay/inventory/inventory.h"
 
@@ -63,7 +64,8 @@ HeldItem* ViewModel::GetHeldItem() const {
 Spot::AssetRef<Spot::Model> ViewModel::GetHeldModel() const {
     const HeldItem* item = GetHeldItem();
     const Pawn* pawn = GetPawn();
-    if (!item || (pawn && pawn->HasAnyState(hiddenWhen))) {
+    // Only the eyes of a local player see it: other players' pawns show what they hold in their hands instead.
+    if (!item || (pawn && (pawn->HasAnyState(hiddenWhen) || !Players::IsPlayedLocally(*pawn)))) {
         return {};
     }
     return item->model;
@@ -76,19 +78,36 @@ void ViewModel::Show(const Spot::AssetRef<Spot::Model>& model) {
         return;
     }
     m_muzzle = {0.0f, 0.03f, -0.3f};
+    m_rightGrip = {0.035f, -0.10f, 0.015f};
+    m_leftGrip = {-0.045f, -0.10f, 0.0f};
     m_hasEye = false;
     m_hip = {};
     const auto nodes = model->GetNodes();
     for (std::size_t i = 0; i < nodes.size(); ++i) {
         const Matrix4 transform = model->GetNodeTransform(i);
         const Vector3 position = TransformPoint(transform, {});
-        if (nodes[i].name == "Muzzle") {
+        if (nodes[i].name == "RightHand") {
+            m_rightGrip = position;
+        } else if (nodes[i].name == "LeftHand") {
+            m_leftGrip = position;
+        } else if (nodes[i].name == "Muzzle") {
             m_muzzle = position;
         } else if (nodes[i].name == "Hip") {
             m_hip = position;
         } else if (nodes[i].name == "Eye") {
             m_eye = position;
             m_hasEye = true;
+        }
+    }
+    if (armsModel) {
+        for (const Spot::ModelPart& part : armsModel->GetParts()) {
+            auto& entity = GetScene().CreateEntity(part.name);
+            entity.SetLayer(GetEntity().GetLayer());
+            auto& renderer = entity.AddComponent<Spot::MeshRenderer>(part.mesh, part.material);
+            renderer.SetSubmesh(part.submesh);
+            renderer.SetCastingShadows(false);
+            m_arms.push_back(entity.GetId());
+            m_armInfo.push_back({entity.GetId(), part.name, part.transform});
         }
     }
     for (const Spot::ModelPart& part : model->GetParts()) {
@@ -109,6 +128,13 @@ void ViewModel::Clear() {
             entity->Destroy();
         }
     }
+    for (const auto id : m_arms) {
+        if (auto* entity = GetScene().GetEntity(id)) {
+            entity->Destroy();
+        }
+    }
+    m_arms.clear();
+    m_armInfo.clear();
     m_parts.clear();
     m_partInfo.clear();
     m_shown = {};
@@ -313,6 +339,55 @@ Spot::Matrix4 ViewModel::ComputePartMotion(const Part& part, bool& visible) cons
     return {};
 }
 
+void ViewModel::UpdateArms(const Matrix4& hand) {
+    const Vector3 right = m_rightGrip;
+    Vector3 left = m_leftGrip;
+    const HeldItem* item = GetHeldItem();
+    const ItemPose pose = item ? item->DescribePose() : ItemPose{};
+    if (pose.reloading) {
+        const float t = pose.reloadProgress;
+        const float release = SmoothStep(0.08f, 0.25f, t) * (1.0f - SmoothStep(0.70f, 0.92f, t));
+        // Reach below the magazine, fetch a fresh one, then return to the support grip.
+        const Vector3 magazine{-0.025f, -0.17f - 0.20f * Pulse(t, 0.43f, 0.16f), 0.025f};
+        left += (magazine - left) * release;
+    } else {
+        for (const auto& part : m_partInfo) {
+            if (StartsWith(part.name, "Pump")) {
+                bool visible = true;
+                left = TransformPoint(ComputePartMotion(part, visible), left);
+                break;
+            }
+        }
+    }
+    const Pawn* pawn = GetPawn();
+    if (!pawn) {
+        return;
+    }
+    const auto view = pawn->GetViewPoint();
+    const Matrix4 eyes = Matrix4::Translation(view.position) * Matrix4::Rotation(view.rotation);
+    for (const auto& part : m_armInfo) {
+        auto* entity = GetScene().GetEntity(part.entity);
+        if (!entity) {
+            continue;
+        }
+        const bool isRight = StartsWith(part.name, "Right");
+        const Vector3 wrist = TransformPoint(hand, isRight ? right : left);
+        Matrix4 transform;
+        if (part.name.find("Forearm") != std::string::npos) {
+            const Vector3 elbow = TransformPoint(eyes, {isRight ? 0.27f : -0.27f, -0.38f, 0.08f});
+            const Vector3 direction = wrist - elbow;
+            transform = Matrix4::Translation(elbow) * Matrix4::Rotation(Quaternion::LookRotation(direction)) *
+                        Matrix4::Scale({1, 1, Spot::Length(direction)});
+        } else {
+            transform = hand * Matrix4::Translation(isRight ? right : left);
+        }
+        const auto placed = Spot::Decompose(transform * part.transform);
+        entity->GetTransform().SetPosition(placed.translation);
+        entity->GetTransform().SetRotation(placed.rotation);
+        entity->GetTransform().SetScale(placed.scale);
+    }
+}
+
 void ViewModel::OnLateUpdate(float deltaTime) {
     const Spot::AssetRef<Spot::Model> held = GetHeldModel();
     if (held.Get() != m_shown.Get()) {
@@ -360,6 +435,7 @@ void ViewModel::OnLateUpdate(float deltaTime) {
     UpdateObstruction(deltaTime);
     m_pose = ComputePose();
     const Matrix4 hand = Matrix4::Translation(view.position) * Matrix4::Rotation(rotation) * m_pose;
+    UpdateArms(hand);
     for (const Part& part : m_partInfo) {
         Spot::Entity* entity = GetScene().GetEntity(part.entity);
         if (!entity) {
@@ -399,6 +475,7 @@ void ViewModel::OnDisable() {
 }
 
 void ViewModel::Serialize(Spot::Archive& archive) {
+    archive.Field("armsModel", armsModel);
     archive.Field("swayAmount", swayAmount, {.min = 0, .max = .1f, .speed = .001f});
     archive.Field("maxSway", maxSway, {.min = 0, .max = .1f, .speed = .001f});
     archive.Field("bobAmount", bobAmount, {.min = 0, .max = .1f, .speed = .001f});

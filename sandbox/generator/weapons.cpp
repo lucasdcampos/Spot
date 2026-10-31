@@ -232,6 +232,8 @@ GltfModel Pistol() {
 
     builder.Marker("Muzzle", {0.0f, 0.032f, -0.178f});
     builder.Marker("Eye", {0.0f, 0.0525f, 0.37f});
+    builder.Marker("RightHand", {0.035f, -0.095f, 0.025f});
+    builder.Marker("LeftHand", {-0.045f, -0.095f, 0.015f});
     return builder.Build();
 }
 
@@ -337,6 +339,8 @@ GltfModel Rifle() {
 
     builder.Marker("Muzzle", {0.0f, 0.02f, -0.705f});
     builder.Marker("Eye", {0.0f, 0.085f, 0.17f});
+    builder.Marker("RightHand", {0.035f, -0.12f, 0.06f});
+    builder.Marker("LeftHand", {-0.035f, -0.07f, -0.25f});
     return builder.Build();
 }
 
@@ -409,6 +413,8 @@ GltfModel Shotgun() {
 
     builder.Marker("Muzzle", {0.0f, 0.016f, -0.665f});
     builder.Marker("Eye", {0.0f, 0.0335f, 0.27f});
+    builder.Marker("RightHand", {0.035f, -0.10f, 0.12f});
+    builder.Marker("LeftHand", {-0.035f, -0.065f, -0.32f});
     return builder.Build();
 }
 
@@ -482,6 +488,8 @@ GltfModel RocketLauncher() {
     builder.Marker("Eye", {-0.07f, 0.1125f, 0.34f});
     // Carried on the shoulder, further right and lower than what is held in the hand.
     builder.Marker("Hip", {-0.07f, 0.05f, 0.12f});
+    builder.Marker("RightHand", {0.035f, -0.09f, 0.005f});
+    builder.Marker("LeftHand", {-0.040f, -0.09f, -0.23f});
     return builder.Build();
 }
 
@@ -527,6 +535,8 @@ GltfModel ToolGun() {
 
     builder.Marker("Muzzle", {0.0f, 0.015f, -0.266f});
     builder.Marker("Eye", {0.0f, 0.08f, 0.3f});
+    builder.Marker("RightHand", {0.035f, -0.10f, 0.015f});
+    builder.Marker("LeftHand", {-0.045f, -0.10f, 0.0f});
     return builder.Build();
 }
 
@@ -596,10 +606,34 @@ GltfModel PhysicsGun() {
     builder.Marker("Muzzle", {0.0f, 0.02f, -0.39f});
     builder.Marker("Eye", {0.0f, 0.075f, 0.3f});
     builder.Marker("Hip", {0.0f, 0.0f, 0.08f});
+    builder.Marker("RightHand", {0.035f, -0.10f, 0.015f});
+    builder.Marker("LeftHand", {-0.055f, -0.07f, -0.14f});
     return builder.Build();
 }
 
 } // namespace
+
+GltfModel MakeFirstPersonArms() {
+    Builder builder;
+    for (const auto* side : {"Right", "Left"}) {
+        const auto arm = builder.AddMaterial(
+            {.name = std::string(side) + " Forearm", .baseColor = {0.68f, 0.44f, 0.29f}, .roughness = 0.85f});
+        // Unit length along -Z; the view stretches it between elbow and wrist.
+        builder.Turned(arm, {{0, 0}, {0.048f, 0}, {0.045f, -0.15f}, {0.029f, -0.95f}, {0.028f, -1}, {0, -1}}, {}, 12);
+        const auto hand = builder.AddMaterial(
+            {.name = std::string(side) + " Hand", .baseColor = {0.68f, 0.44f, 0.29f}, .roughness = 0.85f});
+        const float sign = std::string_view(side) == "Right" ? 1.0f : -1.0f;
+        builder.Block(hand, {0.035f, 0.070f, 0.065f}, 0.009f, {0, 0.033f, -0.019f});
+        // Four curled fingers wrap around the grip; the thumb crosses the other side.
+        for (int i = 0; i < 4; ++i) {
+            const float y = 0.009f + static_cast<float>(i) * 0.016f;
+            builder.Block(hand, {0.050f, 0.014f, 0.018f}, 0.005f, {-sign * 0.020f, y, -0.048f});
+            builder.Block(hand, {0.016f, 0.014f, 0.030f}, 0.005f, {-sign * 0.041f, y, -0.029f});
+        }
+        builder.Block(hand, {0.020f, 0.045f, 0.026f}, 0.007f, {-sign * 0.021f, 0.057f, 0.016f}, -25);
+    }
+    return builder.Build();
+}
 
 std::vector<WeaponModel> MakeWeaponModels() {
     std::vector<WeaponModel> models;

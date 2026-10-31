@@ -58,15 +58,16 @@ std::vector<InputHint> Helicopter::DescribeHints() const {
 }
 
 void Helicopter::OnFixedUpdate(float deltaTime) {
-    auto* body = GetEntity().GetComponent<Spot::Rigidbody>();
-    if (!body || body->IsKinematic() || deltaTime <= 0.0f) {
+    if (deltaTime <= 0.0f) {
         return;
     }
+    // Every machine spins the rotor up, from who sits in it, though only the one simulating the body flies it.
     const bool powered = HasDriver() && IsOperational();
     const float target = powered ? 1.0f : 0.0f;
     const float step = deltaTime / std::max(spoolTime, 0.1f);
     m_rotorSpeed += std::clamp(target - m_rotorSpeed, -step, step);
-    if (m_rotorSpeed <= 0.0f || HasState("Destroyed")) {
+    auto* body = GetEntity().GetComponent<Spot::Rigidbody>();
+    if (!body || body->IsKinematic() || m_rotorSpeed <= 0.0f || HasState("Destroyed")) {
         return;
     }
     body->WakeUp();

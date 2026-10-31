@@ -251,6 +251,7 @@ OutputCounts GenerateSandboxAssets(const std::filesystem::path& directory, std::
         writeModel(std::string(level.name), level.model);
     }
     writeModel("humanoid", Rigs::Humanoid());
+    writeModel("first_person_arms", Weapons::MakeFirstPersonArms());
     writeModel("car", Vehicles::Car());
     writeModel("coupe", Vehicles::Coupe());
     writeModel("helicopter", Vehicles::Helicopter());

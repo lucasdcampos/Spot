@@ -6,6 +6,7 @@
         {
           "data": {
             "authority": 0,
+            "predicted": true,
             "priority": 3.0,
             "relevanceRadius": 0.0
           },
@@ -86,7 +87,7 @@
             "crouchSpeed": 2.5,
             "fastFlySpeed": 25.0,
             "flySpeed": 10.0,
-            "jumpSpeed": 5.5,
+            "jumpSpeed": 9.0,
             "runSpeed": 9.0,
             "strideLength": 2.0999999046325684,
             "walkSpeed": 5.0
@@ -145,6 +146,7 @@
         },
         {
           "data": {
+            "armsModel": "1f7ff6687b8c9da9a2f87197237659d7",
             "bobAmount": 0.00800000037997961,
             "maxSway": 0.029999999329447746,
             "motionResponse": 12.0,
@@ -208,6 +210,7 @@
               0.04,
               0
             ],
+            "localLayer": 30,
             "seatedLayer": "Sitting",
             "crouchLayer": "Crouching",
             "stateLayers": [
@@ -226,7 +229,76 @@
             "mount": 201019,
             "animator": 201014,
             "poseLayer": "Holding",
-            "renderLayer": 30
+            "renderLayer": 30,
+            "aim": 201020,
+            "rightHand": 201022,
+            "leftHand": 201023
+          }
+        },
+        {
+          "type": "CharacterAim",
+          "id": "5decf2c30b51415eb4967b7ae2684dbf",
+          "enabled": true,
+          "data": {
+            "look": 201021,
+            "aim": 201020
+          }
+        },
+        {
+          "type": "Bleeding",
+          "id": "b4eab1c090bd4dbaa517cd301b1b0bfd",
+          "enabled": true,
+          "data": {
+            "spatter": {
+              "texture": "be722a802c8328c4e7cc591019beb068",
+              "color": [
+                0.2,
+                0.008,
+                0.006,
+                1.0
+              ],
+              "roughness": 0.35,
+              "lifetime": 40.0,
+              "fadeTime": 5.0
+            },
+            "drip": {
+              "texture": "748102376547484958d4501910647ae5",
+              "color": [
+                0.2,
+                0.008,
+                0.006,
+                1.0
+              ],
+              "roughness": 0.35,
+              "lifetime": 40.0,
+              "fadeTime": 5.0
+            },
+            "exitEffect": "blood.exit",
+            "damageType": "Bullet",
+            "spatterCount": 2,
+            "spatterCone": 0.4,
+            "spatterReach": 2.2,
+            "dripReach": 3.0,
+            "dripCount": 1,
+            "dripRadius": 0.18,
+            "minSize": 0.04,
+            "maxSize": 0.14
+          }
+        },
+        {
+          "type": "Surface",
+          "id": "efae11cbfe764af3b7061d03831d4845",
+          "enabled": true,
+          "data": {
+            "kind": 3
+          }
+        },
+        {
+          "type": "CharacterDeath",
+          "id": "52313dc17f344e9091246c2074e232a1",
+          "enabled": true,
+          "data": {
+            "ragdoll": 201014
           }
         }
       ],
@@ -277,7 +349,7 @@
             },
             "projection": 0
           },
-          "enabled": true,
+          "enabled": false,
           "id": "8ca8300d6b87cb35ad9d113fc5ed9b4b",
           "type": "Camera"
         }
@@ -699,7 +771,11 @@
         "3": 201016,
         "4": 201017,
         "5": 201018,
-        "6": 201019
+        "6": 201019,
+        "7": 201020,
+        "8": 201021,
+        "9": 201022,
+        "10": 201023
       },
       "overrides": {},
       "removedEntities": []

@@ -1,0 +1,43 @@
+{
+  "id": "1f7ff6687b8c9da9a2f87197237659d7",
+  "settings": {
+    "animations": [],
+    "materials": [],
+    "scale": 1.0
+  },
+  "subAssets": [
+    {
+      "id": "5f349cf76c82280682cc91f6a8f1a23e",
+      "key": "material:0"
+    },
+    {
+      "id": "3b7549a1f19a959a0afb64411b3818ac",
+      "key": "material:1"
+    },
+    {
+      "id": "f1b63b53f7a5d8112272c9f39fa10d8d",
+      "key": "material:2"
+    },
+    {
+      "id": "a498a505e782757904f099abb10aec38",
+      "key": "material:3"
+    },
+    {
+      "id": "436240107a8b78d7b58862c5099801d6",
+      "key": "mesh:0"
+    },
+    {
+      "id": "c22519307eae35e1aec8e62d562b3dcd",
+      "key": "mesh:1"
+    },
+    {
+      "id": "82193dafc665577ae7e071e6054c0c69",
+      "key": "mesh:2"
+    },
+    {
+      "id": "ee8cb2b1320f714e109d6a1b4f13d25b",
+      "key": "mesh:3"
+    }
+  ],
+  "type": "Model"
+}

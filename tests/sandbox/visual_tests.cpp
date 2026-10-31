@@ -220,6 +220,16 @@ TEST_CASE("Armed and unarmed humanoid prefabs render with articulated bodies and
     const std::filesystem::path output(SPOT_SANDBOX_CAPTURE_DIR);
     std::filesystem::create_directories(output);
     CHECK(Spot::Image(1024, 768, pixels).SavePng(output / "humanoid_npcs.png"));
+    // From the side, closer, to see how the hands hold the pistol.
+    camera.GetTransform().SetPosition({2.4f, 0.9f, 0.4f});
+    camera.GetTransform().SetRotation(
+        Spot::Quaternion::LookRotation(Spot::Vector3{0.6f, 0.3f, 0} - camera.GetTransform().GetPosition()));
+    scene.PrepareToRender();
+    context = device->BeginOffscreenFrame(*target);
+    REQUIRE(context);
+    renderer.Render(*context, scene, target.get());
+    device->EndFrame();
+    CHECK(Spot::Image(1024, 768, device->DownloadTexture(*target)).SavePng(output / "humanoid_npcs_side.png"));
 }
 
 TEST_CASE("Sandbox map selection and empty debug floor render", "[gpu][sandbox][maps][offscreen]") {
@@ -304,6 +314,19 @@ TEST_CASE("Sandbox map selection and empty debug floor render", "[gpu][sandbox][
                 const auto pagePixels = device->DownloadTexture(*target);
                 CHECK(Spot::Image(1280, 720, pagePixels)
                           .SavePng(output / ("main_menu_map_" + std::to_string(map) + ".png")));
+            }
+            for (const auto& [page, file] : {std::pair{MainMenu::Page::Host, "main_menu_host.png"},
+                                             std::pair{MainMenu::Page::Join, "main_menu_join.png"},
+                                             std::pair{MainMenu::Page::Connecting, "main_menu_connecting.png"}}) {
+                menu->ShowPage(page);
+                scene->Update(0.2f);
+                auto* context = device->BeginOffscreenFrame(*target);
+                REQUIRE(context);
+                renderer.Render(*context, *scene, target.get());
+                device->EndFrame();
+                const auto pagePixels = device->DownloadTexture(*target);
+                CHECK(pagePixels != pixels);
+                CHECK(Spot::Image(1280, 720, pagePixels).SavePng(output / file));
             }
             menu->ShowPage(MainMenu::Page::Settings);
             scene->Update(0.2f);
@@ -531,7 +554,25 @@ TEST_CASE("The cooked sandbox renders held items, recoil, sights and reloads", "
         return pixels;
     };
     std::filesystem::create_directories(SPOT_SANDBOX_CAPTURE_DIR);
+    REQUIRE(view->GetArmEntities().size() == 4);
     const auto idle = draw("pistol_idle.png");
+    for (auto id : view->GetArmEntities()) {
+        scene->GetEntity(id)->SetActive(false);
+    }
+    const auto withoutArms = draw("pistol_without_arms.png");
+    std::size_t armPixels = 0;
+    for (std::size_t i = 0; i < idle.size(); i += 4) {
+        armPixels += std::abs(int(idle[i]) - int(withoutArms[i])) +
+                                 std::abs(int(idle[i + 1]) - int(withoutArms[i + 1])) +
+                                 std::abs(int(idle[i + 2]) - int(withoutArms[i + 2])) >
+                             20
+                         ? 1
+                         : 0;
+    }
+    CHECK(armPixels > 1000);
+    for (auto id : view->GetArmEntities()) {
+        scene->GetEntity(id)->SetActive(true);
+    }
     firearm()->Fire();
     step();
     CHECK(Gameplay::Players::FindComponent<Gameplay::FirstPersonView>(*scene)->GetRecoil() > 0);

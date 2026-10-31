@@ -7,6 +7,7 @@
 #include <spot.h>
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -45,14 +46,19 @@ struct CharacterControls {
 // goes up, crouch down and sprint faster. In a state of blockedBy, as dead, it neither moves nor jumps; in one of
 // inactiveWhen, as seated,
 // its body is put aside and it does nothing. Only where its pawn's state is decided does it move it (see
-// Spot::Network::HasAuthority()); elsewhere the pawn moves as it is told.
-class CharacterMovement : public Spot::Component, public DamageReceiver, public PlayerInputListener {
+// Spot::Network::HasAuthority()); elsewhere the pawn moves as it is told, unless the pawn is predicted
+// (PredictedPart): its player's machine then moves it at once, and the server by that player's steps.
+class CharacterMovement : public Spot::Component,
+                          public DamageReceiver,
+                          public PlayerInputListener,
+                          public PredictedPart,
+                          public Spot::Replicated {
 public:
     // Meters per second.
     float walkSpeed = 5.0f;
     float runSpeed = 9.0f;
     float crouchSpeed = 2.5f;
-    float jumpSpeed = 5.5f;
+    float jumpSpeed = 9.0f;
     float flySpeed = 10.0f;
     float fastFlySpeed = 25.0f;
     // The capsule's height while crouching, from end to end.
@@ -92,11 +98,19 @@ public:
     // Each step it takes and each landing, with how loud it is: 1 walking, less crouching and more running.
     Spot::Signal<float> OnFootstep;
 
+    // Whether it crouches, runs and flies, which the server decides, for the other machines to show.
+    void Replicate(Spot::Archive& archive) override;
+
+    void Step(float fixedDeltaTime, bool replaying) override;
+    void SerializeStepState(Spot::Archive& archive) override;
+    void OnCorrected(Spot::Vector3 offset) override;
+
 protected:
     bool IsInputBeforeFixedSteps() const override { return true; }
     void OnPlayerInput(PlayerController& player) override;
     void OnPlayerUnpossess() override;
     void SerializeIntent(Spot::Archive& archive) override;
+    bool IsIntentPerStep() const override { return true; }
     void OnDamage(const DamageInfo& damage) override;
     void OnStart() override;
     void OnFixedUpdate(float fixedDeltaTime) override;
@@ -122,6 +136,8 @@ private:
 
     float m_standHeight = 1.8f;
     float m_headHeight = 0.7f;
+    // Where the head is across the body, as authored.
+    Spot::Vector2 m_headAcross;
     // How far the head is lowered, easing toward where crouching puts it.
     float m_headDrop = 0.0f;
     float m_bob = 0.0f;
@@ -134,6 +150,7 @@ private:
     bool m_flying = false;
     bool m_sprinting = false;
     bool m_inactive = false;
+    Spot::Vector3 m_airVelocity;
     Spot::Vector3 m_push;
     float m_lift = 0.0f;
     bool m_wasGrounded = true;
@@ -143,6 +160,15 @@ private:
     // The dip landing gives the head, as a damped spring.
     float m_dip = 0.0f;
     float m_dipVelocity = 0.0f;
+    // Stepping again what the server corrected, which was already shown.
+    bool m_replaying = false;
+    // Whether running was blocked, as the intent read for the next step says.
+    std::optional<bool> m_sprintBlocked;
+    // How far the last correction moved it, which the head eases back from, so it is not seen jumping.
+    Spot::Vector3 m_correction;
+    // Where it was last shown, and how fast it was seen to move, as another machine moves it.
+    std::optional<Spot::Vector3> m_lastShown;
+    Spot::Vector3 m_shownVelocity;
     Spot::SignalConnection m_states;
 };
 

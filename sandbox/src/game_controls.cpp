@@ -15,7 +15,7 @@ void GameControls::OnEnable() {
     m_commands = std::make_unique<SandboxCommands>(console, GetScene());
     m_cheatsBefore = console.AreCheatsEnabled();
     if (cheats) {
-        console.SetCheatsEnabled(true);
+        console.SetCheatsEnabled(Spot::Network::IsServer(GetScene()));
     }
 }
 
@@ -27,7 +27,8 @@ void GameControls::OnDisable() {
 }
 
 void GameControls::OnStart() {
-    if (spawnNpcs && !GetScene().FindComponent<NpcSpawner>()) {
+    // Clients are shown the server's NPCs.
+    if (spawnNpcs && Spot::Network::IsServer(GetScene()) && !GetScene().FindComponent<NpcSpawner>()) {
         auto population = npcs;
         if (!population) {
             if (auto* assets = Spot::Assets::GetManager();

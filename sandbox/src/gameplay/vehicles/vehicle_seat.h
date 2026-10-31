@@ -18,7 +18,8 @@ class Vehicle;
 // the seat's entity, and its controller possesses the vehicle. The vehicle's exit action gets it out, as do its states
 // of ejectWhen, as dying: beside the vehicle, at the first of the exits with room, then wherever around the vehicle's
 // colliders there is room, then above it, facing the way the vehicle does and moving as it moved; its controller
-// possesses it again.
+// possesses it again. In a session, only the server enters and exits seats; clients present the vehicle's replicated
+// occupant and its pawn states, and request exits through Pawn::Request().
 class VehicleSeat : public Interactable, public SaveListener {
 public:
     // Where the driver sits; the seat's own entity when unset.

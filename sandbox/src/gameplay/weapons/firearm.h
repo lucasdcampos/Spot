@@ -6,6 +6,7 @@
 
 #include <random>
 #include <string>
+#include <vector>
 
 namespace Gameplay {
 
@@ -15,8 +16,14 @@ namespace Gameplay {
 // and pushing what they hit (Damage::Apply()) and playing the effect of its surface; with one, it launches that prefab,
 // as a rocket. While aiming its pawn is "Aiming".
 //
-// A game changes how it shoots by overriding FireShot(), as a weapon that heals what it hits would.
-class Firearm : public HeldItem {
+// On the machine of a player whose pawn is predicted, it aims, kicks, flashes and sounds at once (OnPredictedUse()),
+// and shows where its pellets go; the server alone damages, pushes and launches, and the rounds are its to count.
+// That machine tells the server which replicated objects its pellets hit, as it saw them, a little in the past: the
+// server damages those, as many as the shots it fired allow and within range, rather than what its own rays hit.
+//
+// A game changes how it shoots by overriding FireShot(), as a weapon that heals what it hits would; it runs on that
+// player's machine too, where it only shows (Spot::Network::HasAuthority() is false there).
+class Firearm : public HeldItem, public Spot::Replicated {
 public:
     // Fires again while the action is held.
     bool automatic = false;
@@ -79,6 +86,22 @@ public:
     ItemStatus DescribeStatus() const override;
     ItemPose DescribePose() const override;
 
+    // Its rounds, aim and reload, which the server decides, for the other machines to show.
+    void Replicate(Spot::Archive& archive) override;
+
+    // A pellet's hit on a replicated object, as the machine of a player predicting its pawn saw it.
+    struct ReportedHit {
+        Spot::EntityId target = Spot::EntityId::Invalid;
+        Spot::Vector3 point;
+        Spot::Vector3 direction;
+        // The share of the damage and push left, as water slows pellets.
+        float share = 1.0f;
+
+        void Serialize(Spot::Archive& archive);
+    };
+    // On the server: hits that machine reports, applied as the shots it fired here allow.
+    void ApplyReportedHits(std::vector<ReportedHit> hits);
+
 protected:
     // One shot, from the eyes along the aim, seen leaving the muzzle: its pellets, or what it launches.
     virtual void FireShot(Spot::Vector3 eye, Spot::Vector3 aim, Spot::Vector3 muzzle);
@@ -86,6 +109,7 @@ protected:
     void Launch(Spot::Vector3 eye, Spot::Vector3 aim, Spot::Vector3 muzzle);
 
     void OnUse(const ItemInput& input) override;
+    void OnPredictedUse(const ItemInput& input) override { OnUse(input); }
     void OnUnequip() override;
     void OnStart() override;
     void OnDisable() override;
@@ -99,6 +123,12 @@ private:
     // A direction within the cone of the half angle around the aim.
     Spot::Vector3 Scatter(Spot::Vector3 aim, float cone);
     void ScheduleReload(float seconds);
+    // Applies the waiting reported hits the shots fired allow.
+    void ApplyPendingHits();
+
+    std::vector<ReportedHit> m_pendingHits;
+    // How many more pellets may be reported hitting, from shots fired here.
+    float m_hitAllowance = 0.0f;
 
     int m_ammo = -1;
     int m_reserve = -1;

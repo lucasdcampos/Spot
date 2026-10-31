@@ -6,8 +6,9 @@ namespace Gameplay {
 
 // A wheel of a WheeledVehicle, on an entity of its own below it, placed where the wheel's center rests: its tire, its
 // suspension, how far it steers and what share of the drive and the brakes it takes. Its visual, a child, moves up and
-// down with the suspension, steers and spins; the wheel's own entity stays where it rests.
-class VehicleWheel : public Spot::Component {
+// down with the suspension, steers and spins; the wheel's own entity stays where it rests. The machine simulating the
+// vehicle, its driver's while one drives it, shows the others how it moves; they turn it at the spin they are shown.
+class VehicleWheel : public Spot::Component, public Spot::Replicated {
 public:
     float radius = 0.33f;
     float width = 0.22f;
@@ -43,6 +44,9 @@ public:
     float GetSpin() const { return m_spin; }
     // How far past its peak grip the tire slides: 0 gripping, 1 at its peak, more sliding.
     float GetSlip() const { return m_slip; }
+
+    void Replicate(Spot::Archive& archive) override;
+    bool IsDecidedByOwner() const override { return true; }
 
 protected:
     void OnLateUpdate(float deltaTime) override;

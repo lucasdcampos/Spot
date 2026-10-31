@@ -14,6 +14,9 @@ struct WeaponModel {
     GltfModel model;
 };
 
+// Separate forearms and gripping hands for the first-person presentation.
+GltfModel MakeFirstPersonArms();
+
 // The pistol, rifle, shotgun, rocket launcher, tool gun and physics gun.
 std::vector<WeaponModel> MakeWeaponModels();
 

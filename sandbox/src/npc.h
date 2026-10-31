@@ -54,6 +54,8 @@ public:
     std::vector<Spot::AssetRef<Spot::Prefab>> loadout;
 
     bool IsDead() const { return m_dead; }
+    // How fast it walks and whether it is dead, which the server decides, besides its pawn's states.
+    void Replicate(Spot::Archive& archive) override;
     bool IsKnockedDown() const { return m_down > 0; }
     std::uint32_t GetFootsteps() const { return m_footsteps; }
     // What it fights now; invalid when nothing.
@@ -93,6 +95,8 @@ private:
     void UseItem(bool fire);
 
     bool m_dead = false;
+    // The walking speed its animator was last given, which clients animate it with.
+    float m_speed = 0.0f;
     bool m_hasHome = false;
     bool m_positive = false;
     Spot::Vector3 m_home;

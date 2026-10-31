@@ -2,6 +2,7 @@
 
 #include "gameplay/core/input_context.h"
 #include "gameplay/core/interactable.h"
+#include "gameplay/core/player_input.h"
 #include "gameplay/core/user_settings.h"
 #include "gameplay/hud/input_prompts.h"
 #include "gameplay/persistence/world_save.h"
@@ -17,7 +18,15 @@ namespace Gameplay {
 // use action again drops it, the throw action throws it, and holding the turn action turns it with Look. It is the
 // pawn's Interactor that picks bodies up, offering it what it hits; while one is carried, the carrier takes its
 // actions from everything else and the pawn's hands are busy ("HandsBusy"). The dead drop it.
-class Carrier : public Spot::Component, public InteractionHandler, public SaveListener, public UserSettingsListener {
+//
+// In a session, the server picks up and carries; the player's machine is shown what is carried, and its controls go to
+// the server as intents. Bodies another machine simulates, kinematic here, can be picked up all the same.
+class Carrier : public Spot::Component,
+                public InteractionHandler,
+                public PlayerInputListener,
+                public SaveListener,
+                public UserSettingsListener,
+                public Spot::Replicated {
 public:
     float reach = 2.5f;
     // In kilograms.
@@ -42,12 +51,16 @@ public:
     // What the controls do while carrying.
     std::vector<InputHint> GetHints() const;
 
+    void Replicate(Spot::Archive& archive) override;
+
 protected:
     void ApplySettings(const UserSettings& settings) override { m_lookSensitivity = settings.sensitivity; }
     void OnStart() override;
     void OnBeforeLoad() override { Drop(); }
     std::optional<std::string> GetInteraction(const Interactor& interactor, const Spot::RaycastHit& hit) const override;
     void Interact(Interactor& interactor, const Spot::RaycastHit& hit) override;
+    void OnPlayerInput(PlayerController& player) override;
+    void SerializeIntent(Spot::Archive& archive) override;
 
     void OnDisable() override { Drop(); }
     void OnUpdate(float deltaTime) override;
@@ -55,6 +68,16 @@ protected:
     void Serialize(Spot::Archive& archive) override;
 
 private:
+    // What the player does with what is carried, this frame.
+    struct CarryIntent {
+        bool drop = false;
+        bool toss = false;
+        // How far to turn it, already scaled by the look's sensitivity.
+        Spot::Vector2 turn;
+    };
+
+    // Acts on the intent where the pawn is decided.
+    void SetIntent(const CarryIntent& intent);
     // The held body's rigidbody, while it still has one.
     Spot::Rigidbody* GetHeldBody() const;
     void SetHandsBusy(bool busy);

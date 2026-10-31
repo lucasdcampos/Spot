@@ -1,6 +1,7 @@
 #include "gameplay/game/session_controls.h"
 
 #include "gameplay/game/game_mode.h"
+#include "gameplay/game/map_info.h"
 #include "gameplay/menus/menu.h"
 #include "gameplay/menus/pause_menu.h"
 #include "gameplay/persistence/world_save.h"
@@ -20,13 +21,17 @@ void SessionControls::PlayClick() const {
 }
 
 void SessionControls::OnUpdate(float /*deltaTime*/) {
-    const bool save = Spot::Input::IsActionPressed(saveAction);
-    const bool load = Spot::Input::IsActionPressed(loadAction);
+    // The world is the server's: a client neither saves it, nor loads it, nor restarts it.
+    const bool server = Spot::Network::IsServer(GetScene());
+    const bool save = server && Spot::Input::IsActionPressed(saveAction);
+    const bool load = server && Spot::Input::IsActionPressed(loadAction);
     if (save || load) {
         const auto directory = !m_saveDirectory.empty() ? m_saveDirectory
                                : GetScene().IsLoaded()  ? Spot::Application::Get().GetUserDataDirectory()
                                                         : std::filesystem::path{};
         if (!directory.empty()) {
+            const MapInfo* map = MapInfo::Get(GetScene());
+            const std::string checkpoint = map ? map->checkpoint : "world.json";
             const auto result = save ? WorldSave::Save(GetScene(), directory / checkpoint)
                                      : WorldSave::Load(GetScene(), directory / checkpoint);
             if (result) {
@@ -44,7 +49,7 @@ void SessionControls::OnUpdate(float /*deltaTime*/) {
             Spot::Application::Get().QuitGame();
         }
     }
-    if (Spot::Input::IsActionPressed(restartAction)) {
+    if (server && Spot::Input::IsActionPressed(restartAction)) {
         if (auto* mode = GameMode::Get(GetScene())) {
             mode->Restart();
         }
@@ -64,7 +69,6 @@ void SessionControls::Serialize(Spot::Archive& archive) {
     archive.Field("pauseAction", pauseAction);
     archive.Field("restartAction", restartAction);
     archive.Field("captureAction", captureAction);
-    archive.Field("checkpoint", checkpoint);
     archive.Field("clickSound", clickSound);
 }
 

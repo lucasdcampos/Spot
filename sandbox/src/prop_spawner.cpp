@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <array>
 #include <string_view>
+#include <utility>
 
 SPOT_COMPONENT(PropSpawner);
 
@@ -69,17 +70,25 @@ Spot::Entity* PropSpawner::Spawn(std::size_t index) {
     if (index >= m_spawnables.size()) {
         return nullptr;
     }
-    const SpawnableItem& item = m_spawnables[index];
-    const auto placement = FindPlacement(item);
+    const auto placement = FindPlacement(m_spawnables[index]);
     if (!placement) {
         return nullptr;
     }
+    if (!Spot::Network::HasAuthority(GetEntity())) {
+        m_requests.push_back({static_cast<int>(index), placement->position, placement->facing});
+        return nullptr;
+    }
+    return SpawnAt(index, *placement);
+}
+
+Spot::Entity* PropSpawner::SpawnAt(std::size_t index, const Placement& placement) {
+    const SpawnableItem& item = m_spawnables[index];
     Spot::Entity* entity = GetScene().Instantiate(item.prefab, {.assets = m_assets});
     if (!entity) {
         return nullptr;
     }
-    entity->GetTransform().SetPosition(placement->position);
-    entity->GetTransform().SetRotation(placement->facing * entity->GetTransform().GetRotation());
+    entity->GetTransform().SetPosition(placement.position);
+    entity->GetTransform().SetRotation(placement.facing * entity->GetTransform().GetRotation());
     if (!entity->HasComponent<Gameplay::Persistent>()) {
         entity->AddComponent<Gameplay::Persistent>();
     }
@@ -183,7 +192,38 @@ void PropSpawner::UpdatePreview() {
     }
 }
 
+void PropSpawner::Request::Serialize(Spot::Archive& archive) {
+    archive.Field("index", index);
+    archive.Field("position", position);
+    archive.Field("facing", facing);
+}
+
+void PropSpawner::SerializeIntent(Spot::Archive& archive) {
+    std::vector<Request> requests = std::exchange(m_requests, {});
+    bool cleanup = std::exchange(m_cleanupRequested, false);
+    archive.Field("spawns", requests);
+    archive.Field("cleanup", cleanup);
+    if (!archive.IsLoading()) {
+        return;
+    }
+    const Gameplay::Pawn* pawn = Gameplay::Pawn::Of(GetEntity());
+    for (const Request& request : requests) {
+        // Only where its player could have placed it: near where the server has them look from.
+        const bool inReach = pawn && Spot::Distance(pawn->GetViewPoint().position, request.position) <= reach * 2.0f;
+        if (request.index >= 0 && static_cast<std::size_t>(request.index) < m_spawnables.size() && inReach) {
+            SpawnAt(static_cast<std::size_t>(request.index), {request.position, Spot::Normalize(request.facing)});
+        }
+    }
+    if (cleanup) {
+        Cleanup();
+    }
+}
+
 void PropSpawner::Cleanup() {
+    if (!Spot::Network::HasAuthority(GetEntity())) {
+        m_cleanupRequested = true;
+        return;
+    }
     for (const Spot::EntityId id : m_spawned) {
         if (Spot::Entity* entity = GetScene().GetEntity(id)) {
             entity->Destroy();

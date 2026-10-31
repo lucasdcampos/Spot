@@ -1,0 +1,108 @@
+{
+  "format": "spot-scene",
+  "version": 2,
+  "entities": [
+    {
+      "id": 1,
+      "name": "Free",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "NetworkObject",
+          "id": "352e940a5ef549008bc3de6868957af5",
+          "enabled": true,
+          "data": {
+            "authority": 0,
+            "priority": 5.0,
+            "relevanceRadius": 0.0
+          }
+        },
+        {
+          "data": {
+            "fallHeight": -20.0,
+            "respawnTime": 4.0,
+            "playerPrefab": "58afa6cb32bc1eae562a0603ef2ca4d4",
+            "name": "Free",
+            "description": "Build, drive and experiment together, with all tools and weapons.",
+            "order": 0,
+            "allowsTimeScale": true
+          },
+          "enabled": true,
+          "id": "a0646f3eb2525162dc48dba7ee2f7393",
+          "type": "GameMode"
+        },
+        {
+          "data": {
+            "cheats": true,
+            "npcs": null,
+            "spawnNpcs": false
+          },
+          "enabled": true,
+          "id": "20bf8bf7e39e62a3eee0d6f3f9eccd7c",
+          "type": "GameControls"
+        },
+        {
+          "data": {
+            "clickSound": "740b4adc271ec8e9467bedbd8163a294"
+          },
+          "enabled": true,
+          "id": "9ad4b197648b24574e05063e6416618e",
+          "type": "SessionControls"
+        },
+        {
+          "data": {
+            "repeatedFrames": 3,
+            "playerInfoPrefab": "9352108da71c3f2883d1f8419d356208"
+          },
+          "enabled": true,
+          "id": "cbeaf9d20630eb977fbda8750d1198c6",
+          "type": "NetworkPlayers"
+        },
+        {
+          "data": {
+            "font": "b3999c7ba8d944228a80146a8f38a9da",
+            "interface": "33112ac78713dfacea15cc45836f8de1",
+            "introTime": 0.0,
+            "playerIndex": 0
+          },
+          "enabled": true,
+          "id": "ff07ebf144035909c063b80d05df8e18",
+          "type": "Hud"
+        },
+        {
+          "type": "SessionDisplay",
+          "id": "76a23011c9ee4d39b23869ccef5dbdad",
+          "enabled": true,
+          "data": {
+            "font": "b3999c7ba8d944228a80146a8f38a9da",
+            "action": "Player List"
+          }
+        },
+        {
+          "type": "PropEdits",
+          "id": "c7a949af0269905c20e30a867bcab262",
+          "enabled": true,
+          "data": {}
+        }
+      ]
+    }
+  ]
+}

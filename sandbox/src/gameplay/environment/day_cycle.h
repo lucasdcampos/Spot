@@ -12,7 +12,7 @@ namespace Gameplay {
 // The fog of its entity thickens at dawn and dusk, and the colors fade at night. The scene's Sky
 // turns its stars with the sun, and its effects are lit as much as the day is (EffectPool::SetLight()). Holding its
 // fast forward action speeds time up.
-class DayCycle : public Spot::Component {
+class DayCycle : public Spot::Component, public Spot::Replicated {
 public:
     // From 0 at midnight to 1 at the next one.
     float timeOfDay = 0.375f;
@@ -30,6 +30,9 @@ public:
     float GetDaylight() const { return m_daylight; }
     // Applies a time in [0, 1) immediately, including the sky, fog and exposure.
     void SetTimeOfDay(float time);
+    // The time of day, which the server keeps, so every machine has the same sky; between its states, each machine's
+    // own day goes on.
+    void Replicate(Spot::Archive& archive) override;
 
 protected:
     void OnStart() override;

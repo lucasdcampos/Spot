@@ -455,6 +455,10 @@ endif()
 
 # The sandbox's game code on its real scenes, when the sandbox is built: the engine's integration test.
 if(TARGET sandbox)
+    add_test(NAME "Two sandbox processes join a room, move and share props on both maps"
+        COMMAND $<TARGET_FILE:sandbox> --smoke-test-network)
+    set_tests_properties("Two sandbox processes join a room, move and share props on both maps"
+        PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 180)
     file(GLOB_RECURSE sandbox_game_sources CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/sandbox/src/*.cpp)
     list(FILTER sandbox_game_sources EXCLUDE REGEX "/main[.]cpp$")
     add_library(spot_sandbox_test_code OBJECT ${sandbox_game_sources})
@@ -472,6 +476,7 @@ if(TARGET sandbox)
         sandbox/player_tests.cpp
         sandbox/water_tests.cpp
         sandbox/car_tests.cpp
+        sandbox/network_playground_tests.cpp
     )
     # The gameplay framework's systems, each in a world of its own rather than the playground.
     file(GLOB sandbox_gameplay_tests CONFIGURE_DEPENDS sandbox/gameplay/*.cpp)

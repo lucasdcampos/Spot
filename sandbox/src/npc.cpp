@@ -1,8 +1,10 @@
 #include "npc.h"
+
 #include <spot/scene/audio/audio_system.h>
 #include <spot/scene/physics/physics_world.h>
 
 #include "gameplay/core/players.h"
+#include "gameplay/effects/effect_library.h"
 #include "gameplay/effects/surface.h"
 #include "gameplay/health/health.h"
 #include "gameplay/inventory/inventory.h"
@@ -180,6 +182,11 @@ void Npc::OnUpdate(float deltaTime) {
     if (!animator || m_dead) {
         return;
     }
+    // The server thinks for it; clients show it walking where the server moves it.
+    if (!Spot::Network::HasAuthority(GetEntity())) {
+        animator->SetFloat("speed", m_speed);
+        return;
+    }
     if (m_down > 0) {
         m_down -= deltaTime;
         auto* ragdoll = GetEntity().GetComponent<Spot::Ragdoll>();
@@ -208,6 +215,7 @@ void Npc::OnUpdate(float deltaTime) {
         move = Patrol(deltaTime);
         UseItem(false);
     }
+    m_speed = move.speed;
     animator->SetFloat("speed", move.speed);
     if (const auto listener = GetScene().GetOrAddSystem<Spot::AudioSystem>().FindListener()) {
         const float away = Spot::Distance(listener->position, GetEntity().GetTransform().GetWorldPosition());
@@ -338,7 +346,7 @@ Gameplay::ViewPoint Npc::GetViewPoint() const {
 
 void Npc::OnFixedUpdate(float deltaTime) {
     auto* character = GetEntity().GetComponent<Spot::CharacterController>();
-    if (m_dead || m_down > 0 || !character || !character->IsActiveAndEnabled()) {
+    if (!Spot::Network::HasAuthority(GetEntity()) || m_dead || m_down > 0 || !character || !character->IsActiveAndEnabled()) {
         return;
     }
     m_fall = character->IsGrounded()
@@ -356,8 +364,8 @@ void Npc::OnAnimationEvent(const Spot::AnimationEvent& event) {
     const auto* sounds = library ? library->Get(footstepSurface) : nullptr;
     if (sounds && !sounds->footsteps.empty()) {
         const auto& sound = sounds->footsteps[(m_footsteps - 1) % sounds->footsteps.size()];
-        GetScene().GetOrAddSystem<Spot::AudioSystem>().PlayOneShot(
-            sound.GetShared(), GetEntity().GetTransform().GetWorldPosition(),
+        Gameplay::EffectLibrary::PlaySound(
+            GetScene(), sound, GetEntity().GetTransform().GetWorldPosition(),
             {.volume = 0.25f,
              .bus = "Effects",
              .spatialSettings = {.minDistance = 1, .maxDistance = 20},
@@ -402,6 +410,9 @@ void Npc::Hit(Spot::Vector3 impulse, Spot::Vector3 point) {
 }
 
 void Npc::OnDamage(const Gameplay::DamageInfo& damage) {
+    if (!Spot::Network::HasAuthority(GetEntity())) {
+        return;
+    }
     if (m_dead) {
         // Its Health, which took the damage first, already pushed it with the blow that killed it.
         if (auto* ragdoll = GetEntity().GetComponent<Spot::Ragdoll>(); ragdoll && ragdoll->IsActive() && !m_killedNow) {
@@ -447,6 +458,30 @@ void Npc::Revive() {
         if (auto* health = GetEntity().GetComponent<Gameplay::Health>()) {
             health->Restore();
         }
+    }
+}
+
+void Npc::Replicate(Spot::Archive& archive) {
+    Pawn::Replicate(archive);
+    float speed = m_speed;
+    bool dead = m_dead;
+    bool down = m_down > 0;
+    archive.Field("speed", speed);
+    archive.Field("dead", dead);
+    archive.Field("down", down);
+    if (!archive.IsLoading()) {
+        return;
+    }
+    m_speed = speed;
+    if (dead && !m_dead) {
+        Die();
+    } else if (!dead && m_dead) {
+        Revive();
+    }
+    // Knocked down, it falls limp as the server has it, and gets up as it does.
+    auto* ragdoll = GetEntity().GetComponent<Spot::Ragdoll>();
+    if (!m_dead && ragdoll && down != ragdoll->IsActive()) {
+        ragdoll->SetActive(down, down ? 0.0f : 0.35f);
     }
 }
 

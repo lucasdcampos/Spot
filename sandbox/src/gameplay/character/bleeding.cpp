@@ -10,6 +10,14 @@ namespace Gameplay {
 
 SPOT_COMPONENT(Bleeding);
 
+void Bleeding::OnStart() {
+    m_damage = DamageSystem::Get(GetScene()).OnDamageApplied.Connect([this](const DamageApplied& applied) {
+        if (!Spot::Network::IsServer(GetScene()) && applied.target == GetEntity().GetId() && IsActiveAndEnabled()) {
+            OnDamage(applied.damage);
+        }
+    });
+}
+
 namespace {
 
 const Spot::Vector3 Down{0.0f, -1.0f, 0.0f};
@@ -40,19 +48,18 @@ void Bleeding::OnDamage(const DamageInfo& damage) {
         return;
     }
     Spot::Scene& scene = GetScene();
-    const Spot::Vector3 along =
-        Spot::LengthSquared(damage.impulse) > 1e-6f ? Spot::Normalize(damage.impulse) : Down;
+    const Spot::Vector3 along = Spot::LengthSquared(damage.impulse) > 1e-6f ? Spot::Normalize(damage.impulse) : Down;
     EffectLibrary::Play(scene, exitEffect, damage.point, along);
 
-    const Spot::Vector3 side = Spot::Normalize(
-        Spot::Cross(along, std::abs(along.y) < 0.99f ? Spot::Vector3{0.0f, 1.0f, 0.0f} : Spot::Vector3{1.0f, 0.0f, 0.0f}));
+    const Spot::Vector3 side = Spot::Normalize(Spot::Cross(
+        along, std::abs(along.y) < 0.99f ? Spot::Vector3{0.0f, 1.0f, 0.0f} : Spot::Vector3{1.0f, 0.0f, 0.0f}));
     const Spot::Vector3 up = Spot::Cross(side, along);
     for (int i = 0; i < spatterCount; ++i) {
         // Even over the cone's disc, and sinking as it flies.
         const float radius = std::tan(spatterCone) * std::sqrt(Random(0.0f, 1.0f));
         const float angle = Random(0.0f, 2.0f * Spot::Pi);
-        const Spot::Vector3 direction = Spot::Normalize(along + (side * std::cos(angle) + up * std::sin(angle)) * radius +
-                                                        Down * Random(0.1f, 0.5f));
+        const Spot::Vector3 direction = Spot::Normalize(
+            along + (side * std::cos(angle) + up * std::sin(angle)) * radius + Down * Random(0.1f, 0.5f));
         Splash(spatter, damage.point, direction, spatterReach, Random(minSize, maxSize), true);
     }
     // Most of it falls close below, a pool and the drops around it.
@@ -68,8 +75,7 @@ void Bleeding::OnDamage(const DamageInfo& damage) {
 bool Bleeding::Splash(const DecalStyle& style, Spot::Vector3 from, Spot::Vector3 direction, float reach, float size,
                       bool thrown) {
     Spot::Scene& scene = GetScene();
-    for (const Spot::RaycastHit& hit :
-         scene.GetOrAddSystem<Spot::PhysicsWorld>().RaycastAll(from, direction, reach)) {
+    for (const Spot::RaycastHit& hit : scene.GetOrAddSystem<Spot::PhysicsWorld>().RaycastAll(from, direction, reach)) {
         if (IsCharacter(scene.GetEntity(hit.entity))) {
             continue;
         }

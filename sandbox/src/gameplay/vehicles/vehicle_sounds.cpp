@@ -23,15 +23,28 @@ void VehicleEngineSound::OnUpdate(float /*deltaTime*/) {
     if (!source) {
         return;
     }
-    if (!vehicle || !vehicle->HasDriver() || !vehicle->IsOperational()) {
+    if (Spot::Network::HasAuthority(GetEntity())) {
+        m_running = vehicle && vehicle->HasDriver() && vehicle->IsOperational();
+        if (m_running) {
+            m_pitch = std::max(vehicle->GetRpm(), vehicle->GetIdleRpm()) / std::max(recordedRpm, 1.0f);
+            m_load = vehicle->GetThrottle();
+        }
+    }
+    if (!m_running) {
         source->Stop();
         return;
     }
     if (!source->IsPlaying()) {
         source->Play();
     }
-    source->pitch = std::max(vehicle->GetRpm(), vehicle->GetIdleRpm()) / std::max(recordedRpm, 1.0f);
-    source->volume = m_volume * (0.5f + 0.5f * vehicle->GetThrottle());
+    source->pitch = m_pitch;
+    source->volume = m_volume * (0.5f + 0.5f * m_load);
+}
+
+void VehicleEngineSound::Replicate(Spot::Archive& archive) {
+    archive.Field("running", m_running);
+    archive.Field("pitch", m_pitch);
+    archive.Field("load", m_load);
 }
 
 void VehicleEngineSound::OnDisable() {
@@ -52,11 +65,18 @@ void VehicleHornSound::OnUpdate(float /*deltaTime*/) {
     if (!source) {
         return;
     }
-    if (!vehicle || !vehicle->IsOperational() || !vehicle->GetInput().horn) {
+    if (Spot::Network::HasAuthority(GetEntity())) {
+        m_sounding = vehicle && vehicle->IsOperational() && vehicle->GetInput().horn;
+    }
+    if (!m_sounding) {
         source->Stop();
     } else if (!source->IsPlaying()) {
         source->Play();
     }
+}
+
+void VehicleHornSound::Replicate(Spot::Archive& archive) {
+    archive.Field("sounding", m_sounding);
 }
 
 void VehicleHornSound::OnDisable() {
@@ -77,9 +97,12 @@ void VehicleTireSound::OnUpdate(float /*deltaTime*/) {
     if (!source) {
         return;
     }
-    const float squeal = vehicle ? std::clamp((vehicle->GetSlip() - 1.0f) / 1.5f, 0.0f, 1.0f) *
-                                       std::min(std::abs(vehicle->GetForwardSpeed()) / 4.0f, 1.0f)
-                                 : 0.0f;
+    if (Spot::Network::HasAuthority(GetEntity())) {
+        m_squeal = vehicle ? std::clamp((vehicle->GetSlip() - 1.0f) / 1.5f, 0.0f, 1.0f) *
+                                 std::min(std::abs(vehicle->GetForwardSpeed()) / 4.0f, 1.0f)
+                           : 0.0f;
+    }
+    const float squeal = m_squeal;
     if (squeal < 0.02f) {
         source->Stop();
         return;
@@ -89,6 +112,10 @@ void VehicleTireSound::OnUpdate(float /*deltaTime*/) {
     }
     source->volume = m_volume * squeal;
     source->pitch = 0.9f + 0.2f * squeal;
+}
+
+void VehicleTireSound::Replicate(Spot::Archive& archive) {
+    archive.Field("squeal", m_squeal);
 }
 
 void VehicleTireSound::OnDisable() {

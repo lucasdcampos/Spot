@@ -2,10 +2,12 @@
 #include <spot/scene/physics/physics_world.h>
 #include <spot/scene/rendering/render_hook_system.h>
 
+#include "prop_edits.h"
 #include "sound_bank.h"
 #include "undo_list.h"
 
 #include "gameplay/core/pawn.h"
+#include "gameplay/core/players.h"
 #include "gameplay/inventory/view_model.h"
 #include "gameplay/persistence/world_save.h"
 
@@ -91,6 +93,7 @@ Spot::FixedJoint* ToolGun::Weld(Spot::Entity& first, Spot::Entity& second) {
     }
     auto& joint = first.AddComponent<Spot::FixedJoint>();
     joint.SetConnectedEntity(second.GetId());
+    PropEdits::Mark(first);
     if (auto* undo = GetUndo()) {
         undo->PushJoint(first.GetId(), first.GetComponentIndex(joint));
     }
@@ -107,6 +110,7 @@ Spot::DistanceJoint* ToolGun::Rope(Spot::Entity& first, Spot::Vector3 firstPoint
     joint.SetConnectedEntity(second.GetId());
     joint.SetConnectedAnchor(ToLocal(second.GetTransform(), secondPoint));
     joint.SetDistance(0.0f, Spot::Distance(firstPoint, secondPoint));
+    PropEdits::Mark(first);
     if (auto* undo = GetUndo()) {
         undo->PushJoint(first.GetId(), first.GetComponentIndex(joint));
     }
@@ -134,6 +138,7 @@ bool ToolGun::Paint(Spot::Entity& entity, Spot::Color paint) {
     // Glass keeps how much it lets through.
     painted.baseColor = {paint.r, paint.g, paint.b, painted.baseColor.a};
     renderer->SetMaterial(std::move(painted));
+    PropEdits::Mark(entity);
     if (auto* undo = GetUndo()) {
         undo->PushMaterial(entity.GetId(), previous);
     }
@@ -147,6 +152,7 @@ bool ToolGun::ApplyMaterial(Spot::Entity& entity, const Spot::AssetRef<Spot::Mat
     }
     const Spot::AssetRef<Spot::Material> previous = renderer->GetMaterial();
     renderer->SetMaterial(newMaterial);
+    PropEdits::Mark(entity);
     if (auto* undo = GetUndo()) {
         undo->PushMaterial(entity.GetId(), previous);
     }
@@ -224,13 +230,20 @@ void ToolGun::OnUse(const Gameplay::ItemInput& input) {
         m_first.reset();
         return;
     }
+    // Its player hears its clicks, on its own machine.
+    const Gameplay::Pawn* pawn = GetPawn();
+    const bool local = !pawn || Gameplay::Players::IsPlayedLocally(*pawn);
     if (input.IsPressed("Reload")) {
-        SoundBank::PlayClick(GetScene());
+        if (local) {
+            SoundBank::PlayClick(GetScene());
+        }
         mode = static_cast<Mode>((static_cast<int>(mode) + 1) % static_cast<int>(ModeNames.size()));
         m_first.reset();
     }
     if (input.IsPressed("Aim") && (mode == Mode::Color || mode == Mode::Material || mode == Mode::Lamp)) {
-        SoundBank::PlayClick(GetScene());
+        if (local) {
+            SoundBank::PlayClick(GetScene());
+        }
         if (mode == Mode::Color) {
             color = (color + 1) % static_cast<int>(Palette.size());
         } else if (mode == Mode::Lamp) {
@@ -239,19 +252,41 @@ void ToolGun::OnUse(const Gameplay::ItemInput& input) {
             material = (material + 1) % std::max(static_cast<int>(materials.size()), 1);
         }
     }
-    const Gameplay::Pawn* pawn = GetPawn();
-    if (!pawn || !Input::IsCursorLocked() || !input.IsPressed("Fire") || !input.canUse) {
+    // A locked cursor is the playing player's, where it plays.
+    if (!pawn || (local && !Input::IsCursorLocked()) || !input.IsPressed("Fire") || !input.canUse) {
         return;
     }
     const Gameplay::ViewPoint eyes = pawn->GetViewPoint();
     const auto hit = GetScene().GetOrAddSystem<Spot::PhysicsWorld>().Raycast(eyes.position, eyes.direction, range,
                                                                              {.ignore = pawn->GetEntity().GetId()});
-    if (auto* view = pawn->GetEntity().GetComponent<Gameplay::ViewModel>()) {
+    if (auto* view = pawn->GetEntity().GetComponent<Gameplay::ViewModel>(); view && local) {
         view->Kick(0.015f);
     }
     if (Spot::Entity* entity = hit ? GetScene().GetEntity(hit->entity) : nullptr) {
         Click(*entity, hit->point, hit->normal);
     }
+}
+
+void ToolGun::OnPredictedUse(const Gameplay::ItemInput& input) {
+    if (!input.active) {
+        return;
+    }
+    const bool option = mode == Mode::Color || mode == Mode::Material || mode == Mode::Lamp;
+    if (input.IsPressed("Reload") || (input.IsPressed("Aim") && option)) {
+        SoundBank::PlayClick(GetScene());
+    }
+    const Gameplay::Pawn* pawn = GetPawn();
+    auto* view = pawn ? pawn->GetEntity().GetComponent<Gameplay::ViewModel>() : nullptr;
+    if (view && Spot::Input::IsCursorLocked() && input.IsPressed("Fire") && input.canUse) {
+        view->Kick(0.015f);
+    }
+}
+
+void ToolGun::Replicate(Spot::Archive& archive) {
+    archive.Field("mode", mode);
+    archive.Field("color", color);
+    archive.Field("material", material);
+    archive.Field("lamp", lamp);
 }
 
 void ToolGun::OnEnable() {

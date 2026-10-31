@@ -66,7 +66,7 @@ public:
     const VehicleInput& GetInput() const { return m_input; }
     bool IsOperational() const { return !HasState("Dead") && !HasState("Destroyed"); }
     // Whether someone drives it, possessing it.
-    bool HasDriver() const { return IsPossessed(); }
+    bool HasDriver() const { return IsPossessedWhereDecided(); }
     // The seat its driver sits in; null when it has none.
     VehicleSeat* GetSeat() const;
 
@@ -93,6 +93,7 @@ protected:
     bool IsInputBeforeFixedSteps() const override { return true; }
     void OnPlayerInput(PlayerController& player) override;
     void SerializeIntent(Spot::Archive& archive) override;
+    void OnPlayerRequest(std::string_view request) override;
     void OnDisable() override;
     void Serialize(Spot::Archive& archive) override;
 

@@ -58,43 +58,29 @@
             "mapDescription": 144,
             "mapDetails": 145,
             "statusLabel": 149,
-            "maps": [
-              {
-                "button": 128,
-                "scene": "72c16925ad8b47f25561eaf729da4319",
-                "name": "Playground",
-                "description": "Discover the valley, drive vehicles and experiment with physics in a world built for play.",
-                "details": "EXPLORATION   /   VEHICLES   /   PHYSICS",
-                "previewPosition": [
-                  38,
-                  28,
-                  45
-                ],
-                "previewTarget": [
-                  0,
-                  1,
-                  -6
-                ]
-              },
-              {
-                "button": 132,
-                "scene": "3dceea274fe47c7dde67be51b8e042b4",
-                "name": "Empty Map",
-                "description": "An open 200 x 200 meter space. Bring your tools, spawn your ideas and build from the ground up.",
-                "details": "200 x 200 M   /   OPEN SPACE   /   ALL TOOLS",
-                "previewPosition": [
-                  24,
-                  18,
-                  28
-                ],
-                "previewTarget": [
-                  0,
-                  0,
-                  0
-                ]
-              }
-            ],
-            "shade": 201
+            "shade": 201,
+            "mapButtonTemplate": 128,
+            "mapScroll": 3020,
+            "mapDirectory": "",
+            "hostButton": 3021,
+            "joinButton": 3024,
+            "hostPanel": 3027,
+            "hostPlayerName": 3030,
+            "hostName": 3032,
+            "hostPort": 3034,
+            "hostPlayers": 3036,
+            "hostPassword": 3038,
+            "joinPanel": 3039,
+            "joinAddress": 3043,
+            "joinPlayerName": 3045,
+            "joinPassword": 3047,
+            "joinConfirm": 3048,
+            "joinBack": 3051,
+            "joinStatus": 3054,
+            "connectingPanel": 3055,
+            "connectingStatus": 3057,
+            "cancelConnection": 3058,
+            "playTitle": 310
           }
         },
         {
@@ -912,7 +898,7 @@
             ],
             "offset": [
               96,
-              -54
+              -150
             ],
             "sizeDelta": [
               320,
@@ -1166,7 +1152,7 @@
             ],
             "offset": [
               96,
-              -102
+              -198
             ],
             "sizeDelta": [
               320,
@@ -1883,8 +1869,8 @@
     },
     {
       "id": 128,
-      "name": "Playground",
-      "active": true,
+      "name": "Map Button Template",
+      "active": false,
       "layer": 0,
       "position": [
         0,
@@ -1985,7 +1971,7 @@
           }
         }
       ],
-      "parent": 20
+      "parent": 3020
     },
     {
       "id": 3006,
@@ -2134,260 +2120,6 @@
         }
       ],
       "parent": 128
-    },
-    {
-      "id": 132,
-      "name": "Empty Map",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "8b967471087a4cce9646503b357eafb5",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              0.5
-            ],
-            "anchorMax": [
-              0,
-              0.5
-            ],
-            "pivot": [
-              0,
-              0.5
-            ],
-            "offset": [
-              96,
-              88
-            ],
-            "sizeDelta": [
-              320,
-              40
-            ]
-          }
-        },
-        {
-          "type": "UiButton",
-          "id": "c6067e48d9624935be4253b42b5691c3",
-          "enabled": true,
-          "data": {
-            "interactable": true,
-            "style": {
-              "normal": [
-                0,
-                0,
-                0,
-                0
-              ],
-              "hovered": [
-                0,
-                0,
-                0,
-                0
-              ],
-              "pressed": [
-                0,
-                0,
-                0,
-                0
-              ],
-              "focused": [
-                0,
-                0,
-                0,
-                0
-              ],
-              "disabled": [
-                0,
-                0,
-                0,
-                0
-              ],
-              "accent": [
-                0,
-                0,
-                0,
-                0
-              ],
-              "texture": null,
-              "borders": [
-                0,
-                0,
-                0,
-                0
-              ]
-            }
-          }
-        }
-      ],
-      "parent": 20
-    },
-    {
-      "id": 3008,
-      "name": "Label",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "035fe3cb6cf14ea1838827877b58de7f",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              0
-            ],
-            "anchorMax": [
-              1,
-              1
-            ],
-            "pivot": [
-              0.5,
-              0.5
-            ],
-            "offset": [
-              0,
-              0
-            ],
-            "sizeDelta": [
-              0,
-              0
-            ]
-          }
-        },
-        {
-          "type": "UiText",
-          "id": "18de15bbe52b44bebbb666d60ef50da4",
-          "enabled": true,
-          "data": {
-            "font": "fb0b65834232ec853f94b211b7d0263e",
-            "fontSize": 22,
-            "color": [
-              0.3231,
-              0.3663,
-              0.4233,
-              1
-            ],
-            "text": "Empty Map",
-            "layout": {
-              "alignment": 0,
-              "verticalAlignment": 1,
-              "overflow": 0,
-              "wrap": false
-            }
-          }
-        }
-      ],
-      "parent": 132
-    },
-    {
-      "id": 3009,
-      "name": "Marker",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "UiRect",
-          "id": "dd75637750a24d35a4936bfc7d1a31cf",
-          "enabled": true,
-          "data": {
-            "anchorMin": [
-              0,
-              0.5
-            ],
-            "anchorMax": [
-              0,
-              0.5
-            ],
-            "pivot": [
-              0,
-              0.5
-            ],
-            "offset": [
-              -18,
-              0
-            ],
-            "sizeDelta": [
-              3,
-              18
-            ]
-          }
-        },
-        {
-          "type": "UiImage",
-          "id": "0c10f39046ef4fd4ae1b9ca6aa0a1b4c",
-          "enabled": true,
-          "data": {
-            "texture": null,
-            "borders": [
-              0,
-              0,
-              0,
-              0
-            ],
-            "tint": [
-              0.807,
-              0.3663,
-              0.0467,
-              0
-            ]
-          }
-        }
-      ],
-      "parent": 132
     },
     {
       "id": 146,
@@ -7415,6 +7147,3165 @@
         }
       ],
       "parent": 158
+    },
+    {
+      "id": 3020,
+      "name": "Maps",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 20,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "cbd295ce29834ed78e5b869174a3a8cc",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              1
+            ],
+            "offset": [
+              78,
+              156
+            ],
+            "sizeDelta": [
+              360,
+              144
+            ]
+          }
+        },
+        {
+          "type": "UiScrollView",
+          "id": "f5f68a4817b044e4b25bc2e1caba6b42",
+          "enabled": true,
+          "data": {
+            "contentSize": [
+              360,
+              144
+            ],
+            "horizontal": false,
+            "vertical": true,
+            "scrollSpeed": 48,
+            "style": {
+              "normal": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "hovered": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "pressed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "focused": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "disabled": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "accent": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "texture": null,
+              "borders": [
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3021,
+      "name": "Host room",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 10,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "8a3fcdfe540f4b9bb2b377a81aceee04",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              96,
+              -54
+            ],
+            "sizeDelta": [
+              180,
+              40
+            ]
+          }
+        },
+        {
+          "type": "UiButton",
+          "id": "28550b8d9f7b4ea1b04d7fe03360a818",
+          "enabled": true,
+          "data": {
+            "interactable": true,
+            "style": {
+              "normal": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "hovered": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "pressed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "focused": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "disabled": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "accent": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "texture": null,
+              "borders": [
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3022,
+      "name": "Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3021,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "8fabe8b06a5f4f80b05f05c9cb3174b7",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "d16e0d3fdd2b431e8a8a8b6771ebf4cf",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 22,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "Host room",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3023,
+      "name": "Marker",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3021,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "90669d2bf38545de8a91f46b99e739a2",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              -18,
+              0
+            ],
+            "sizeDelta": [
+              3,
+              18
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "ffa91c79776e4222baf8b1ff6fdbae07",
+          "enabled": true,
+          "data": {
+            "texture": null,
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "tint": [
+              0.807,
+              0.3663,
+              0.0467,
+              0
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 3024,
+      "name": "Join room",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 10,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "0296857edd22496cacb71e2a2e4e44be",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              96,
+              -102
+            ],
+            "sizeDelta": [
+              180,
+              40
+            ]
+          }
+        },
+        {
+          "type": "UiButton",
+          "id": "ee9a9ab6c5ab4efaadec1c7217e2ceda",
+          "enabled": true,
+          "data": {
+            "interactable": true,
+            "style": {
+              "normal": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "hovered": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "pressed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "focused": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "disabled": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "accent": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "texture": null,
+              "borders": [
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3025,
+      "name": "Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3024,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "eb48bcfdc279494abfc5dcdd4167486d",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "34232da48b194658a060ff4f87eb4cab",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 22,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "Join room",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3026,
+      "name": "Marker",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3024,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "f84a2807d458418aabdfe78a08979c8d",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              -18,
+              0
+            ],
+            "sizeDelta": [
+              3,
+              18
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "4b8453173a3c4069aeb823fc3a031651",
+          "enabled": true,
+          "data": {
+            "texture": null,
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "tint": [
+              0.807,
+              0.3663,
+              0.0467,
+              0
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 3027,
+      "name": "Host Room Settings",
+      "active": false,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 2,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "7a52d1c2fcfe4a58a598d8e5b3170e4b",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 3028,
+      "name": "Host Title",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3027,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "d8dc6ef0040946c3ac35e2a6324762f1",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              760,
+              235
+            ],
+            "sizeDelta": [
+              360,
+              38
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "881caf9cef20423d85d965e1838670ba",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 28,
+            "color": [
+              0.78,
+              0.83,
+              0.9,
+              1
+            ],
+            "text": "Room settings",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3029,
+      "name": "hostPlayerName Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3027,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "1de3ea90250946caa6af1b2db7f997e8",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              760,
+              175
+            ],
+            "sizeDelta": [
+              360,
+              24
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "c66d918a39bc41f8b1b9353312f2d843",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 16,
+            "color": [
+              0.78,
+              0.83,
+              0.9,
+              1
+            ],
+            "text": "Your name",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3030,
+      "name": "hostPlayerName",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3027,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "5f72fa7c7aac4a44930c6f180d391aa2",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              760,
+              145
+            ],
+            "sizeDelta": [
+              340,
+              38
+            ]
+          }
+        },
+        {
+          "type": "UiInputField",
+          "id": "717df63481c24c4d985d70e305c48cc1",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 20,
+            "textColor": [
+              0.92,
+              0.94,
+              0.98,
+              1
+            ],
+            "placeholder": "",
+            "maxLength": 64,
+            "text": "Player"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3031,
+      "name": "hostName Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3027,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "d8229feb0b834dbd836197be02071a82",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              760,
+              105
+            ],
+            "sizeDelta": [
+              360,
+              24
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "60996e0f9ce0416a918d78f391c35e3a",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 16,
+            "color": [
+              0.78,
+              0.83,
+              0.9,
+              1
+            ],
+            "text": "Room name",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3032,
+      "name": "hostName",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3027,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "a2a53ddf9a3f4bcf843f62e373142dc6",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              760,
+              75
+            ],
+            "sizeDelta": [
+              340,
+              38
+            ]
+          }
+        },
+        {
+          "type": "UiInputField",
+          "id": "e831a2821acc42dcaf63f99067613036",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 20,
+            "textColor": [
+              0.92,
+              0.94,
+              0.98,
+              1
+            ],
+            "placeholder": "",
+            "maxLength": 64,
+            "text": "Room"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3033,
+      "name": "hostPort Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3027,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "5a1fb377aba14c189b6a77e3c41dd731",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              760,
+              35
+            ],
+            "sizeDelta": [
+              360,
+              24
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "d855de690b854902b1a97eb09db3b65b",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 16,
+            "color": [
+              0.78,
+              0.83,
+              0.9,
+              1
+            ],
+            "text": "Port",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3034,
+      "name": "hostPort",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3027,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "83203115222241989e98aaf0173ed3c4",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              760,
+              5
+            ],
+            "sizeDelta": [
+              340,
+              38
+            ]
+          }
+        },
+        {
+          "type": "UiInputField",
+          "id": "21b6179e97824b27a40c5150425a34a3",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 20,
+            "textColor": [
+              0.92,
+              0.94,
+              0.98,
+              1
+            ],
+            "placeholder": "",
+            "maxLength": 64,
+            "text": "27015"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3035,
+      "name": "hostPlayers Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3027,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "bdf1133fb17242a183129754551c444b",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              760,
+              -35
+            ],
+            "sizeDelta": [
+              360,
+              24
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "dd2fe0e0ad1b4311a8467239e8353927",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 16,
+            "color": [
+              0.78,
+              0.83,
+              0.9,
+              1
+            ],
+            "text": "Players (including you)",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3036,
+      "name": "hostPlayers",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3027,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "fb2140cb80e44654b9f47727a799341e",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              760,
+              -65
+            ],
+            "sizeDelta": [
+              340,
+              38
+            ]
+          }
+        },
+        {
+          "type": "UiInputField",
+          "id": "82a307c75ad543b881d2a953ee97c601",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 20,
+            "textColor": [
+              0.92,
+              0.94,
+              0.98,
+              1
+            ],
+            "placeholder": "",
+            "maxLength": 64,
+            "text": "16"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3037,
+      "name": "hostPassword Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3027,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "2d39e13fbb2140b0a3d0d3e40c59384e",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              760,
+              -105
+            ],
+            "sizeDelta": [
+              360,
+              24
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "5e01bf9b4e694292800e2bf54588a9c3",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 16,
+            "color": [
+              0.78,
+              0.83,
+              0.9,
+              1
+            ],
+            "text": "Password (optional)",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3038,
+      "name": "hostPassword",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3027,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "19360a04d25c45ae81cd66ff7155bf34",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              760,
+              -135
+            ],
+            "sizeDelta": [
+              340,
+              38
+            ]
+          }
+        },
+        {
+          "type": "UiInputField",
+          "id": "1a154a8802c44fe78e89f282acb5d762",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 20,
+            "textColor": [
+              0.92,
+              0.94,
+              0.98,
+              1
+            ],
+            "placeholder": "",
+            "maxLength": 128,
+            "text": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 3039,
+      "name": "Join Room",
+      "active": false,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 2,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "d1e8a5de0a714b56a1ee04417f5d30c5",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 3040,
+      "name": "Join Title",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3039,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "bbe08fefac724cd4a52f4ee3b0c61ec4",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              96,
+              240
+            ],
+            "sizeDelta": [
+              700,
+              48
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "79f9bcdab7124eafa526ad24840f523f",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 42,
+            "color": [
+              0.78,
+              0.83,
+              0.9,
+              1
+            ],
+            "text": "Join room",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3041,
+      "name": "Join Help",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3039,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "78e04e5cade546579c8d615b6ba9e90c",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              96,
+              190
+            ],
+            "sizeDelta": [
+              950,
+              32
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "de242f408d3446b7bbc105410eae9e33",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 19,
+            "color": [
+              0.78,
+              0.83,
+              0.9,
+              1
+            ],
+            "text": "Enter the host address. On this computer, use 127.0.0.1.",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3042,
+      "name": "joinAddress Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3039,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "9ff23394e5e44bafbe90fbed40b65b2b",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              96,
+              142
+            ],
+            "sizeDelta": [
+              500,
+              24
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "436f273fdbc84a60a9f52df82348cb0b",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 16,
+            "color": [
+              0.78,
+              0.83,
+              0.9,
+              1
+            ],
+            "text": "Server address",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3043,
+      "name": "joinAddress",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3039,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "d79e3f67e3634f58b1b6e743eda4160a",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              96,
+              110
+            ],
+            "sizeDelta": [
+              500,
+              38
+            ]
+          }
+        },
+        {
+          "type": "UiInputField",
+          "id": "163d55ef4b8b4586870bab8cd844dc81",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 20,
+            "textColor": [
+              0.92,
+              0.94,
+              0.98,
+              1
+            ],
+            "placeholder": "",
+            "maxLength": 256,
+            "text": "127.0.0.1:27015"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3044,
+      "name": "joinPlayerName Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3039,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "23a0abd3c6904c89ac38ece8c10f1063",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              96,
+              62
+            ],
+            "sizeDelta": [
+              500,
+              24
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "4da751295ad04164b874dab7c2cb2c3a",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 16,
+            "color": [
+              0.78,
+              0.83,
+              0.9,
+              1
+            ],
+            "text": "Your name",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3045,
+      "name": "joinPlayerName",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3039,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "cb72da57ed0940fdb828dfe5efc54fe4",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              96,
+              30
+            ],
+            "sizeDelta": [
+              500,
+              38
+            ]
+          }
+        },
+        {
+          "type": "UiInputField",
+          "id": "abe1100a2d144d509580131bae073bf8",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 20,
+            "textColor": [
+              0.92,
+              0.94,
+              0.98,
+              1
+            ],
+            "placeholder": "",
+            "maxLength": 64,
+            "text": "Player"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3046,
+      "name": "joinPassword Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3039,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "c19439effc0e4658b692ceff6d60762e",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              96,
+              -18
+            ],
+            "sizeDelta": [
+              500,
+              24
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "add5335c75354e419d9f8f20e993acb1",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 16,
+            "color": [
+              0.78,
+              0.83,
+              0.9,
+              1
+            ],
+            "text": "Password (optional)",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3047,
+      "name": "joinPassword",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3039,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "408d7223158441209cfce660bddec92f",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              96,
+              -50
+            ],
+            "sizeDelta": [
+              500,
+              38
+            ]
+          }
+        },
+        {
+          "type": "UiInputField",
+          "id": "313321eed6144881946b167ba4f76b63",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 20,
+            "textColor": [
+              0.92,
+              0.94,
+              0.98,
+              1
+            ],
+            "placeholder": "",
+            "maxLength": 128,
+            "text": ""
+          }
+        }
+      ]
+    },
+    {
+      "id": 3048,
+      "name": "Connect",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3039,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "5a65af6fa5074e3382467d02c660825e",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              96,
+              -170
+            ],
+            "sizeDelta": [
+              180,
+              40
+            ]
+          }
+        },
+        {
+          "type": "UiButton",
+          "id": "7bee19464d0346ceb18f672f00fcbbc1",
+          "enabled": true,
+          "data": {
+            "interactable": true,
+            "style": {
+              "normal": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "hovered": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "pressed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "focused": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "disabled": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "accent": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "texture": null,
+              "borders": [
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3049,
+      "name": "Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3048,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "85a2a4e44b2c49e69b46b9b712371937",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "e2480b80b26145328a5eda3ef66f6f41",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 22,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "Connect",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3050,
+      "name": "Marker",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3048,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "ffd88c8fadd44b5aa8f0d6e8b33a262e",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              -18,
+              0
+            ],
+            "sizeDelta": [
+              3,
+              18
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "079d256cf5c04e84928ee913933ff0fa",
+          "enabled": true,
+          "data": {
+            "texture": null,
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "tint": [
+              0.807,
+              0.3663,
+              0.0467,
+              0
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 3051,
+      "name": "Back",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3039,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "6cf1c2c6dbeb4d8e936aa9ce93c32ba0",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              280,
+              -170
+            ],
+            "sizeDelta": [
+              180,
+              40
+            ]
+          }
+        },
+        {
+          "type": "UiButton",
+          "id": "fb7e0160b85740838aa77bbb0b9e1481",
+          "enabled": true,
+          "data": {
+            "interactable": true,
+            "style": {
+              "normal": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "hovered": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "pressed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "focused": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "disabled": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "accent": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "texture": null,
+              "borders": [
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3052,
+      "name": "Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3051,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "8efade4d54f24fe3a4a2d6f66f392851",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "2b060e3b756c456f9cdd043fd51ee1a3",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 22,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "Back",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3053,
+      "name": "Marker",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3051,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "5ef9e78831ee4b2b89415b4de7390282",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              -18,
+              0
+            ],
+            "sizeDelta": [
+              3,
+              18
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "aac1e0b2ed55419e99ffe6cc4be73b6d",
+          "enabled": true,
+          "data": {
+            "texture": null,
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "tint": [
+              0.807,
+              0.3663,
+              0.0467,
+              0
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 3054,
+      "name": "Connection Error",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3039,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "3ed5cbe8e222448588f59df68bb58ad7",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              96,
+              -235
+            ],
+            "sizeDelta": [
+              1040,
+              70
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "ceb35edac287466cbe45f850f4619bac",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 18,
+            "color": [
+              0.78,
+              0.83,
+              0.9,
+              1
+            ],
+            "text": "",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3055,
+      "name": "Connecting",
+      "active": false,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 2,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "d0f237904f26440ba65c77f58f323da0",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              0,
+              0
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 3056,
+      "name": "Connecting Title",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3055,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "6600327070014375a76484bd74265dec",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              96,
+              220
+            ],
+            "sizeDelta": [
+              950,
+              48
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "7aa77493f6be48439b65c4efa5f72b2d",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 42,
+            "color": [
+              0.78,
+              0.83,
+              0.9,
+              1
+            ],
+            "text": "Joining the room",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3057,
+      "name": "Connection Status",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3055,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "e5105c52be5d400cb80b7a17d3692585",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              96,
+              130
+            ],
+            "sizeDelta": [
+              1000,
+              70
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "3187aeeadeae44a6b01da1a4da735b64",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "fontSize": 22,
+            "color": [
+              0.78,
+              0.83,
+              0.9,
+              1
+            ],
+            "text": "Connecting...",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3058,
+      "name": "Cancel",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3055,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "253b107c408e4576b92c87ecab338f45",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              96,
+              -90
+            ],
+            "sizeDelta": [
+              180,
+              40
+            ]
+          }
+        },
+        {
+          "type": "UiButton",
+          "id": "42379a4e67eb4d109fd606e061c5b584",
+          "enabled": true,
+          "data": {
+            "interactable": true,
+            "style": {
+              "normal": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "hovered": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "pressed": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "focused": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "disabled": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "accent": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "texture": null,
+              "borders": [
+                0,
+                0,
+                0,
+                0
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3059,
+      "name": "Label",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3058,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "4e8ce03cfed54e04a8fc81bb605e3bd3",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "86065175a47c478293df8fa9cb2c34c9",
+          "enabled": true,
+          "data": {
+            "font": "fb0b65834232ec853f94b211b7d0263e",
+            "fontSize": 22,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1
+            ],
+            "text": "Cancel",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 3060,
+      "name": "Marker",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 3058,
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "6bdbf9978a654a328eec8a44ec51a618",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              -18,
+              0
+            ],
+            "sizeDelta": [
+              3,
+              18
+            ]
+          }
+        },
+        {
+          "type": "UiImage",
+          "id": "a0ab8f08a7a54042a823d53b0ce2f9e0",
+          "enabled": true,
+          "data": {
+            "texture": null,
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "tint": [
+              0.807,
+              0.3663,
+              0.0467,
+              0
+            ]
+          }
+        }
+      ]
     }
   ],
   "format": "spot-scene",

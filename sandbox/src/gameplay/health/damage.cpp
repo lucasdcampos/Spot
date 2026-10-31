@@ -1,6 +1,8 @@
 #include "gameplay/health/damage.h"
 #include <spot/scene/physics/physics_world.h>
 
+#include "gameplay/core/body_authority.h"
+
 #include <algorithm>
 #include <vector>
 
@@ -33,8 +35,13 @@ Owner FindOwner(Spot::Scene& scene, Spot::Entity& entity) {
     }
     Owner owner;
     scene.ForEachComponent<Spot::Ragdoll>([&](Spot::Ragdoll& ragdoll) {
-        if (!owner.entity && ragdoll.OwnsBody(entity.GetId()) && HasReceivers(ragdoll.GetEntity())) {
-            owner = {&ragdoll.GetEntity(), true};
+        if (!owner.entity && ragdoll.OwnsBody(entity.GetId())) {
+            for (Spot::Entity* at = &ragdoll.GetEntity(); at; at = at->GetParent()) {
+                if (HasReceivers(*at)) {
+                    owner = {at, true};
+                    break;
+                }
+            }
         }
     });
     return owner;
@@ -57,6 +64,82 @@ DamageSystem& DamageSystem::Get(Spot::Scene& scene) {
     return scene.GetOrAddSystem<DamageSystem>();
 }
 
+namespace {
+
+// Damage a server applied, for its clients to hear of.
+struct DamageReport {
+    static constexpr std::string_view NetName = "Gameplay.Damage";
+    bool killed = false;
+    Spot::EntityId target = Spot::EntityId::Invalid;
+    float amount = 0.0f;
+    std::string type;
+    Spot::Vector3 point;
+    Spot::Vector3 impulse;
+    Spot::EntityId instigator = Spot::EntityId::Invalid;
+    Spot::EntityId source = Spot::EntityId::Invalid;
+
+    void Serialize(Spot::Archive& archive) {
+        archive.Field("killed", killed);
+        archive.Field("target", target);
+        archive.Field("amount", amount);
+        archive.Field("type", type);
+        archive.Field("point", point);
+        archive.Field("impulse", impulse);
+        archive.Field("instigator", instigator);
+        archive.Field("source", source);
+    }
+};
+
+} // namespace
+
+void DamageSystem::Report(const DamageApplied& applied, bool killed) {
+    (killed ? OnKilled : OnDamageApplied).Emit(applied);
+    Spot::NetworkSystem* system = Spot::Network::Get(GetScene());
+    if (!system || !system->IsServer()) {
+        return;
+    }
+    const DamageReport report{.killed = killed,
+                              .target =
+                                  [&] {
+                                      auto* entity = GetScene().GetEntity(applied.target);
+                                      const Owner owner = entity ? FindOwner(GetScene(), *entity) : Owner{};
+                                      return owner.entity ? owner.entity->GetId() : applied.target;
+                                  }(),
+                              .amount = applied.damage.amount,
+                              .type = applied.damage.type,
+                              .point = applied.damage.point,
+                              .impulse = applied.damage.impulse,
+                              .instigator = applied.damage.instigator,
+                              .source = applied.damage.source};
+    for (const Spot::NetPeerId peer : system->GetReadyPeers()) {
+        system->GetSession()->Send(peer, report, Spot::NetDelivery::Unreliable);
+    }
+}
+
+void DamageSystem::OnUpdate(float /*deltaTime*/) {
+    const Spot::NetworkSystem* system = Spot::Network::Get(GetScene());
+    Spot::NetworkSession* session = system && system->IsClient() ? system->GetSession() : nullptr;
+    if (!session || session == m_session) {
+        return;
+    }
+    m_session = session;
+    session->GetMessages().On<DamageReport>([session](Spot::NetPeerId, DamageReport& report) {
+        Spot::NetworkSystem* bound = session->GetSystem();
+        if (!bound) {
+            return;
+        }
+        const DamageApplied applied{.target = report.target,
+                                    .damage = {.amount = report.amount,
+                                               .type = report.type,
+                                               .point = report.point,
+                                               .impulse = report.impulse,
+                                               .instigator = report.instigator,
+                                               .source = report.source}};
+        DamageSystem& damage = Get(bound->GetScene());
+        (report.killed ? damage.OnKilled : damage.OnDamageApplied).Emit(applied);
+    });
+}
+
 namespace Damage {
 
 bool Apply(Spot::Scene& scene, Spot::EntityId target, const DamageInfo& damage) {
@@ -69,12 +152,16 @@ bool Apply(Spot::Scene& scene, Spot::EntityId target, const DamageInfo& damage) 
     // The entity may be gone now, as a receiver may destroy what it is on.
     entity = scene.GetEntity(target);
     auto* body = entity && !owner.ragdoll && damage.pushesBody ? entity->GetComponent<Spot::Rigidbody>() : nullptr;
+    // A body a player's machine simulates comes back here to be pushed.
+    if (body && body->IsKinematic() && BodyAuthority::GetHolder(*entity) != Spot::NetPeerId::Invalid) {
+        BodyAuthority::TakeBack(*entity);
+    }
     if (body && !body->IsKinematic() && Spot::LengthSquared(damage.impulse) > 0.0f) {
         body->AddImpulseAtPosition(damage.impulse, damage.point);
         took = true;
     }
     if (took) {
-        DamageSystem::Get(scene).OnDamageApplied.Emit({target, damage});
+        DamageSystem::Get(scene).Report({target, damage}, false);
     }
     return took;
 }
@@ -96,7 +183,7 @@ void ApplyRadial(Spot::Scene& scene, Spot::Vector3 center, const RadialDamage& d
                               .source = damage.source,
                               .pushesBody = false};
         if (Give(owner, info)) {
-            DamageSystem::Get(scene).OnDamageApplied.Emit({owner.GetId(), info});
+            DamageSystem::Get(scene).Report({owner.GetId(), info}, false);
         }
     };
 

@@ -14,6 +14,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <filesystem>
@@ -22,6 +23,95 @@
 
 using Gameplay::DayCycle;
 using Gameplay::Water;
+
+TEST_CASE("Sandbox blood is a small brief spray instead of long falling streaks", "[gpu][sandbox][blood][offscreen]") {
+    if (!Spot::GraphicsDevice::IsSupported()) {
+        SKIP("No usable graphics device");
+    }
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    Spot::Tests::RegisteredAssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
+    struct RestoreAssets {
+        Spot::AssetManager* previous = Spot::Assets::GetManager();
+        ~RestoreAssets() { Spot::Detail::SetAssetManager(previous); }
+    } restore;
+    Spot::Detail::SetAssetManager(&assets);
+    Spot::Detail::LoadGameCode();
+    auto target = device->CreateTexture(
+        {.width = 960, .height = 540, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
+    REQUIRE(target);
+    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb, .sampleCount = 1});
+    REQUIRE(renderer.IsValid());
+    const std::filesystem::path output(SPOT_SANDBOX_CAPTURE_DIR);
+    std::filesystem::create_directories(output);
+    for (const char* map : {"empty", "playground"}) {
+        CAPTURE(map);
+        auto authored =
+            Spot::InstantiateScene(assets, assets.FindByPath(std::string("scenes/") + map + ".scene").value());
+        REQUIRE(authored);
+        auto* library = Gameplay::EffectLibrary::Find(*authored);
+        REQUIRE(library);
+        // A fixed background isolates the rendered extent of the authored effects from moving scenery.
+        Spot::Scene scene;
+        scene.CreateEntity("Effects").AddComponent<Gameplay::EffectLibrary>().effects = library->effects;
+        auto& camera = scene.CreateEntity("Camera");
+        camera.GetTransform().SetPosition({0, 0, 2});
+        auto& view = camera.AddComponent<Spot::Camera>();
+        view.SetProjection(Spot::CameraProjection::Orthographic);
+        view.SetOrthographicSize(0.5f);
+        view.SetBackground({0.45f, 0.45f, 0.45f, 1.0f});
+        scene.Update(0.0f);
+        const auto draw = [&](const char* stage) {
+            scene.PrepareToRender();
+            auto* context = device->BeginOffscreenFrame(*target);
+            REQUIRE(context);
+            renderer.Render(*context, scene, target.get());
+            device->EndFrame();
+            auto pixels = device->DownloadTexture(*target);
+            REQUIRE(pixels.size() == 960 * 540 * 4);
+            CHECK(Spot::Image(960, 540, pixels).SavePng(output / (std::string("blood_") + map + "_" + stage + ".png")));
+            return pixels;
+        };
+        const auto before = draw("before");
+        Gameplay::EffectLibrary::Play(scene, "impact.flesh", {}, {-1, 0, 0});
+        Gameplay::EffectLibrary::Play(scene, "blood.exit", {}, {1, 0, 0});
+        std::size_t count = 0;
+        scene.ForEachComponent<Spot::ParticleSystem>(
+            [&](Spot::ParticleSystem& system) { count += system.GetParticles().size(); });
+        CHECK(count > 0);
+        CHECK(count <= 24);
+        scene.Update(1.0f / 30.0f);
+        const auto early = draw("early");
+        int minX = 960, minY = 540, maxX = 0, maxY = 0;
+        std::size_t changed = 0;
+        for (int y = 0; y < 540; ++y) {
+            for (int x = 0; x < 960; ++x) {
+                const auto i = static_cast<std::size_t>(y * 960 + x) * 4;
+                const int difference = std::abs(int(early[i]) - int(before[i])) +
+                                       std::abs(int(early[i + 1]) - int(before[i + 1])) +
+                                       std::abs(int(early[i + 2]) - int(before[i + 2]));
+                if (difference > 12) {
+                    ++changed;
+                    minX = std::min(minX, x);
+                    minY = std::min(minY, y);
+                    maxX = std::max(maxX, x);
+                    maxY = std::max(maxY, y);
+                }
+            }
+        }
+        CHECK(changed > 3);
+        CHECK(changed < 960 * 540 / 200);
+        // This view is one meter high: the first spray stays within a few tens of centimeters.
+        CHECK(maxX - minX < 200);
+        CHECK(maxY - minY < 100);
+        scene.Update(1.0f / 15.0f);
+        draw("dispersing");
+        scene.Update(0.1f);
+        draw("fading");
+        scene.Update(0.2f);
+        CHECK(draw("after") == before);
+    }
+}
 
 TEST_CASE("The cooked sandbox draws explosions, muzzle flashes and splashes", "[gpu][sandbox][offscreen]") {
     if (!Spot::GraphicsDevice::IsSupported()) {

@@ -113,9 +113,393 @@
               }
             ]
           }
+        },
+        {
+          "type": "Ragdoll",
+          "id": "2b5980a939db4d42aac0b4dd205c8f7e",
+          "enabled": true,
+          "data": {
+            "bones": [
+              {
+                "bone": "Pelvis",
+                "size": [
+                  0.29,
+                  0.16,
+                  0.21
+                ],
+                "center": [
+                  0,
+                  -0.015,
+                  0
+                ],
+                "mass": 9,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "Spine",
+                "size": [
+                  0.28,
+                  0.2,
+                  0.2
+                ],
+                "center": [
+                  0,
+                  0.03,
+                  0
+                ],
+                "mass": 6,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "Chest",
+                "size": [
+                  0.36,
+                  0.23,
+                  0.22
+                ],
+                "center": [
+                  0,
+                  0.04,
+                  0
+                ],
+                "mass": 12,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "Neck",
+                "size": [
+                  0.09,
+                  0.09,
+                  0.095
+                ],
+                "center": [
+                  0,
+                  0.01,
+                  0
+                ],
+                "mass": 1,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "Head",
+                "size": [
+                  0.18,
+                  0.235,
+                  0.19
+                ],
+                "center": [
+                  0,
+                  0.105,
+                  0
+                ],
+                "mass": 5,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "LeftUpperArm",
+                "size": [
+                  0.12,
+                  0.27,
+                  0.13
+                ],
+                "center": [
+                  0,
+                  -0.135,
+                  0
+                ],
+                "mass": 2.5,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "LeftForearm",
+                "size": [
+                  0.085,
+                  0.24,
+                  0.09
+                ],
+                "center": [
+                  0,
+                  -0.12,
+                  0
+                ],
+                "mass": 1.5,
+                "twistAxis": [
+                  1,
+                  0,
+                  0
+                ],
+                "swingLimit": 0.12,
+                "twistMin": -0.1,
+                "twistMax": 2.2
+              },
+              {
+                "bone": "LeftHand",
+                "size": [
+                  0.08,
+                  0.13,
+                  0.055
+                ],
+                "center": [
+                  0,
+                  -0.055,
+                  -0.01
+                ],
+                "mass": 0.5,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "LeftUpperLeg",
+                "size": [
+                  0.14,
+                  0.39,
+                  0.16
+                ],
+                "center": [
+                  0,
+                  -0.195,
+                  0
+                ],
+                "mass": 7,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "LeftLowerLeg",
+                "size": [
+                  0.11,
+                  0.37,
+                  0.13
+                ],
+                "center": [
+                  0,
+                  -0.185,
+                  0
+                ],
+                "mass": 4,
+                "twistAxis": [
+                  1,
+                  0,
+                  0
+                ],
+                "swingLimit": 0.12,
+                "twistMin": -2,
+                "twistMax": 0.1
+              },
+              {
+                "bone": "LeftFoot",
+                "size": [
+                  0.13,
+                  0.105,
+                  0.25
+                ],
+                "center": [
+                  0,
+                  -0.02,
+                  -0.06
+                ],
+                "mass": 1,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "RightUpperArm",
+                "size": [
+                  0.12,
+                  0.27,
+                  0.13
+                ],
+                "center": [
+                  0,
+                  -0.135,
+                  0
+                ],
+                "mass": 2.5,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "RightForearm",
+                "size": [
+                  0.085,
+                  0.24,
+                  0.09
+                ],
+                "center": [
+                  0,
+                  -0.12,
+                  0
+                ],
+                "mass": 1.5,
+                "twistAxis": [
+                  1,
+                  0,
+                  0
+                ],
+                "swingLimit": 0.12,
+                "twistMin": -0.1,
+                "twistMax": 2.2
+              },
+              {
+                "bone": "RightHand",
+                "size": [
+                  0.08,
+                  0.13,
+                  0.055
+                ],
+                "center": [
+                  0,
+                  -0.055,
+                  -0.01
+                ],
+                "mass": 0.5,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "RightUpperLeg",
+                "size": [
+                  0.14,
+                  0.39,
+                  0.16
+                ],
+                "center": [
+                  0,
+                  -0.195,
+                  0
+                ],
+                "mass": 7,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              },
+              {
+                "bone": "RightLowerLeg",
+                "size": [
+                  0.11,
+                  0.37,
+                  0.13
+                ],
+                "center": [
+                  0,
+                  -0.185,
+                  0
+                ],
+                "mass": 4,
+                "twistAxis": [
+                  1,
+                  0,
+                  0
+                ],
+                "swingLimit": 0.12,
+                "twistMin": -2,
+                "twistMax": 0.1
+              },
+              {
+                "bone": "RightFoot",
+                "size": [
+                  0.13,
+                  0.105,
+                  0.25
+                ],
+                "center": [
+                  0,
+                  -0.02,
+                  -0.06
+                ],
+                "mass": 1,
+                "twistAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "swingLimit": 0.7,
+                "twistMin": -0.5,
+                "twistMax": 0.5
+              }
+            ],
+            "active": false
+          }
         }
       ],
-      "layer": 30
+      "layer": 0
     },
     {
       "id": 2,
@@ -170,7 +554,7 @@
         }
       ],
       "parent": 1,
-      "layer": 30
+      "layer": 0
     },
     {
       "id": 3,
@@ -225,7 +609,7 @@
         }
       ],
       "parent": 1,
-      "layer": 30
+      "layer": 0
     },
     {
       "id": 4,
@@ -280,7 +664,7 @@
         }
       ],
       "parent": 1,
-      "layer": 30
+      "layer": 0
     },
     {
       "id": 5,
@@ -335,7 +719,7 @@
         }
       ],
       "parent": 1,
-      "layer": 30
+      "layer": 0
     },
     {
       "id": 6,
@@ -365,12 +749,12 @@
           "enabled": true,
           "data": {
             "animator": 1,
-            "bone": "RightHand",
+            "bone": "Chest",
             "boneIndex": -1,
             "offsetPosition": [
-              0,
-              -0.045,
-              -0.015
+              0.05,
+              -0.02,
+              -0.22
             ],
             "offsetRotation": [
               0,
@@ -387,7 +771,229 @@
         }
       ],
       "parent": 1,
-      "layer": 30
+      "layer": 0
+    },
+    {
+      "id": 7,
+      "name": "Aim",
+      "active": true,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "AimIK",
+          "id": "54e868003212413591a1b1aa02ef040a",
+          "enabled": true,
+          "data": {
+            "animator": 1,
+            "bones": [
+              {
+                "bone": "Spine",
+                "weight": 0.4
+              },
+              {
+                "bone": "Chest",
+                "weight": 1
+              }
+            ],
+            "target": 0,
+            "targetPosition": [
+              0,
+              0,
+              0
+            ],
+            "axis": [
+              0,
+              0,
+              -1
+            ],
+            "maxAngle": 1.4,
+            "weight": 0
+          }
+        }
+      ],
+      "parent": 1,
+      "layer": 0
+    },
+    {
+      "id": 8,
+      "name": "Look",
+      "active": true,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "AimIK",
+          "id": "cf99fc2950a84e6599fd605117bd4e47",
+          "enabled": true,
+          "data": {
+            "animator": 1,
+            "bones": [
+              {
+                "bone": "Neck",
+                "weight": 0.5
+              },
+              {
+                "bone": "Head",
+                "weight": 1
+              }
+            ],
+            "target": 0,
+            "targetPosition": [
+              0,
+              0,
+              0
+            ],
+            "axis": [
+              0,
+              0,
+              -1
+            ],
+            "maxAngle": 1.2,
+            "weight": 1
+          }
+        }
+      ],
+      "parent": 1,
+      "layer": 0
+    },
+    {
+      "id": 9,
+      "name": "Right Hand Reach",
+      "active": true,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "TwoBoneIK",
+          "id": "dbf9e9132b384d20ad0763f6ce592897",
+          "enabled": true,
+          "data": {
+            "animator": 1,
+            "bone": "RightHand",
+            "target": 0,
+            "offsetPosition": [
+              -0.025,
+              0.088,
+              -0.02
+            ],
+            "offsetRotation": [
+              0,
+              0.70710677,
+              0,
+              0.70710677
+            ],
+            "matchRotation": true,
+            "pole": [
+              0.6,
+              -1,
+              0.3
+            ],
+            "weight": 0
+          }
+        }
+      ],
+      "parent": 1,
+      "layer": 0
+    },
+    {
+      "id": 10,
+      "name": "Left Hand Reach",
+      "active": true,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "TwoBoneIK",
+          "id": "6faff536ab32408299343249840a8230",
+          "enabled": true,
+          "data": {
+            "animator": 1,
+            "bone": "LeftHand",
+            "target": 0,
+            "offsetPosition": [
+              -0.02,
+              0.015,
+              -0.02
+            ],
+            "offsetRotation": [
+              -0.5,
+              0.5,
+              0.5,
+              0.5
+            ],
+            "matchRotation": true,
+            "pole": [
+              -0.6,
+              -1,
+              0.3
+            ],
+            "weight": 0
+          }
+        }
+      ],
+      "parent": 1,
+      "layer": 0
     }
   ]
 }

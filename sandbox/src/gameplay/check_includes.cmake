@@ -17,7 +17,7 @@ set(GAMEPLAY_NEEDS
     "hud=core"
     "inventory=core,hud,menus"
     "menus=core,hud"
-    "network=core"
+    "network=core,game,persistence"
     "vehicles=core,environment,health,hud,persistence,weapons"
     "weapons=camera,core,effects,health,inventory"
 )

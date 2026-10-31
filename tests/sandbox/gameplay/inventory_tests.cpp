@@ -2,6 +2,7 @@
 
 #include "gameplay/core/pawn.h"
 #include "gameplay/core/player_controller.h"
+#include "gameplay/core/world_time.h"
 #include "gameplay/inventory/held_item.h"
 #include "gameplay/inventory/inventory.h"
 #include "gameplay/inventory/inventory_elements.h"
@@ -169,6 +170,20 @@ TEST_CASE("Closing the inventory wheel restores time unless another system chang
     Spot::Time::SetTimeScale(0.0f);
     world.inventory.CloseWheel(false);
     CHECK(Spot::Time::GetTimeScale() == 0.0f);
+    Spot::Time::SetTimeScale(previous);
+}
+
+TEST_CASE("The inventory wheel keeps normal speed when the rules forbid time scaling",
+          "[sandbox][gameplay][inventory]") {
+    InventoryWorld world;
+    const float previous = Spot::Time::GetTimeScale();
+    Spot::Time::SetTimeScale(1.0f);
+    Gameplay::WorldTime::Get(world.scene).SetAllowed(false);
+    world.inventory.OpenWheel();
+    CHECK(world.inventory.IsWheelOpen());
+    CHECK(Spot::Time::GetTimeScale() == 1.0f);
+    world.inventory.CloseWheel(false);
+    CHECK(Spot::Time::GetTimeScale() == 1.0f);
     Spot::Time::SetTimeScale(previous);
 }
 

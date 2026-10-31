@@ -27,6 +27,27 @@
       ],
       "components": [
         {
+          "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 150.0
+          },
+          "enabled": true,
+          "id": "771f08dd3bf3f5e4e8007dfe6ecc3e55",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "7b5aa5f5ce70340523fbcd972d3fbfc3",
+          "type": "NetworkTransform"
+        },
+        {
           "type": "PointLight",
           "id": "b8c4f82e3af24a7bb069397015db16fb",
           "enabled": true,

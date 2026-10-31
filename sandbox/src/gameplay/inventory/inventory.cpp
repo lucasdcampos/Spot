@@ -1,4 +1,5 @@
 #include "gameplay/inventory/inventory.h"
+#include "gameplay/core/world_time.h"
 
 #include "gameplay/core/player_controller.h"
 #include "gameplay/inventory/held_item.h"
@@ -125,7 +126,10 @@ void Inventory::OpenWheel() {
     m_wheelSlot = m_selected;
     m_wheelPointer = {};
     m_timeScaleBefore = Spot::Time::GetTimeScale();
-    m_timeScaleSet = m_timeScaleBefore * std::clamp(wheelTimeScale, 0.0f, 1.0f);
+    WorldTime::Get(GetScene());
+    // Time is everyone's in a session, so the wheel slows it only alone.
+    m_timeScaleSet =
+        WorldTime::IsScalingAllowed(GetScene()) ? m_timeScaleBefore * std::clamp(wheelTimeScale, 0.0f, 1.0f) : 1.0f;
     Spot::Time::SetTimeScale(m_timeScaleSet);
     // The look points it, and what is in hand is not used meanwhile.
     std::vector<std::string> actions = {lookAction};
@@ -152,7 +156,7 @@ void Inventory::CloseWheel(bool select) {
     }
     // Unless something else, such as the pause menu, changed it meanwhile.
     if (Spot::Time::GetTimeScale() == m_timeScaleSet) {
-        Spot::Time::SetTimeScale(m_timeScaleBefore);
+        Spot::Time::SetTimeScale(WorldTime::IsScalingAllowed(GetScene()) ? m_timeScaleBefore : 1.0f);
     }
     if (select) {
         Select(m_wheelSlot);
@@ -244,16 +248,39 @@ void Inventory::OnPlayerInput(PlayerController& player) {
     } else {
         item->m_input.Activate(controller);
     }
-    Use(ItemInput::Read(item->m_input, inGame));
+    m_intent = ItemInput::Read(item->m_input, inGame);
+    Use(m_intent);
+}
+
+void Inventory::SerializeIntent(Spot::Archive& archive) {
+    int selected = m_selected;
+    ItemInput intent = m_intent;
+    archive.Field("selected", selected);
+    archive.Field("intent", intent);
+    if (archive.IsLoading()) {
+        if (selected != m_selected) {
+            Select(selected);
+        }
+        Use(intent);
+    }
 }
 
 void Inventory::Use(const ItemInput& input) {
     Equip();
+    const Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
+    const bool predicted = object && object->IsPredicted() && Spot::Network::IsClient(GetScene());
+    if (!predicted && !Spot::Network::HasAuthority(GetEntity())) {
+        return;
+    }
     if (HeldItem* item = GetEquipped()) {
         ItemInput intent = input;
         intent.active = input.active && IsActiveAndEnabled() && !IsStowed();
         intent.canUse = intent.active && input.canUse && CanUseItem();
-        item->OnUse(intent);
+        if (predicted) {
+            item->OnPredictedUse(intent);
+        } else {
+            item->OnUse(intent);
+        }
     }
 }
 
@@ -283,6 +310,18 @@ void Inventory::OnStart() {
 
 void Inventory::OnDisable() {
     OnPlayerUnpossess();
+}
+
+void Inventory::Replicate(Spot::Archive& archive) {
+    int selected = m_selected;
+    archive.Field("selected", selected);
+    // Its own player's machine chooses as the player does, ahead of the server.
+    const Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
+    if (archive.IsLoading() && !(object && object->IsOwnedLocally()) && selected != m_selected &&
+        selected >= 0 && selected < GetItemCount()) {
+        m_selected = selected;
+        Equip();
+    }
 }
 
 void Inventory::Serialize(Spot::Archive& archive) {

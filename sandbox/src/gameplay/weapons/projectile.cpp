@@ -1,5 +1,6 @@
 #include "gameplay/weapons/projectile.h"
 
+#include "gameplay/core/body_authority.h"
 #include "gameplay/core/trace_volume.h"
 #include "gameplay/weapons/explosive.h"
 
@@ -22,6 +23,7 @@ Projectile* Projectile::Launch(Spot::Scene& scene, const Spot::AssetRef<Spot::Pr
     entity->GetTransform().SetPosition(position);
     entity->GetTransform().SetRotation(Spot::Quaternion::LookRotation(direction));
     projectile->shooter = shooter;
+    BodyAuthority::KeepOnServer(*entity);
     if (auto* body = entity->GetComponent<Spot::Rigidbody>()) {
         body->SetLinearVelocity(Spot::Normalize(direction) * speed);
     }
@@ -33,6 +35,10 @@ void Projectile::OnStart() {
 }
 
 void Projectile::OnFixedUpdate(float /*fixedDeltaTime*/) {
+    // Where it flies is the server's, which also finds what it hits.
+    if (!Spot::Network::HasAuthority(GetEntity())) {
+        return;
+    }
     const Spot::Vector3 position = GetEntity().GetTransform().GetWorldPosition();
     if (m_last) {
         const Spot::Vector3 travel = position - *m_last;
@@ -54,6 +60,9 @@ void Projectile::OnCollisionEnter(const Spot::Collision& collision) {
 }
 
 void Projectile::Hit(Spot::Vector3 point) {
+    if (!Spot::Network::HasAuthority(GetEntity())) {
+        return;
+    }
     if (m_hit) {
         return;
     }

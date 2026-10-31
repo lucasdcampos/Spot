@@ -10,6 +10,12 @@ namespace Gameplay {
 SPOT_COMPONENT(SettingsMenu);
 SPOT_COMPONENT(BindingsMenu);
 
+void SettingsMenu::SetPlayerName(std::string name) {
+    m_settings.playerName = std::move(name);
+    MarkChanged();
+    Save();
+}
+
 namespace {
 
 template <typename T>

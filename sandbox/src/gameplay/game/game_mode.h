@@ -17,19 +17,26 @@ class SpawnPoint;
 // remembers their starting pawns, possesses them, and returns them after death or falling out of the world: to a
 // spawn point, the one farthest from the other players, or to where they started when the map has none. Games
 // override RespawnPlayer() and ChooseSpawn() for other rules.
-class GameMode : public Spot::Component {
+class GameMode : public Spot::Component, public Spot::Replicated {
 public:
+    std::string name = "Game";
+    std::string description;
+    int order = 0;
+    bool allowsTimeScale = true;
     float respawnTime = 4.0f;
     float fallHeight = -20.0f;
-    Spot::AssetId restartScene;
     // The pawn of a player who has none.
     Spot::AssetRef<Spot::Prefab> playerPrefab;
     // The spawn points it uses: those of this tag and those without one; all of them when empty.
     std::string spawnTag;
 
     static GameMode* Get(Spot::Scene& scene);
+    // Seconds until the dead player comes back; on clients, as the server said, for the player's pawn.
     float GetRespawnTimeLeft(const Controller& player) const;
     void Restart();
+
+    // How long each dead player has left, for the clients' death screens.
+    void Replicate(Spot::Archive& archive) override;
 
 protected:
     virtual void RespawnPlayer(Controller& player, Pawn& pawn, Spot::Vector3 start);
@@ -51,11 +58,20 @@ private:
         Spot::SignalConnection died;
     };
 
+    // A dead player's pawn and the seconds it had left, as a server said.
+    struct Waiting {
+        Spot::EntityId pawn = Spot::EntityId::Invalid;
+        float left = 0.0f;
+
+        void Serialize(Spot::Archive& archive);
+    };
+
     void TrackPlayers();
     void ScheduleRespawn(Spot::EntityId controller);
     void ReturnPlayer(Spot::EntityId controller, bool restoreHealth);
 
     std::vector<Player> m_players;
+    std::vector<Waiting> m_waiting;
 };
 
 } // namespace Gameplay

@@ -32,6 +32,8 @@ public:
     // The actions the context takes that reach it now.
     static ItemInput Read(const InputContext& input, bool canUse);
 
+    void Serialize(Spot::Archive& archive);
+
 private:
     struct Action {
         std::string name;
@@ -39,6 +41,8 @@ private:
         bool pressed = false;
         bool released = false;
         float value = 0.0f;
+
+        void Serialize(Spot::Archive& archive);
     };
     const Action* Find(std::string_view action) const;
 
@@ -111,6 +115,10 @@ protected:
     virtual void OnUnequip() {}
     // Each frame while it is in hand, with what the player does with it.
     virtual void OnUse(const ItemInput& /*input*/) {}
+    // Instead, on the machine of a player whose pawn is predicted (Spot::NetworkObject::predicted), where the server
+    // decides what using it does: what using it shows at once, as a firearm's aim, recoil, flash and sound, without
+    // changing the world. The server keeps those from that machine (EffectLibrary::Predicted). Nothing by default.
+    virtual void OnPredictedUse(const ItemInput& /*input*/) {}
 
     void Serialize(Spot::Archive& archive) override;
 

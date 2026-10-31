@@ -1,5 +1,7 @@
 #include "undo_list.h"
 
+#include <utility>
+
 SPOT_COMPONENT(UndoList);
 
 void UndoList::PushSpawn(Spot::EntityId entity) {
@@ -66,8 +68,21 @@ bool UndoList::UndoAction(const Action& action) {
     return false;
 }
 
-void UndoList::OnUpdate(float /*deltaTime*/) {
-    if (Spot::Input::IsActionPressed("Undo")) {
+void UndoList::OnPlayerInput(Gameplay::PlayerController& /*player*/) {
+    if (!Spot::Input::IsActionPressed("Undo")) {
+        return;
+    }
+    if (Spot::Network::HasAuthority(GetEntity())) {
+        Undo();
+    } else {
+        m_undoRequested = true;
+    }
+}
+
+void UndoList::SerializeIntent(Spot::Archive& archive) {
+    bool undo = std::exchange(m_undoRequested, false);
+    archive.Field("undo", undo);
+    if (archive.IsLoading() && undo) {
         Undo();
     }
 }

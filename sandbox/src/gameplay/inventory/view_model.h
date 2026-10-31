@@ -14,7 +14,8 @@ class Pawn;
 // view as the pawn looks, bobs with the pawn's walk (Pawn::GetMotion()), kicks when used, rolls aside to reload, comes
 // up from below when switched to, aims down its sights, turns away from walls it would go through, and is carried
 // low across the body while the pawn is "Sprinting", swinging with the stride. In a state of hiddenWhen, as dead or
-// seated, it holds nothing; with its hands busy, it does not turn away from what they hold.
+// seated, it holds nothing, as it does unless a local player plays as its pawn (Players::IsPlayedLocally()); with its
+// hands busy, it does not turn away from what they hold.
 //
 // It holds the model of the Inventory's item in hand (HeldItem::model) as the item says it is held
 // (HeldItem::DescribePose()). Models say where their "Muzzle" is, where the "Eye" is when aiming down their sights,
@@ -28,6 +29,10 @@ public:
     // Where the held item's origin, its grip, is from the eyes, along the view's right, up and back axes: in front is
     // -Z.
     Spot::Vector3 offset = {0.15f, -0.15f, -0.33f};
+    // Optional forearms and hands, posed at the model's RightHand and LeftHand markers.
+    Spot::AssetRef<Spot::Model> armsModel;
+    const std::vector<Spot::EntityId>& GetArmEntities() const { return m_arms; }
+
     float swayAmount = 0.012f;
     float maxSway = 0.03f;
     float bobAmount = 0.008f;
@@ -76,6 +81,7 @@ private:
     Pawn* GetPawn() const;
     void Show(const Spot::AssetRef<Spot::Model>& model);
     void Clear();
+    void UpdateArms(const Spot::Matrix4& hand);
     void UpdateMotion(float deltaTime, const Spot::Quaternion& view);
     // Where the item is now, relative to the eyes and the view.
     Spot::Matrix4 ComputePose() const;
@@ -87,6 +93,10 @@ private:
     Spot::AssetRef<Spot::Model> m_shown;
     std::vector<Spot::EntityId> m_parts;
     std::vector<Part> m_partInfo;
+    std::vector<Spot::EntityId> m_arms;
+    std::vector<Part> m_armInfo;
+    Spot::Vector3 m_rightGrip;
+    Spot::Vector3 m_leftGrip;
     Spot::Vector3 m_muzzle;
     Spot::Vector3 m_eye;
     Spot::Vector3 m_hip;

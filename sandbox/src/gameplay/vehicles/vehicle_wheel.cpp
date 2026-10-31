@@ -1,6 +1,7 @@
 #include "gameplay/vehicles/vehicle_wheel.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace Gameplay {
 
@@ -13,10 +14,14 @@ constexpr Spot::Vector3 Right = {1.0f, 0.0f, 0.0f};
 
 } // namespace
 
-void VehicleWheel::OnLateUpdate(float /*deltaTime*/) {
+void VehicleWheel::OnLateUpdate(float deltaTime) {
     Spot::Entity* entity = GetScene().GetEntity(visual);
     if (!entity) {
         return;
+    }
+    // Where its vehicle is simulated elsewhere, it rolls at the spin it was shown.
+    if (!Spot::Network::HasAuthority(GetEntity())) {
+        m_angle = std::fmod(m_angle + m_spin * deltaTime, 2.0f * Spot::Pi);
     }
     Spot::Transform& transform = entity->GetTransform();
     transform.SetPosition(Up * std::clamp(m_compression, -droopTravel, bumpTravel));
@@ -24,6 +29,14 @@ void VehicleWheel::OnLateUpdate(float /*deltaTime*/) {
     const Spot::Quaternion side = Spot::Quaternion::FromAxisAngle(Up, m_left ? Spot::Pi : 0.0f);
     transform.SetRotation(Spot::Quaternion::FromAxisAngle(Up, m_steer) *
                           Spot::Quaternion::FromAxisAngle(Right, -m_angle) * side);
+}
+
+void VehicleWheel::Replicate(Spot::Archive& archive) {
+    archive.Field("compression", m_compression);
+    archive.Field("grounded", m_grounded);
+    archive.Field("steer", m_steer);
+    archive.Field("spin", m_spin);
+    archive.Field("slip", m_slip);
 }
 
 void VehicleWheel::Serialize(Spot::Archive& archive) {

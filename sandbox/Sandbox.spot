@@ -1246,6 +1246,19 @@
               }
             }
           ]
+        },
+        {
+          "name": "Player List",
+          "type": 0,
+          "pressPoint": 0.5,
+          "bindings": [
+            {
+              "control": {
+                "source": 0,
+                "code": 62
+              }
+            }
+          ]
         }
       ]
     }

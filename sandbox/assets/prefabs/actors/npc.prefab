@@ -27,6 +27,27 @@
       ],
       "components": [
         {
+          "data": {
+            "authority": 0,
+            "priority": 1.5,
+            "relevanceRadius": 150.0
+          },
+          "enabled": true,
+          "id": "f1ada5d3017e305a6002c84824276518",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "6ca7542785c692536ae2c5d01795fdba",
+          "type": "NetworkTransform"
+        },
+        {
           "type": "Animator",
           "id": "8f3861ff2cee4397b4c1d2229d251289",
           "enabled": true,
@@ -504,7 +525,10 @@
           "data": {
             "mount": 6,
             "animator": 1,
-            "poseLayer": "Holding"
+            "poseLayer": "Holding",
+            "aim": 8,
+            "rightHand": 10,
+            "leftHand": 11
           }
         },
         {
@@ -546,14 +570,28 @@
             },
             "exitEffect": "blood.exit",
             "damageType": "Bullet",
-            "spatterCount": 6,
-            "spatterCone": 0.6,
-            "spatterReach": 5.0,
+            "spatterCount": 2,
+            "spatterCone": 0.4,
+            "spatterReach": 2.2,
             "dripReach": 3.0,
-            "dripCount": 4,
-            "dripRadius": 0.8,
-            "minSize": 0.2,
-            "maxSize": 0.7
+            "dripCount": 1,
+            "dripRadius": 0.18,
+            "minSize": 0.04,
+            "maxSize": 0.14
+          }
+        },
+        {
+          "type": "CharacterAim",
+          "id": "7cc49e6f557d42d894d8dd2670bf17df",
+          "enabled": true,
+          "data": {
+            "look": 9,
+            "aim": 8,
+            "distance": 20,
+            "hiddenWhen": [
+              "Dead",
+              "Seated"
+            ]
           }
         }
       ]
@@ -802,12 +840,12 @@
           "enabled": true,
           "data": {
             "animator": 1,
-            "bone": "RightHand",
+            "bone": "Chest",
             "boneIndex": -1,
             "offsetPosition": [
-              0,
-              -0.045,
-              -0.015
+              0.05,
+              -0.02,
+              -0.22
             ],
             "offsetRotation": [
               0,
@@ -871,6 +909,224 @@
               1,
               1
             ]
+          }
+        }
+      ],
+      "parent": 1
+    },
+    {
+      "id": 8,
+      "name": "Aim",
+      "active": true,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "AimIK",
+          "id": "082f24b2004f441da5e75abf70783b31",
+          "enabled": true,
+          "data": {
+            "animator": 1,
+            "bones": [
+              {
+                "bone": "Spine",
+                "weight": 0.4
+              },
+              {
+                "bone": "Chest",
+                "weight": 1
+              }
+            ],
+            "target": 0,
+            "targetPosition": [
+              0,
+              0,
+              0
+            ],
+            "axis": [
+              0,
+              0,
+              -1
+            ],
+            "maxAngle": 1.4,
+            "weight": 0
+          }
+        }
+      ],
+      "parent": 1
+    },
+    {
+      "id": 9,
+      "name": "Look",
+      "active": true,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "AimIK",
+          "id": "52fab77ab35440c79f9e3d938f7bc1b7",
+          "enabled": true,
+          "data": {
+            "animator": 1,
+            "bones": [
+              {
+                "bone": "Neck",
+                "weight": 0.5
+              },
+              {
+                "bone": "Head",
+                "weight": 1
+              }
+            ],
+            "target": 0,
+            "targetPosition": [
+              0,
+              0,
+              0
+            ],
+            "axis": [
+              0,
+              0,
+              -1
+            ],
+            "maxAngle": 1.2,
+            "weight": 1
+          }
+        }
+      ],
+      "parent": 1
+    },
+    {
+      "id": 10,
+      "name": "Right Hand Reach",
+      "active": true,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "TwoBoneIK",
+          "id": "70899b91c08c4fd2a5f6d202a187c67b",
+          "enabled": true,
+          "data": {
+            "animator": 1,
+            "bone": "RightHand",
+            "target": 0,
+            "offsetPosition": [
+              -0.025,
+              0.088,
+              -0.02
+            ],
+            "offsetRotation": [
+              0,
+              0.70710677,
+              0,
+              0.70710677
+            ],
+            "matchRotation": true,
+            "pole": [
+              0.6,
+              -1,
+              0.3
+            ],
+            "weight": 0
+          }
+        }
+      ],
+      "parent": 1
+    },
+    {
+      "id": 11,
+      "name": "Left Hand Reach",
+      "active": true,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "TwoBoneIK",
+          "id": "534e716f67b04714ae89938c02155f6a",
+          "enabled": true,
+          "data": {
+            "animator": 1,
+            "bone": "LeftHand",
+            "target": 0,
+            "offsetPosition": [
+              -0.02,
+              0.015,
+              -0.02
+            ],
+            "offsetRotation": [
+              -0.5,
+              0.5,
+              0.5,
+              0.5
+            ],
+            "matchRotation": true,
+            "pole": [
+              -0.6,
+              -1,
+              0.3
+            ],
+            "weight": 0
           }
         }
       ],

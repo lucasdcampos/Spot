@@ -31,6 +31,7 @@ public:
     // Where the settings are kept; the application's user data by default.
     void SetSettingsDirectory(std::filesystem::path directory) { m_directory = std::move(directory); }
     bool Save();
+    void SetPlayerName(std::string name);
     // Applies the settings as they are now, shows them and saves them shortly, as after a control was rebound.
     void MarkChanged();
 

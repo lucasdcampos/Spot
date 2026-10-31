@@ -9,6 +9,10 @@ namespace Gameplay {
 SPOT_COMPONENT(Health);
 
 float Health::TakeDamage(const DamageInfo& damage) {
+    // The server's, even for what a client drives.
+    if (!Spot::Network::IsServer(GetScene())) {
+        return 0.0f;
+    }
     const float amount = AdjustDamage(damage);
     if (IsDead() || !(amount > 0.0f)) {
         return 0.0f;
@@ -28,7 +32,7 @@ void Health::Die(const DamageInfo& damage) {
     m_health = 0.0f;
     SetDead(true);
     OnDied.Emit(damage);
-    DamageSystem::Get(GetScene()).OnKilled.Emit({GetEntity().GetId(), damage});
+    DamageSystem::Get(GetScene()).Report({GetEntity().GetId(), damage}, true);
 }
 
 void Health::Restore() {
@@ -51,12 +55,36 @@ void Health::OnStart() {
 
 void Health::OnUpdate(float deltaTime) {
     m_hurt = std::max(m_hurt - deltaTime, 0.0f);
-    if (IsDead()) {
+    if (IsDead() || !Spot::Network::IsServer(GetScene())) {
         return;
     }
     m_sinceHurt += deltaTime;
     if (m_sinceHurt >= regenerationDelay) {
         m_health = std::min(m_health + regenerationRate * deltaTime, maxHealth);
+    }
+}
+
+void Health::Replicate(Spot::Archive& archive) {
+    float health = m_health;
+    archive.Field("health", health);
+    if (!archive.IsLoading() || health == m_health) {
+        return;
+    }
+    const bool wasDead = IsDead();
+    if (health < m_health) {
+        // Shown as the hurt it was, without the damage, which only the server knows.
+        m_hurt = 1.0f;
+        m_sinceHurt = 0.0f;
+        OnDamaged.Emit(DamageInfo{.amount = m_health - health}, m_health - health);
+    }
+    m_health = health;
+    if (!wasDead && IsDead()) {
+        m_health = 0.0f;
+        SetDead(true);
+        OnDied.Emit(DamageInfo{});
+    } else if (wasDead && !IsDead()) {
+        SetDead(false);
+        OnRestored.Emit();
     }
 }
 

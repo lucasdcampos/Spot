@@ -19,6 +19,10 @@ void PauseMenu::Initialize() {
             auto& application = Spot::Application::Get();
             if (auto scene = Spot::InstantiateScene(application.GetAssets(), mainMenuScene)) {
                 Close();
+                // The main menu is the player's own: they leave the session, or end it when hosting.
+                if (auto* network = application.GetModule<Spot::NetworkModule>()) {
+                    network->Leave();
+                }
                 application.LoadScene(std::move(scene));
             }
         }

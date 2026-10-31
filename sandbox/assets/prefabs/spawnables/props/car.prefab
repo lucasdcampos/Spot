@@ -5,6 +5,27 @@
       "components": [
         {
           "data": {
+            "authority": 1,
+            "priority": 2.0,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "d5d2087e40dfe11003d6abdb96ee056e",
+          "type": "NetworkObject"
+        },
+        {
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          },
+          "enabled": true,
+          "id": "a73370e941cd6ca3d8392f4ed5afbb22",
+          "type": "NetworkTransform"
+        },
+        {
+          "data": {
             "maxHealth": 300.0,
             "regenerationRate": 0.0,
             "safeImpactSpeed": 8.0,

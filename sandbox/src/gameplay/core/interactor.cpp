@@ -4,11 +4,22 @@
 #include "gameplay/core/interactable.h"
 #include "gameplay/core/pawn.h"
 
+#include <utility>
+
 namespace Gameplay {
 
 SPOT_COMPONENT(Interactor);
 
 bool Interactor::Interact() {
+    if (Spot::Network::IsClient(GetScene())) {
+        Pawn* pawn = GetPawn();
+        const Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
+        if (!pawn || !object || !object->IsOwnedLocally() || !pawn->IsPossessed()) {
+            return false;
+        }
+        pawn->Request("Gameplay.Interact");
+        return true;
+    }
     auto target = FindTarget();
     if (!target) {
         return false;
@@ -58,6 +69,12 @@ void Interactor::UpdateFocus() {
     const auto target = m_input.IsAvailable(action) ? FindTarget() : std::nullopt;
     m_focus = target ? target->hit.entity : Spot::EntityId::Invalid;
     m_prompt = target ? target->prompt : std::string();
+}
+
+void Interactor::OnPlayerRequest(std::string_view request) {
+    if (request == "Gameplay.Interact") {
+        Interact();
+    }
 }
 
 void Interactor::OnUpdate(float /*deltaTime*/) {

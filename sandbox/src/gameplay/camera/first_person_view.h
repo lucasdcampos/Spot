@@ -55,6 +55,8 @@ protected:
     // The look is read as the view updates, so the input itself does nothing.
     void OnPlayerInput(PlayerController& /*player*/) override {}
     void SerializeIntent(Spot::Archive& archive) override;
+    // Movement goes where the pawn looks.
+    bool IsIntentPerStep() const override { return true; }
     void ReadSettings(UserSettings& settings) const override;
     void OnStart() override;
     void OnDisable() override;
@@ -74,6 +76,8 @@ private:
     float m_fieldOfView = 0.0f;
     float m_recoil = 0;
     // From 0 to 1 as the pawn runs, widening the view a little.
+    float m_movementRoll = 0.0f;
+    float m_movementPitch = 0.0f;
     float m_run = 0.0f;
     InputContext m_input{{.name = "Look", .actions = {"Look"}}};
     Spot::TweenId m_recoilTween = Spot::TweenId::Invalid;

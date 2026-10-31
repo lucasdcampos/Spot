@@ -16,7 +16,6 @@ public:
     std::string pauseAction = "Pause";
     std::string restartAction = "Restart";
     std::string captureAction = "Fire";
-    std::string checkpoint = "world.json";
     Spot::AssetRef<Spot::Sound> clickSound;
 
     void SetSaveDirectory(std::filesystem::path directory) { m_saveDirectory = std::move(directory); }

@@ -8,6 +8,7 @@
 #include "gameplay/character/character.h"
 #include "gameplay/character/character_movement.h"
 #include "gameplay/core/pawn.h"
+#include "gameplay/core/world_time.h"
 #include "gameplay/inventory/inventory.h"
 #include "gameplay/weapons/firearm.h"
 
@@ -76,7 +77,7 @@ SandboxCommands::SandboxCommands(Spot::Console& console, Spot::Scene& scene) : m
          }}));
     m_registrations.push_back(
         console.Register({"timescale", "Query/set simulation speed (0..100)", ConsoleFlags::Cheat,
-                          [](std::span<const std::string> arguments) -> ConsoleResult {
+                          [this](std::span<const std::string> arguments) -> ConsoleResult {
                               if (arguments.empty()) {
                                   return {true, std::format("Time scale: {}", Spot::Time::GetTimeScale())};
                               }
@@ -85,6 +86,10 @@ SandboxCommands::SandboxCommands(Spot::Console& console, Spot::Scene& scene) : m
                                   value < 0.0f || value > 100.0f) {
                                   return {false, "Usage: timescale <0..100>"};
                               }
+                              if (!Gameplay::WorldTime::IsScalingAllowed(m_scene)) {
+                                  return {false, "Time scale cannot change in this game"};
+                              }
+                              Gameplay::WorldTime::Get(m_scene);
                               Spot::Time::SetTimeScale(value);
                               return {true, std::format("Time scale: {}", value)};
                           }}));

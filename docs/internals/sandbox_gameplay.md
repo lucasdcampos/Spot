@@ -130,6 +130,9 @@ vehicle camera in control. The console commands themselves belong to the sandbox
 `CharacterVisual` presents an authored `modelRoot` with an animator reference and configurable speed parameter,
 seated/crouching layer names and offsets. It follows aim yaw on foot and the root's full rotation while seated.
 Additional `stateLayers` map arbitrary pawn states to authored pose layers, including seat-specific poses.
+`CharacterAim` points two optional AimIK constraints at `distance` ahead of the pawn's view point, so a character
+pitches as well as turns toward what it looks at: `look`, which it turns off in `hiddenWhen` states, and `aim`, whose
+weight WorldModel sets.
 The animator controller must use in-place locomotion; presentation never drives the physics body. Skeletons,
 bone names, masks, clips, culling layers and the model asset remain prefab/scene data. Tests exercise an unrelated
 one-joint rig and custom parameter/layer names.
@@ -167,8 +170,11 @@ keep reloads and cooldowns with the item. `Projectile` handles flight, collision
 parts in their prefabs. No damage source names the sandbox's NPCs or barrels. Tests: `weapons_tests.cpp`.
 
 `WorldModel` presents the same selected item in the world. Give it an entity id for its mount; that entity can
-use the engine's `BoneAttachment`, or any authored transform. An optional animator reference and `poseLayer`
-control the weight of an existing holding layer. Skeletons, bone names, masks, clips and grip offsets belong to
+use the engine's `BoneAttachment`, or any authored transform. The item sits with its `rightHandNode` at the mount
+(its origin without one). An optional animator reference and `poseLayer` control the weight of an existing holding
+layer, and optional engine constraints follow whether an item is shown: an `aim` AimIK's weight, and `rightHand` and
+`leftHand` TwoBoneIKs that reach the item's `rightHandNode` and `leftHandNode` entities, or keep the animation where
+the item has no such node. Skeletons, bone names, masks, clips and grip offsets belong to
 the character prefab; no humanoid or sandbox model is assumed. Models are instances below the mount and cast
 ordinary world shadows. Switching items replaces the visual; hidden pawn states, a disabled inventory or a
 missing mount clear it. `renderLayer` optionally assigns every world-model node to a presentation layer,
@@ -351,18 +357,38 @@ are tracked on update. A pawn below `fallHeight` returns immediately without hea
 Returning changes the world position and calls `Pawn::ResetMotion()`, preserving the player's view direction.
 
 `RespawnPlayer()` restores health and possession after returning the pawn. A game subclasses `GameMode` and overrides
-that hook to change its respawn rule. `restartScene` selects what `Restart()` loads. `DeathScreenElement`, still
+that hook to change its respawn rule. `Restart()` uses the map's restart scene or its source asset. `DeathScreenElement`, still
 serialized with the same component name on the interface prefab, shows the mode's countdown for its HUD's player.
 Without a mode, health stays dead and the health system works alone.
 
 `SessionControls` locks the cursor on start and handles configurable save, load, pause, restart and capture actions.
-Quick save and load use `WorldSave` with `checkpoint` under the application's user data directory; tests can supply a
+Quick save and load use `WorldSave` with `MapInfo::checkpoint` under the application's user data directory (or
+`world.json` without map information); tests can supply a
 directory with `SetSaveDirectory()`. The pause menu handles Pause when present; otherwise Pause releases the cursor,
 and pressing it again quits. Restart calls the mode. The capture click runs in late update, after gameplay has seen
 the unlocked cursor, and never captures clicks on an open menu. Its sound is an authored `clickSound` reference.
 
-The playground's Controls entity has `GameMode`, `SessionControls` and the sandbox's `GameControls`. Only console
-commands and cheats, fallback NPC population and the developer tools' font remain in `GameControls`. The spawn
+`MapInfo` owns map metadata, supported mode prefab ids, the default mode, checkpoint and restart settings, preview
+and introduction time. It starts a mode prefab on the server in `OnStart()` unless one was explicitly selected with
+`StartMode()` before the scene starts; clients receive the server's mode as a replicated prefab. A mode needs
+an active `GameMode` (or a subclass) and `NetworkObject` on its active root. `StartMode()` rejects unsupported,
+missing or malformed prefabs and duplicate active modes, with a reason for the caller. Mode names, descriptions,
+catalog order and `allowsTimeScale` belong to `GameMode`.
+
+`MapCatalog` discovers imported scenes containing `MapInfo`; `ModeCatalog` discovers prefabs with a `GameMode` root.
+Both optionally restrict the asset directory and sort by authored order, name and asset id. They instantiate data
+without updating scenes, so listing content never runs gameplay, scripts or audio. Tests author and import a small
+custom map and mode to prove discovery needs neither sandbox names nor source files at runtime.
+
+`WorldTime` in `core/` shares the mode's time policy with menus, inventory and console commands without dependencies
+back to `game/`. Time scaling requires the mode's permission and a private world: no session, or a server with no
+connected peers. Its scene system restores normal speed when a peer joins a paused or slowed host; closing a menu
+or wheel cannot restore a forbidden scale. Clients never control simulation time.
+
+The sandbox's `prefabs/modes/free.prefab` contains `GameMode`, `SessionControls`, `NetworkPlayers`, the local `Hud`
+and `GameControls`. Both maps use it and author sixteen spawn points. Their Game entities keep `MapInfo`, effects
+and local scripts. The playground's NPC population is an authored map prefab; the empty map has none. Only console
+commands and cheats, fallback NPC support and the developer tools' font remain in `GameControls`. The spawn
 menu uses its `playerIndex` to resolve the player's spawner and undo list through `Players`, while sandbox commands
 and the smoke test use the first local player, following that player's body while driving. Tests:
 `tests/sandbox/gameplay/session_tests.cpp`; the playground tests retain their quick-save and death behavior checks.
@@ -373,24 +399,97 @@ and the smoke test use the first local player, following that player's body whil
 [Networking](networking.md)); alone, it does nothing, and every system plays as it does without it. The server
 decides: it runs the game mode and simulates every pawn, and clients show what it decides.
 
-- **Players.** `NetworkPlayers`, on the Game entity of both maps, gives each client running the scene a
+- **Players.** `NetworkPlayers`, in the active mode prefab, gives each client running the scene a
   `RemoteController` on the server. Controllers say whether they are a player's (`Controller::IsPlayer()`), so the
   `GameMode` gives remote players pawns and respawns them as it does local ones; it runs only where the rules do
   (`Spot::Network::IsServer()`). The pawn's network object is owned by its player's client, where the local
-  `PlayerController` possesses it. A client leaving takes its controller and pawn with it.
+  `PlayerController` possesses the owned pawn whose replicated possession flag is set, switching cameras on entering
+  and leaving vehicles. `RemoteController::GetPlayerPawn()` remembers the original character while another pawn is
+  possessed. A client leaving takes its controller and character with it; its vehicle stays, unoccupied, with ownership
+  returned to the server. The character keeps its player's ownership while seated, for its local presentation.
 - **Intents.** A player's machine still reads input through its pawn's `PlayerInputListener`s, which make intents.
   Each frame, `NetworkPlayers` writes them with `PawnIntents` (each listener's `SerializeIntent()`, in the order of
   the pawn's parts) and sends them to the server with the last frames before them, unreliably; the
   `RemoteController` applies each new frame in order before the fixed steps, so a press that lasts one frame counts
   once. Movement (`CharacterMovement`), the view (`FirstPersonView`, whose look its own client keeps and the others
-  are shown) and vehicles (`Vehicle`) write theirs.
-- **Who moves.** Parts that simulate check `Spot::Network::HasAuthority()`: on clients, `CharacterMovement` leaves
-  the pawn where the server says, and the player sees their own pawn move a round trip late until prediction comes.
+  are shown) and vehicles (`Vehicle`) write theirs. Changing pawns clears the client's repeated frames and the server's
+  queued intents, so fields from the old pawn's listeners cannot be applied to the new pawn.
+- **Requests.** `Pawn::Request(name)` delivers a discrete action to the pawn's active `PlayerInputListener`s, on its
+  entity and descendants down to another pawn, through `OnPlayerRequest()`. Alone or on the server it delivers
+  immediately; on the owning client it sends a reliable `PawnRequest`. `NetworkPlayers` accepts it only for the pawn
+  that sender's `RemoteController` currently possesses. Each listener validates its own action: `Interactor` handles
+  `Gameplay.Interact` by raycasting from the server's view, checking reach, obstruction, states and target availability;
+  `Vehicle` handles `Gameplay.ExitVehicle` through its seat. These actions are kept out of the repeated intent stream.
+  Seats enter and exit only on the server, and clients place the replicated occupant at the seat for presentation.
+- **Who moves.** Parts that simulate check `Spot::Network::HasAuthority()`: on clients, they leave the pawn where the
+  server says. A predicted pawn (`NetworkObject::predicted`, the player prefab's) is the exception.
+- **Prediction.** A `PredictedPart`, as `CharacterMovement`, moves a fixed step at a time by its intent. On the owning
+  client it steps at once; after each fixed step `NetworkPlayers` records the intents of the listeners that go with
+  steps (`PlayerInputListener::IsIntentPerStep()`: the movement and `FirstPersonView`, whose look it goes along) and
+  where the pawn ended, and sends the new steps with the last few each frame. Its other listeners' intents still go
+  per frame, the view among them, so items are used where the view looked that frame. On the server, the
+  `RemoteController` applies and steps each received step in order, never faster than time passes there unless more
+  than four wait (a client clock running fast), and dropping beyond thirty; the scene's own fixed steps leave the
+  pawn alone. After each batch it sends the client, unreliably, the last step applied, the position, and the predicted
+  parts' state (`SerializeStepState()`, intent included). Where that position is farther than `correctionTolerance`
+  from what the client recorded after the same step, the client puts the pawn there, in that state, steps again the
+  steps the server had not seen (`replaying`, so landings are not told twice), and puts back the intents it has now.
+  `CharacterMovement` ignores replicated crouching, running and flying on its predicting client, which works them
+  out from the same intents. Its intent carries whether running was blocked on the player's machine, as states such
+  as "Aiming" or "HandsBusy" change there a step apart from the server. After a correction the head eases back from
+  where it was shown (`PredictedPart::OnCorrected()`), so small corrections are not seen as jumps.
+- **Items and effects.** On a predicting client, `Inventory` gives the held item `OnPredictedUse()` instead of
+  `OnUse()`: a `Firearm` aims, kicks, plays its sound and flash and shows tracers and impacts at once, but only the
+  server damages, pushes and launches projectiles (`Spot::Network::HasAuthority()`), and its rounds are the server's.
+  On the server, what a firearm plays inside `EffectLibrary::Predicted` goes to every client but its player's.
+  "Aiming" is among `Pawn::localStates`: each machine has it from its own copy of the firearm. The predicting client
+  reports the replicated objects its pellets hit (`Firearm::ApplyReportedHits()`, a reliable message): what it aimed
+  at was shown a little in the past, where the server's own rays would miss what moves. The server applies as many
+  hits as the shots it fired allow, within range, and damages with its own rays only what is not replicated. Which
+  item is in hand replicates (`Inventory::Replicate()`), except to the player choosing it.
+- **Bodies.** On a client, a body the server simulates is kinematic: what that client moves itself, its character and
+  the vehicle it drives, would meet it as a wall that does not move. `BodyAuthority` (in `core`) lets the server give a
+  replicated body to a client to simulate: `NetworkPlayers` gives what comes within `handOffRadius` of a player's
+  character or `vehicleHandOffRadius` of the vehicle it drives, and takes it back after `handBackDelay` seconds with
+  nothing of that player's near; `Carrier` gives what its remote player picks up and takes it back to throw it;
+  `Damage::Apply()` and the physics gun take back what they push. Pawns, bodies held by joints and projectiles
+  (`BodyAuthority::KeepOnServer()`, also while the physics gun holds a body) are never given. A client tells the server
+  of the impacts of the bodies it simulates, which plays their sounds and particles for the others. The server's copy of the character still meets the given body
+  where its client last said it was, so pushing one costs a few small corrections. `Carrier` reads its controls as
+  intents, replicates what it carries, and offers to pick up kinematic bodies another machine simulates. Authored
+  bodies of the playground (dominoes, gongs, the seesaw, the wrecking ball) have network objects.
+- **Vehicles.** Vehicle prefabs have `NetworkAuthority::Owner`: the `RemoteController` that possesses one makes its
+  player the owner, whose machine drives its body and sends where it is; the server's copy is kinematic until it
+  is let go, and goes on at the speed it was moving. Clients follow the server for who possesses what
+  (`Pawn::IsPossessedWhereDecided()`), including vehicles they drive. `VehicleWheel` replicates its suspension, steering
+  and spin, decided by the driver (`IsDecidedByOwner()`); other machines roll it at that spin. A helicopter spins up its
+  rotor on every machine from who sits in it. The engine, horn and tire sounds are worked out where the vehicle is
+  simulated and replicated the same way. Health is the server's (`Network::IsServer()`), so a driver's machine tells the
+  server of its hard hits (`VehicleHealth`); wrecks burn on every machine, and only the server sets off the blast.
+- **Other parts.** `Flashlight` switches at once on its player's machine and sends the state as an intent. The physics
+  gun's grab controls are intents too, and what it holds and where replicate, so every machine draws its beam. The
+  tool gun clicks on the server from where it has the player look (the cursor checked only where the player plays),
+  replicates its mode and options, and marks what it changes on `PropEdits`, on the mode, which replicates the current
+  paint, material, welds and ropes of those props; its lamps are network objects, spawned on the prop they are put on.
+  `GameMode` replicates how long each dead player has until respawning, for the death screen. NPCs replicate being
+  knocked down. Camera shakes the server starts shake its clients' views. Characters other machines move walk their
+  steps at the speed they are seen to move, so every machine plays footsteps itself.
+- **Who is shown.** What is drawn from a pawn's eyes rather than of it depends on whether a local player plays as it
+  (`Players::IsPlayedLocally()`): `ViewModel` draws the hands only then; `CharacterVisual::localLayer` and
+  `WorldModel::renderLayer` put the body and the held item on the layer the first-person camera leaves out only then,
+  so other players' characters are seen whole.
 
 The player prefab's root has a `NetworkObject` and a `NetworkTransform`. The sandbox's executable hosts with
-`--host [port]` (27015 by default) and joins with `--join <address[:port]>`. Tests: `network_tests.cpp`, a server
-and a client in one process over the loopback network, with a test-only part showing that any listener's intents
-reach the server.
+`--host [port]` (27015 by default) and joins with `--join <address[:port]>`. `--server` runs a dedicated server:
+no window, graphics or sound, 60 frames a second, and no player of its own (`SessionSettings::dedicated`, which
+removes the map's local players with `Players::RemoveAll()` before it starts), with `--port`, `--map` and `--mode`
+(by name or asset path), `--players`, `--name` and `--password`; it logs who joins and leaves, and quits when it
+cannot host. With `stats` on, a client predicting its character also shows its corrections a second and how far
+the largest moved it (`NetworkPlayers`). Tests: `network_tests.cpp`, a server
+and clients in one process over the loopback network, with a test-only part showing that any listener's intents
+reach the server, a predicted test part moving at once and corrected by the server, plus vehicle possession, camera
+changes, driver departure and request validation, including complete loss of unreliable client packets. Driving
+remains server-simulated in this stage.
 
 ## Recipes
 
@@ -652,3 +751,10 @@ Rotor-driven branch flexion and twist now use 40% of their original amplitude. F
 instances of three sparse, articulated models, preserving the generated placements and original trunk colliders.
 Their main branches, side shoots and leaders have independent joints; needles follow their supporting branches.
 The old merged forest bark and needles renderers are disabled; the rock renderer remains active.
+
+Character walking applies three times the world gravity with a 9 m/s jump impulse for a higher jump that still falls quickly.
+FirstPersonView eases a small lateral roll and vertical pitch from character velocity into the displayed camera only; aim and replicated look remain independent of this cosmetic motion.
+
+Airborne characters retain their horizontal takeoff velocity and cannot steer until grounded. This velocity is included in prediction snapshots.
+
+Player bodies use the same weapon mount, aim and two-hand constraints as spawnable NPCs. `CharacterDeath` connects health death and restoration (including replicated health) to the configured ragdoll, disables the living character controller while dead, and forwards corpse hit impulses. `Bleeding` also presents damage reports on clients; damage and flesh surface lookup follow a child ragdoll back to its character.

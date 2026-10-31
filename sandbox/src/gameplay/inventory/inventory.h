@@ -3,6 +3,7 @@
 #include "gameplay/core/input_context.h"
 #include "gameplay/core/pawn.h"
 #include "gameplay/core/player_input.h"
+#include "gameplay/inventory/held_item.h"
 
 #include <spot.h>
 
@@ -11,16 +12,16 @@
 
 namespace Gameplay {
 
-class HeldItem;
-class ItemInput;
 
 // What a pawn has in hand: one of its items, the child entities with a HeldItem, in their order. Each of the select
 // actions takes the item of its place, and the cycle action (the mouse wheel, or the shoulders) goes through them.
 // Holding the wheel action opens a wheel of the items and slows time: the look points at one, and letting go takes
 // it; the pawn is "Choosing" meanwhile, and the open wheel takes the look and the item's actions from everything else.
+// Where the pawn is not decided, items are chosen as the player does, but used only by the server, with the intent;
+// the other machines are shown which item is in hand.
 // The item in hand reads its actions while the pawn is in none of the states of stowedBy, as dead or seated, and may be
 // used while it is in none of blockedBy either, as running; it magnifies the pawn's view as it says (ViewZoom).
-class Inventory : public Spot::Component, public ViewZoom, public PlayerInputListener {
+class Inventory : public Spot::Component, public ViewZoom, public PlayerInputListener, public Spot::Replicated {
 public:
     // How many items the wheel has room for, clockwise from the top.
     int wheelSlots = 8;
@@ -66,10 +67,12 @@ public:
 protected:
     void OnPlayerInput(PlayerController& player) override;
     void OnPlayerUnpossess() override;
+    void SerializeIntent(Spot::Archive& archive) override;
     void OnStart() override;
     void OnUpdate(float deltaTime) override;
     void OnDisable() override;
     void Serialize(Spot::Archive& archive) override;
+    void Replicate(Spot::Archive& archive) override;
 
 private:
     // Points the wheel where the look moves.
@@ -77,6 +80,9 @@ private:
     // Unequips what was in hand and equips what is selected now, when they differ.
     void Equip();
     bool IsStowed() const;
+
+    // What its player made of their input for the item in hand this frame, for a server to use.
+    ItemInput m_intent;
     void PlayClick() const;
 
     InputContext m_input{{.name = "Inventory", .priority = 10}};

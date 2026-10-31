@@ -1,4 +1,5 @@
 #include "gameplay/menus/menu.h"
+#include "gameplay/core/world_time.h"
 #include <spot/scene/ui/ui_input_system.h>
 #include <spot/scene/ui/ui_system.h>
 
@@ -116,7 +117,9 @@ void Menu::Open() {
     }
     m_time = 0.0f;
     Animate(0.0f);
-    if (pausesGame) {
+    // Time is everyone's in a session, so menus pause it only alone.
+    WorldTime::Get(GetScene());
+    if (pausesGame && WorldTime::IsScalingAllowed(GetScene())) {
         m_previousTimeScale = Spot::Time::GetTimeScale();
         m_paused = true;
         Spot::Time::SetTimeScale(0.0f);
@@ -140,7 +143,7 @@ void Menu::Close() {
     }
     m_open = false;
     if (m_paused) {
-        Spot::Time::SetTimeScale(m_previousTimeScale);
+        Spot::Time::SetTimeScale(WorldTime::IsScalingAllowed(GetScene()) ? m_previousTimeScale : 1.0f);
         m_paused = false;
     }
     if (auto* input = GetScene().GetSystem<Spot::UiInputSystem>()) {

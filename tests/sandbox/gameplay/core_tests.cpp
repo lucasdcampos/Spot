@@ -63,6 +63,14 @@ public:
     void Interact(Gameplay::Interactor& /*interactor*/) override { ++opened; }
 };
 
+class RequestListener final : public Spot::Component, public Gameplay::PlayerInputListener {
+public:
+    std::vector<std::string> requests;
+
+    void OnPlayerInput(Gameplay::PlayerController&) override {}
+    void OnPlayerRequest(std::string_view request) override { requests.emplace_back(request); }
+};
+
 // Picks up whatever has a rigidbody, as the sandbox's carrier does.
 class Grabber final : public Spot::Component, public Gameplay::InteractionHandler {
 public:
@@ -414,4 +422,28 @@ TEST_CASE("A failing early input adapter faults only its controller", "[sandbox]
     CHECK(std::ranges::any_of(errors->GetRecords(), [](const auto& record) {
         return record.message.find("threw in OnPlayerInput") != std::string::npos;
     }));
+}
+
+TEST_CASE("A pawn delivers standalone requests to its active parts without crossing into another pawn",
+          "[sandbox][gameplay]") {
+    CoreWorld world;
+    auto& pawn = world.AddPawn("Pawn");
+    auto& root = pawn.GetEntity().AddComponent<RequestListener>();
+    auto& child = pawn.GetEntity().CreateChild("Child").AddComponent<RequestListener>();
+    auto& disabled = pawn.GetEntity().AddComponent<RequestListener>();
+    disabled.SetEnabled(false);
+    auto& inactive = pawn.GetEntity().CreateChild("Inactive");
+    auto& inactiveListener = inactive.AddComponent<RequestListener>();
+    inactive.SetActive(false);
+    auto& other = pawn.GetEntity().CreateChild("Other Pawn");
+    other.AddComponent<Gameplay::Pawn>();
+    auto& otherListener = other.AddComponent<RequestListener>();
+    world.Step();
+
+    pawn.Request("Test.Use");
+    CHECK(root.requests == std::vector<std::string>{"Test.Use"});
+    CHECK(child.requests == root.requests);
+    CHECK(disabled.requests.empty());
+    CHECK(inactiveListener.requests.empty());
+    CHECK(otherListener.requests.empty());
 }

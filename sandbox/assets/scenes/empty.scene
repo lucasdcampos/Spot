@@ -4,36 +4,34 @@
       "active": true,
       "components": [
         {
-          "data": {
-            "cheats": true,
-            "npcs": null,
-            "spawnNpcs": false
-          },
+          "type": "MapInfo",
+          "id": "bcca5e5c4d1947c4911df5d4dba74735",
           "enabled": true,
-          "id": "20bf8bf7e39e62a3eee0d6f3f9eccd7c",
-          "type": "GameControls"
-        },
-        {
           "data": {
-            "fallHeight": -20.0,
-            "respawnTime": 4.0,
+            "name": "Empty Map",
+            "description": "An open 200 x 200 meter space. Bring your tools, spawn your ideas and build from the ground up.",
+            "details": "200 x 200 M   /   OPEN SPACE   /   ALL TOOLS",
+            "previewPosition": [
+              24,
+              18,
+              28
+            ],
+            "previewTarget": [
+              0,
+              0,
+              0
+            ],
+            "order": 1,
+            "maxPlayers": 16,
+            "preview": null,
+            "modes": [
+              "990f1d465c2b98a39678b6aeec2583c3"
+            ],
+            "defaultMode": "990f1d465c2b98a39678b6aeec2583c3",
+            "checkpoint": "empty_world.json",
             "restartScene": "3dceea274fe47c7dde67be51b8e042b4",
-            "playerPrefab": "58afa6cb32bc1eae562a0603ef2ca4d4"
-          },
-          "enabled": true,
-          "id": "a0646f3eb2525162dc48dba7ee2f7393",
-          "type": "GameMode"
-        },
-        {
-          "data": {
-            "font": "b3999c7ba8d944228a80146a8f38a9da",
-            "interface": "33112ac78713dfacea15cc45836f8de1",
-            "introTime": 0.0,
-            "playerIndex": 0
-          },
-          "enabled": true,
-          "id": "ff07ebf144035909c063b80d05df8e18",
-          "type": "Hud"
+            "introTime": 0.0
+          }
         },
         {
           "data": {
@@ -1370,7 +1368,7 @@
               {
                 "layers": [
                   {
-                    "count": 30,
+                    "count": 5,
                     "lit": true,
                     "offset": 0.0,
                     "scale": 1.0,
@@ -1400,7 +1398,7 @@
                               1.0,
                               1.0
                             ],
-                            "time": 0.8
+                            "time": 0.35
                           },
                           {
                             "color": [
@@ -1413,7 +1411,7 @@
                           }
                         ]
                       },
-                      "coneAngle": 0.9,
+                      "coneAngle": 0.7,
                       "duration": 5.0,
                       "emissionRate": 0.0,
                       "facing": 1,
@@ -1426,13 +1424,13 @@
                         0.0
                       ],
                       "lifetime": {
-                        "max": 0.9,
-                        "min": 0.35
+                        "min": 0.1,
+                        "max": 0.22
                       },
                       "loop": false,
                       "maxParticles": 512,
                       "playOnStart": false,
-                      "radius": 0.029999999329447746,
+                      "radius": 0.012,
                       "rotation": {
                         "max": 0.0,
                         "min": 0.0
@@ -1450,47 +1448,59 @@
                       "seed": 7,
                       "shape": 2,
                       "size": {
-                        "max": 0.026,
-                        "min": 0.008
+                        "min": 0.003,
+                        "max": 0.011
                       },
                       "sizeOverLifetime": {
                         "keys": [
                           {
-                            "inTangent": 0.0,
-                            "outTangent": 0.0,
+                            "inTangent": -0.35,
+                            "outTangent": -0.35,
                             "time": 0.0,
                             "value": 1.0
+                          },
+                          {
+                            "inTangent": -0.35,
+                            "outTangent": -0.35,
+                            "time": 1.0,
+                            "value": 0.65
                           }
                         ]
                       },
-                      "softDistance": 0.0,
+                      "softDistance": 0.015,
                       "space": 1,
                       "speed": {
-                        "max": 4.0,
-                        "min": 0.8
+                        "min": 0.8,
+                        "max": 2.5
                       },
                       "speedOverLifetime": {
                         "keys": [
                           {
-                            "inTangent": 0.0,
-                            "outTangent": 0.0,
+                            "inTangent": -0.65,
+                            "outTangent": -0.65,
                             "time": 0.0,
                             "value": 1.0
+                          },
+                          {
+                            "inTangent": -0.65,
+                            "outTangent": -0.65,
+                            "time": 1.0,
+                            "value": 0.35
                           }
                         ]
                       },
                       "startColor": [
                         0.16,
+                        0.006,
                         0.004,
-                        0.003,
-                        1.0
+                        0.9
                       ],
-                      "velocityStretch": 0.35
+                      "velocityStretch": 0.004
                     },
                     "texture": null
                   },
                   {
-                    "count": 8,
+                    "count": 1,
                     "lit": true,
                     "offset": 0.0,
                     "scale": 1.0,
@@ -1520,7 +1530,7 @@
                               1.0,
                               1.0
                             ],
-                            "time": 0.20000000298023224
+                            "time": 0.1
                           },
                           {
                             "color": [
@@ -1533,7 +1543,7 @@
                           }
                         ]
                       },
-                      "coneAngle": 0.800000011920929,
+                      "coneAngle": 0.65,
                       "duration": 5.0,
                       "emissionRate": 0.0,
                       "facing": 0,
@@ -1546,16 +1556,16 @@
                         0.0
                       ],
                       "lifetime": {
-                        "max": 0.6,
-                        "min": 0.25
+                        "min": 0.08,
+                        "max": 0.14
                       },
                       "loop": false,
                       "maxParticles": 512,
                       "playOnStart": false,
-                      "radius": 0.029999999329447746,
+                      "radius": 0.012,
                       "rotation": {
-                        "max": 0.0,
-                        "min": 0.0
+                        "min": 0.0,
+                        "max": 6.283185307179586
                       },
                       "rotationOverLifetime": {
                         "keys": [
@@ -1570,46 +1580,52 @@
                       "seed": 8,
                       "shape": 2,
                       "size": {
-                        "max": 0.12,
-                        "min": 0.05
+                        "min": 0.025,
+                        "max": 0.045
                       },
                       "sizeOverLifetime": {
                         "keys": [
                           {
-                            "inTangent": 2.0,
-                            "outTangent": 2.0,
+                            "inTangent": 0.6000000000000001,
+                            "outTangent": 0.6000000000000001,
                             "time": 0.0,
                             "value": 1.0
                           },
                           {
-                            "inTangent": 2.0,
-                            "outTangent": 2.0,
+                            "inTangent": 0.6000000000000001,
+                            "outTangent": 0.6000000000000001,
                             "time": 1.0,
-                            "value": 3.0
+                            "value": 1.6
                           }
                         ]
                       },
-                      "softDistance": 0.30000001192092896,
+                      "softDistance": 0.04,
                       "space": 1,
                       "speed": {
-                        "max": 1.0,
-                        "min": 0.2
+                        "min": 0.15,
+                        "max": 0.55
                       },
                       "speedOverLifetime": {
                         "keys": [
                           {
-                            "inTangent": 0.0,
-                            "outTangent": 0.0,
+                            "inTangent": -0.85,
+                            "outTangent": -0.85,
                             "time": 0.0,
                             "value": 1.0
+                          },
+                          {
+                            "inTangent": -0.85,
+                            "outTangent": -0.85,
+                            "time": 1.0,
+                            "value": 0.15
                           }
                         ]
                       },
                       "startColor": [
-                        0.2,
+                        0.18,
                         0.01,
                         0.008,
-                        0.45
+                        0.18
                       ],
                       "velocityStretch": 0.10000000149011612
                     },
@@ -1621,7 +1637,7 @@
               {
                 "layers": [
                   {
-                    "count": 45,
+                    "count": 7,
                     "lit": true,
                     "offset": 0.0,
                     "scale": 1.0,
@@ -1651,7 +1667,7 @@
                               1.0,
                               1.0
                             ],
-                            "time": 0.8
+                            "time": 0.35
                           },
                           {
                             "color": [
@@ -1664,7 +1680,7 @@
                           }
                         ]
                       },
-                      "coneAngle": 0.35,
+                      "coneAngle": 0.28,
                       "duration": 5.0,
                       "emissionRate": 0.0,
                       "facing": 1,
@@ -1677,13 +1693,13 @@
                         0.0
                       ],
                       "lifetime": {
-                        "max": 1.1,
-                        "min": 0.4
+                        "min": 0.12,
+                        "max": 0.26
                       },
                       "loop": false,
                       "maxParticles": 512,
                       "playOnStart": false,
-                      "radius": 0.029999999329447746,
+                      "radius": 0.012,
                       "rotation": {
                         "max": 0.0,
                         "min": 0.0
@@ -1701,47 +1717,59 @@
                       "seed": 9,
                       "shape": 2,
                       "size": {
-                        "max": 0.03,
-                        "min": 0.006
+                        "min": 0.004,
+                        "max": 0.014
                       },
                       "sizeOverLifetime": {
                         "keys": [
                           {
-                            "inTangent": 0.0,
-                            "outTangent": 0.0,
+                            "inTangent": -0.35,
+                            "outTangent": -0.35,
                             "time": 0.0,
                             "value": 1.0
+                          },
+                          {
+                            "inTangent": -0.35,
+                            "outTangent": -0.35,
+                            "time": 1.0,
+                            "value": 0.65
                           }
                         ]
                       },
-                      "softDistance": 0.0,
+                      "softDistance": 0.015,
                       "space": 1,
                       "speed": {
-                        "max": 9.0,
-                        "min": 3.0
+                        "min": 1.4,
+                        "max": 3.8
                       },
                       "speedOverLifetime": {
                         "keys": [
                           {
-                            "inTangent": 0.0,
-                            "outTangent": 0.0,
+                            "inTangent": -0.65,
+                            "outTangent": -0.65,
                             "time": 0.0,
                             "value": 1.0
+                          },
+                          {
+                            "inTangent": -0.65,
+                            "outTangent": -0.65,
+                            "time": 1.0,
+                            "value": 0.35
                           }
                         ]
                       },
                       "startColor": [
                         0.16,
+                        0.006,
                         0.004,
-                        0.003,
-                        1.0
+                        0.9
                       ],
-                      "velocityStretch": 0.5
+                      "velocityStretch": 0.005
                     },
                     "texture": null
                   },
                   {
-                    "count": 14,
+                    "count": 2,
                     "lit": true,
                     "offset": 0.0,
                     "scale": 1.0,
@@ -1771,7 +1799,7 @@
                               1.0,
                               1.0
                             ],
-                            "time": 0.8
+                            "time": 0.4
                           },
                           {
                             "color": [
@@ -1784,7 +1812,7 @@
                           }
                         ]
                       },
-                      "coneAngle": 0.6,
+                      "coneAngle": 0.45,
                       "duration": 5.0,
                       "emissionRate": 0.0,
                       "facing": 1,
@@ -1797,13 +1825,13 @@
                         0.0
                       ],
                       "lifetime": {
-                        "max": 0.9,
-                        "min": 0.4
+                        "min": 0.16,
+                        "max": 0.3
                       },
                       "loop": false,
                       "maxParticles": 512,
                       "playOnStart": false,
-                      "radius": 0.029999999329447746,
+                      "radius": 0.012,
                       "rotation": {
                         "max": 0.0,
                         "min": 0.0
@@ -1821,32 +1849,44 @@
                       "seed": 10,
                       "shape": 2,
                       "size": {
-                        "max": 0.045,
-                        "min": 0.02
+                        "min": 0.009,
+                        "max": 0.016
                       },
                       "sizeOverLifetime": {
                         "keys": [
                           {
-                            "inTangent": 0.0,
-                            "outTangent": 0.0,
+                            "inTangent": -0.25,
+                            "outTangent": -0.25,
                             "time": 0.0,
                             "value": 1.0
+                          },
+                          {
+                            "inTangent": -0.25,
+                            "outTangent": -0.25,
+                            "time": 1.0,
+                            "value": 0.75
                           }
                         ]
                       },
-                      "softDistance": 0.0,
+                      "softDistance": 0.015,
                       "space": 1,
                       "speed": {
-                        "max": 3.0,
-                        "min": 1.0
+                        "min": 0.5,
+                        "max": 1.2
                       },
                       "speedOverLifetime": {
                         "keys": [
                           {
-                            "inTangent": 0.0,
-                            "outTangent": 0.0,
+                            "inTangent": -0.44999999999999996,
+                            "outTangent": -0.44999999999999996,
                             "time": 0.0,
                             "value": 1.0
+                          },
+                          {
+                            "inTangent": -0.44999999999999996,
+                            "outTangent": -0.44999999999999996,
+                            "time": 1.0,
+                            "value": 0.55
                           }
                         ]
                       },
@@ -1856,12 +1896,12 @@
                         0.002,
                         1.0
                       ],
-                      "velocityStretch": 0.25
+                      "velocityStretch": 0.003
                     },
                     "texture": null
                   },
                   {
-                    "count": 10,
+                    "count": 1,
                     "lit": true,
                     "offset": 0.0,
                     "scale": 1.0,
@@ -1891,7 +1931,7 @@
                               1.0,
                               1.0
                             ],
-                            "time": 0.20000000298023224
+                            "time": 0.1
                           },
                           {
                             "color": [
@@ -1904,7 +1944,7 @@
                           }
                         ]
                       },
-                      "coneAngle": 0.800000011920929,
+                      "coneAngle": 0.65,
                       "duration": 5.0,
                       "emissionRate": 0.0,
                       "facing": 0,
@@ -1917,16 +1957,16 @@
                         0.0
                       ],
                       "lifetime": {
-                        "max": 0.8,
-                        "min": 0.3
+                        "min": 0.08,
+                        "max": 0.14
                       },
                       "loop": false,
                       "maxParticles": 512,
                       "playOnStart": false,
-                      "radius": 0.029999999329447746,
+                      "radius": 0.012,
                       "rotation": {
-                        "max": 0.0,
-                        "min": 0.0
+                        "min": 0.0,
+                        "max": 6.283185307179586
                       },
                       "rotationOverLifetime": {
                         "keys": [
@@ -1941,38 +1981,44 @@
                       "seed": 11,
                       "shape": 2,
                       "size": {
-                        "max": 0.2,
-                        "min": 0.08
+                        "min": 0.025,
+                        "max": 0.045
                       },
                       "sizeOverLifetime": {
                         "keys": [
                           {
-                            "inTangent": 3.0,
-                            "outTangent": 3.0,
+                            "inTangent": 0.6000000000000001,
+                            "outTangent": 0.6000000000000001,
                             "time": 0.0,
                             "value": 1.0
                           },
                           {
-                            "inTangent": 3.0,
-                            "outTangent": 3.0,
+                            "inTangent": 0.6000000000000001,
+                            "outTangent": 0.6000000000000001,
                             "time": 1.0,
-                            "value": 4.0
+                            "value": 1.6
                           }
                         ]
                       },
-                      "softDistance": 0.30000001192092896,
+                      "softDistance": 0.04,
                       "space": 1,
                       "speed": {
-                        "max": 3.5,
-                        "min": 1.0
+                        "min": 0.15,
+                        "max": 0.55
                       },
                       "speedOverLifetime": {
                         "keys": [
                           {
-                            "inTangent": 0.0,
-                            "outTangent": 0.0,
+                            "inTangent": -0.85,
+                            "outTangent": -0.85,
                             "time": 0.0,
                             "value": 1.0
+                          },
+                          {
+                            "inTangent": -0.85,
+                            "outTangent": -0.85,
+                            "time": 1.0,
+                            "value": 0.15
                           }
                         ]
                       },
@@ -1980,7 +2026,7 @@
                         0.18,
                         0.01,
                         0.008,
-                        0.4
+                        0.18
                       ],
                       "velocityStretch": 0.10000000149011612
                     },
@@ -4066,28 +4112,6 @@
           "enabled": true,
           "id": "ae4da88747d74cafb7e36be96c2bd0a0",
           "type": "EffectLibrary"
-        },
-        {
-          "data": {
-            "captureAction": "Fire",
-            "checkpoint": "empty_world.json",
-            "clickSound": "740b4adc271ec8e9467bedbd8163a294",
-            "loadAction": "Quick Load",
-            "pauseAction": "Pause",
-            "restartAction": "Restart",
-            "saveAction": "Quick Save"
-          },
-          "enabled": true,
-          "id": "9ad4b197648b24574e05063e6416618e",
-          "type": "SessionControls"
-        },
-        {
-          "data": {
-            "repeatedFrames": 3
-          },
-          "enabled": true,
-          "id": "4c6e3fa0efdaa6fb573e449963dfe49a",
-          "type": "NetworkPlayers"
         }
       ],
       "id": 71,
@@ -4114,6 +4138,16 @@
     {
       "active": true,
       "components": [
+        {
+          "data": {
+            "authority": 0,
+            "priority": 0.2,
+            "relevanceRadius": 0.0
+          },
+          "enabled": true,
+          "id": "b46a2fa58b91da5095bc58668e1bb304",
+          "type": "NetworkObject"
+        },
         {
           "data": {
             "castsShadows": true,
@@ -4455,6 +4489,501 @@
         200.0,
         1.0,
         200.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "2c629fa556af426aa479a1b3475797bb",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201114,
+      "layer": 0,
+      "name": "Spawn Point 2",
+      "position": [
+        -12,
+        1.5,
+        -12
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "e163d3df80fe47fd8c67b4894a6465c1",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201115,
+      "layer": 0,
+      "name": "Spawn Point 3",
+      "position": [
+        -4,
+        1.5,
+        -12
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "8a4b75487a55494cb2da5e1db47970fc",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201116,
+      "layer": 0,
+      "name": "Spawn Point 4",
+      "position": [
+        4,
+        1.5,
+        -12
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "d6997626788540848ea24499650a2594",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201117,
+      "layer": 0,
+      "name": "Spawn Point 5",
+      "position": [
+        12,
+        1.5,
+        -12
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "04c437c44b22458d8d1f267e712b5c6a",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201118,
+      "layer": 0,
+      "name": "Spawn Point 6",
+      "position": [
+        -12,
+        1.5,
+        -4
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "1303b55b8e794c709356630ff2d5ce1e",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201119,
+      "layer": 0,
+      "name": "Spawn Point 7",
+      "position": [
+        -4,
+        1.5,
+        -4
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "1fbb24fce73c477da06d8b7ecd89292d",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201120,
+      "layer": 0,
+      "name": "Spawn Point 8",
+      "position": [
+        4,
+        1.5,
+        -4
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "f9b46f827ab74b0cb1eddc4dfc1cb67d",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201121,
+      "layer": 0,
+      "name": "Spawn Point 9",
+      "position": [
+        12,
+        1.5,
+        -4
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "61a29f94c4a14da681304833b7a70094",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201122,
+      "layer": 0,
+      "name": "Spawn Point 10",
+      "position": [
+        -12,
+        1.5,
+        4
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "37bd38dc48f54bd7b6c0955e1120c0e5",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201123,
+      "layer": 0,
+      "name": "Spawn Point 11",
+      "position": [
+        -4,
+        1.5,
+        4
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "675193ec939343debd7d89eef00b709b",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201124,
+      "layer": 0,
+      "name": "Spawn Point 12",
+      "position": [
+        4,
+        1.5,
+        4
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "44edae16ff5446659fcb6cf1d6074a96",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201125,
+      "layer": 0,
+      "name": "Spawn Point 13",
+      "position": [
+        12,
+        1.5,
+        4
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "bbc66824806a4afca19388d3f081992a",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201126,
+      "layer": 0,
+      "name": "Spawn Point 14",
+      "position": [
+        -12,
+        1.5,
+        12
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "6606cde6ac8649c789bc3224c1ebdb76",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201127,
+      "layer": 0,
+      "name": "Spawn Point 15",
+      "position": [
+        -4,
+        1.5,
+        12
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "tag": ""
+          },
+          "enabled": true,
+          "id": "594e4e47ba5441e9ac965b8378117b51",
+          "type": "SpawnPoint"
+        }
+      ],
+      "id": 201128,
+      "layer": 0,
+      "name": "Spawn Point 16",
+      "position": [
+        4,
+        1.5,
+        12
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
       ],
       "tags": []
     }

@@ -1,6 +1,7 @@
 #include "gameplay/camera/first_person_view.h"
 
 #include "gameplay/camera/camera_shake.h"
+#include "gameplay/character/character_movement.h"
 #include "gameplay/core/pawn.h"
 
 #include <algorithm>
@@ -113,12 +114,26 @@ void FirstPersonView::OnUpdate(float deltaTime) {
     TurnHead(GetViewRotation());
 }
 
-void FirstPersonView::OnLateUpdate(float /*deltaTime*/) {
+void FirstPersonView::OnLateUpdate(float deltaTime) {
     Spot::Entity* entity = GetHead();
     if (!entity) {
         return;
     }
-    Spot::Quaternion rotation = GetViewRotation();
+    float roll = 0.0f;
+    float pitch = 0.0f;
+    if (const auto* movement = GetEntity().GetComponent<CharacterMovement>(); movement && !movement->IsFlying()) {
+        const Spot::Vector3 velocity = GetEntity().GetComponent<Spot::CharacterController>()
+                                           ? GetEntity().GetComponent<Spot::CharacterController>()->GetVelocity()
+                                           : Spot::Vector3{};
+        const Spot::Vector3 right = Spot::Quaternion::FromAxisAngle(Up, m_yaw) * Spot::Vector3{1, 0, 0};
+        roll = -Spot::ToRadians(1.25f) * std::clamp(Spot::Dot(velocity, right) / 5.0f, -1.0f, 1.0f);
+        pitch = Spot::ToRadians(0.9f) * std::clamp(velocity.y / 9.0f, -1.0f, 1.0f);
+    }
+    const float blend = 1.0f - std::exp(-10.0f * deltaTime);
+    m_movementRoll += (roll - m_movementRoll) * blend;
+    m_movementPitch += (pitch - m_movementPitch) * blend;
+    Spot::Quaternion rotation = GetViewRotation() * Spot::Quaternion::FromAxisAngle({1, 0, 0}, m_movementPitch) *
+                                Spot::Quaternion::FromAxisAngle({0, 0, 1}, m_movementRoll);
     if (const auto* shake = GetEntity().GetComponent<CameraShake>()) {
         rotation = rotation * shake->GetRotation();
     }

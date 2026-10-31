@@ -4,14 +4,63 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string_view>
 
 namespace Gameplay {
 
 SPOT_COMPONENT(CameraShake);
 
+namespace {
+
+// A shake a server started, for its clients' views.
+struct ShakeMessage {
+    static constexpr std::string_view NetName = "Gameplay.Shake";
+    Spot::Vector3 center;
+    float strength = 0.0f;
+    float radius = 0.0f;
+
+    void Serialize(Spot::Archive& archive) {
+        archive.Field("center", center);
+        archive.Field("strength", strength);
+        archive.Field("radius", radius);
+    }
+};
+
+// On clients, shakes their views as the server says.
+class ShakeSystem final : public Spot::SceneSystem {
+protected:
+    void OnUpdate(float /*deltaTime*/) override {
+        const Spot::NetworkSystem* system = Spot::Network::Get(GetScene());
+        Spot::NetworkSession* session = system && system->IsClient() ? system->GetSession() : nullptr;
+        if (!session || session == m_session) {
+            return;
+        }
+        m_session = session;
+        session->GetMessages().On<ShakeMessage>([this](Spot::NetPeerId, ShakeMessage& shake) {
+            if (std::isfinite(shake.strength) && std::isfinite(shake.radius)) {
+                CameraShake::Add(GetScene(), shake.center, shake.strength, shake.radius);
+            }
+        });
+    }
+
+private:
+    const Spot::NetworkSession* m_session = nullptr;
+};
+
+} // namespace
+
+void CameraShake::OnStart() {
+    GetScene().GetOrAddSystem<ShakeSystem>();
+}
+
 void CameraShake::Add(Spot::Scene& scene, Spot::Vector3 center, float strength, float radius) {
     if (!(radius > 0.0f)) {
         return;
+    }
+    if (Spot::NetworkSystem* system = Spot::Network::Get(scene); system && system->IsServer()) {
+        for (const Spot::NetPeerId peer : system->GetReadyPeers()) {
+            system->GetSession()->Send(peer, ShakeMessage{center, strength, radius}, Spot::NetDelivery::Unreliable);
+        }
     }
     scene.ForEachComponent<CameraShake>([&](CameraShake& shake) {
         const Pawn* pawn = Pawn::Of(shake.GetEntity());

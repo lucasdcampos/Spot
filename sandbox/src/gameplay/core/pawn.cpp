@@ -1,6 +1,8 @@
 #include "gameplay/core/pawn.h"
 
 #include "gameplay/core/controller.h"
+#include "gameplay/core/pawn_request.h"
+#include "gameplay/core/player_input.h"
 
 #include <algorithm>
 
@@ -87,6 +89,68 @@ bool Pawn::HasAnyState(std::span<const std::string> states) const {
     return std::ranges::any_of(states, [this](const std::string& state) { return HasState(state); });
 }
 
+bool Pawn::IsPossessedWhereDecided() const {
+    // A client's say on what it drives is only where it goes; the server still decides who rides it.
+    return Spot::Network::IsClient(GetScene()) ? m_possessedOnServer : IsPossessed();
+}
+
+void Pawn::Request(std::string_view name) {
+    if (Spot::Network::IsClient(GetScene())) {
+        Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
+        if (object && object->IsOwnedLocally() && IsPossessed()) {
+            Spot::Network::Get(GetScene())->SendToServer(*object, PawnRequest{std::string(name)});
+        }
+        return;
+    }
+    const auto dispatch = [&](const auto& self, Spot::Entity& entity) -> void {
+        if (Pawn::Of(entity) != this) {
+            return;
+        }
+        Spot::Scene& scene = entity.GetScene();
+        const Spot::EntityId id = entity.GetId();
+        entity.ForEachComponent<Spot::Component>([&](Spot::Component& component) {
+            if (auto* listener = dynamic_cast<PlayerInputListener*>(&component);
+                listener && component.IsActiveAndEnabled()) {
+                component.RunGuarded("OnPlayerRequest", [&] { listener->OnPlayerRequest(name); });
+            }
+        });
+        if (Spot::Entity* current = scene.GetEntity(id)) {
+            current->ForEachChild([&](Spot::Entity& child) { self(self, child); });
+        }
+    };
+    dispatch(dispatch, GetEntity());
+}
+
+void Pawn::Replicate(Spot::Archive& archive) {
+    std::vector<std::string> states;
+    for (const std::string& state : m_states) {
+        if (std::ranges::find(localStates, state) == localStates.end()) {
+            states.push_back(state);
+        }
+    }
+    bool possessed = IsPossessed();
+    Spot::EntityId occupant = m_occupant;
+    archive.Field("states", states);
+    archive.Field("possessed", possessed);
+    archive.Field("occupant", occupant);
+    if (!archive.IsLoading()) {
+        return;
+    }
+    m_possessedOnServer = possessed;
+    m_occupant = occupant;
+    // A copy, as setting states changes them.
+    const std::vector<std::string> current = m_states;
+    for (const std::string& state : current) {
+        if (std::ranges::find(localStates, state) == localStates.end() &&
+            std::ranges::find(states, state) == states.end()) {
+            SetState(state, false);
+        }
+    }
+    for (const std::string& state : states) {
+        SetState(state, true);
+    }
+}
+
 void Pawn::OnDestroy() {
     if (Controller* controller = GetController()) {
         controller->Unpossess();
@@ -96,6 +160,7 @@ void Pawn::OnDestroy() {
 void Pawn::Serialize(Spot::Archive& archive) {
     archive.Field("eye", eye, {.tooltip = "Where it looks from, along its forward; this entity when unset"});
     archive.Field("viewCamera", viewCamera, {.tooltip = "The camera shown while a player possesses it"});
+    archive.Field("localStates", localStates, {.tooltip = "States each machine keeps for itself in a session"});
 }
 
 } // namespace Gameplay

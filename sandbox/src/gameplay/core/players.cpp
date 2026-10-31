@@ -32,4 +32,19 @@ Pawn* GetBody(Spot::Scene& scene, std::size_t index) {
     return pawn && pawn->GetOccupant() ? pawn->GetOccupant() : pawn;
 }
 
+bool IsPlayedLocally(const Pawn& pawn) {
+    bool played = false;
+    pawn.GetScene().ForEachComponent<PlayerController>([&](PlayerController& player) {
+        const Pawn* possessed = player.GetPawn();
+        played = played || possessed == &pawn || (possessed && possessed->GetOccupant() == &pawn);
+    });
+    return played;
+}
+
+void RemoveAll(Spot::Scene& scene) {
+    for (PlayerController* player : GetAll(scene)) {
+        player->GetEntity().Destroy();
+    }
+}
+
 } // namespace Gameplay::Players

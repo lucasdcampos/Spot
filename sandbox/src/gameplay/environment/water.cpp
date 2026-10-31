@@ -118,8 +118,8 @@ void Water::Splash(Spot::Vector3 point, float strength) {
     const bool large = strength >= 1.2f;
     const Spot::AssetRef<Spot::Sound>& sound = large ? largeSplash : smallSplash;
     if (sound) {
-        scene.GetOrAddSystem<Spot::AudioSystem>().PlayOneShot(
-            sound.GetShared(), point,
+        EffectLibrary::PlaySound(
+            scene, sound, point,
             {.volume = std::clamp(large ? strength / 3.0f : strength * 2.0f, 0.25f, 1.0f),
              .bus = "Effects",
              .spatialSettings = {.minDistance = 3.0f, .maxDistance = large ? 120.0f : 50.0f},

@@ -3,6 +3,7 @@
 #include "hook_lines.h"
 
 #include "gameplay/core/input_context.h"
+#include "gameplay/core/player_input.h"
 #include "gameplay/core/user_settings.h"
 #include "gameplay/inventory/held_item.h"
 #include "gameplay/persistence/world_save.h"
@@ -17,9 +18,14 @@
 // it is, as a kinematic body, and Unfreeze unfreezes every frozen prop. Frozen props carry the tag "Frozen". While it
 // holds a prop, its hands are busy, and it takes Fire, Aim, Use and Switch Weapon from everything else, and Look while
 // turning it. The dead let go and grab nothing.
+//
+// In a session the server grabs and moves; the player's machine sends what those controls do as intents, and every
+// machine is shown what it holds, with its beam.
 class PhysicsGun final : public Gameplay::HeldItem,
+                         public Gameplay::PlayerInputListener,
                          public Gameplay::SaveListener,
-                         public Gameplay::UserSettingsListener {
+                         public Gameplay::UserSettingsListener,
+                         public Spot::Replicated {
 public:
     static constexpr std::string_view FrozenTag = "Frozen";
 
@@ -46,9 +52,13 @@ public:
     Gameplay::ItemStatus DescribeStatus() const override;
     Gameplay::ItemPose DescribePose() const override;
 
+    void Replicate(Spot::Archive& archive) override;
+
 protected:
     void ApplySettings(const Gameplay::UserSettings& settings) override { m_lookSensitivity = settings.sensitivity; }
     void OnUse(const Gameplay::ItemInput& input) override;
+    void OnPlayerInput(Gameplay::PlayerController& player) override;
+    void SerializeIntent(Spot::Archive& archive) override;
     void OnUnequip() override { Release(); }
     void OnStart() override;
     void OnBeforeLoad() override { Release(); }
@@ -59,6 +69,17 @@ protected:
     void Serialize(Spot::Archive& archive) override;
 
 private:
+    // What the controls taken while holding do: those of a frame, and those still to apply where it is decided.
+    struct GrabIntent {
+        bool hold = false;
+        bool freeze = false;
+        float pull = 0.0f;
+        bool turning = false;
+        Spot::Vector2 turn;
+    };
+
+    // Adds a frame's intent to what is still to apply.
+    void Gather(const GrabIntent& intent);
     // The entity of the pawn holding it, whose view it aims with.
     Spot::Entity* GetHolder() const;
     Spot::AudioSource* GetHum() const;
@@ -69,6 +90,8 @@ private:
     // Where it was grabbed, relative to the prop.
     Spot::Vector3 m_grabPoint;
     float m_distance = 0.0f;
+    GrabIntent m_frame;
+    GrabIntent m_pending;
     // The prop's rotation relative to where the player faces, so it turns with the player.
     Spot::Quaternion m_rotation;
     Gameplay::InputContext m_grab{{.name = "Grab", .priority = 30, .actions = {"Fire", "Aim", "Use", "Switch Weapon"}}};

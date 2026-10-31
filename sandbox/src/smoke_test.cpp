@@ -1,5 +1,6 @@
 #include "smoke_test.h"
 #include "gameplay/core/players.h"
+#include "gameplay/network/session.h"
 
 #include "main_menu.h"
 #include "npc.h"
@@ -39,6 +40,7 @@ public:
         AddModule<Spot::AnimationModule>();
         AddModule<Spot::ParticlesModule>();
         AddModule<Spot::NetworkModule>();
+        AddModule<Gameplay::Session>();
         AddModule<Spot::ScriptingModule>();
         AddModule(Spot::CreateGameModule());
     }

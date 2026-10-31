@@ -316,3 +316,15 @@ TEST_CASE("A local movement intent reaches the same frame's first physics step",
     world.Step();
     CHECK(world.entity.GetTransform().GetWorldPosition().y > height + 0.05f);
 }
+
+TEST_CASE("A character cannot steer after taking off", "[sandbox][gameplay][character]") {
+    CharacterWorld world;
+    world.movement.SetIntent({.jump = true});
+    world.Run(0.1f);
+    const auto before = world.entity.GetTransform().GetWorldPosition();
+    world.movement.SetIntent({.move = {1.0f, 0.0f}});
+    world.Run(0.1f);
+    const auto after = world.entity.GetTransform().GetWorldPosition();
+    CHECK(after.x == Approx(before.x).margin(0.01f));
+    CHECK(after.y > before.y);
+}

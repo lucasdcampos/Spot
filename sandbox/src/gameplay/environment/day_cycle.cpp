@@ -39,8 +39,15 @@ void DayCycle::OnStart() {
     UpdateEffectLight();
 }
 
+void DayCycle::Replicate(Spot::Archive& archive) {
+    archive.Field("timeOfDay", timeOfDay);
+    archive.Field("dayLength", dayLength);
+}
+
 void DayCycle::OnUpdate(float deltaTime) {
-    const float speed = Spot::Input::IsActionDown(fastForwardAction) ? fastForward : 1.0f;
+    // Only the server's player fast-forwards everyone's day.
+    const bool fast = Spot::Network::HasAuthority(GetEntity()) && Spot::Input::IsActionDown(fastForwardAction);
+    const float speed = fast ? fastForward : 1.0f;
     if (dayLength > 0.0f) {
         timeOfDay = std::fmod(timeOfDay + deltaTime * speed / dayLength, 1.0f);
     }

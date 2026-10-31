@@ -9,6 +9,7 @@ namespace Gameplay {
 
 // What a player sets in the settings menu, kept in the user's data: look, volumes, graphics and rebound controls.
 struct UserSettings {
+    std::string playerName = "Player";
     float sensitivity = 0.0025f;
     // Degrees.
     float fieldOfView = 60.0f;

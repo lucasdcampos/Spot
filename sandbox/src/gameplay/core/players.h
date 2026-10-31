@@ -22,6 +22,12 @@ PlayerController* Get(Spot::Scene& scene, std::size_t index = 0);
 Pawn* GetPawn(Spot::Scene& scene, std::size_t index = 0);
 // The player's own pawn while riding another one, otherwise the pawn possessed.
 Pawn* GetBody(Spot::Scene& scene, std::size_t index = 0);
+// Whether a local player plays as the pawn, possessing it or riding in what it possesses: what this machine shows
+// from the pawn's eyes, as its first-person hands, rather than of it.
+bool IsPlayedLocally(const Pawn& pawn);
+// Destroys the scene's local players before it starts, so its mode gives them no pawns: a dedicated server's scene,
+// which only remote players play in.
+void RemoveAll(Spot::Scene& scene);
 
 template <typename T>
 T* FindComponent(Spot::Scene& scene, std::size_t index = 0) {

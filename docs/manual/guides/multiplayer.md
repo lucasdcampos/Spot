@@ -53,9 +53,16 @@ far objects of a large world change less often than those near the player.
 
 Some things should feel immediate to the player using them, such as the vehicle they drive. Set the NetworkObject's
 **Authority** to **Owner**, and give the object to a player on the server with
-`system->SetOwner(object, peer)`: that player's machine then simulates it and sends its state, and everyone else
-shows it. When the player leaves, it goes back to the server. `Spot::Network::Get(scene)` is the scene's
+`system->SetOwner(object, peer)`: that player's machine then simulates it and sends where it is, and everyone else
+shows it; the rest of its state, as its health, stays the server's. A part whose state that player decides along with
+where the object is, as the wheels of a car they drive, says so by returning true from `IsDecidedByOwner()`. When the player leaves, it goes back to the server. `Spot::Network::Get(scene)` is the scene's
 `NetworkSystem`, null when it plays alone.
+
+A player's own character should also respond at once, but the server must still decide where it is, so it cannot
+walk through walls or run faster than allowed. Tick **Predicted** on its NetworkObject: the owning player's machine
+then moves it itself instead of being shown where the server had it, and your game corrects it from what the server
+says. The gameplay framework of the sandbox does this for its players' characters, by sending the server each fixed
+step's inputs and stepping again those the server had not seen when it corrects the player.
 
 ## Messages
 
@@ -79,7 +86,37 @@ system->SendToServer(*door.GetComponent<Spot::NetworkObject>(), Use{.target = do
 and `SendToServer()` are for the game as a whole. The server must check what clients ask, as a player may send
 anything.
 
+The sandbox's copyable gameplay framework provides `Pawn::Request(name)` for discrete player actions. Implement
+`PlayerInputListener::OnPlayerRequest(name)` on the pawn part that handles an action; it runs on the server, or
+immediately while playing alone. With `NetworkPlayers` in the scene, a client sends it reliably and the server checks
+that player still possesses the pawn. The handler must check the action's rules too. The supplied `Interactor`
+rechecks reach and obstacles on the server, and vehicles use requests to exit their seats. Movement continues through
+`SerializeIntent()`, so repeating movement packets cannot repeat a discrete action.
+
 ## Hosting and joining
+
+### Maps and modes in the gameplay framework
+
+The sandbox's `gameplay/game/` keeps maps separate from their rules. To add a map, save a scene with `MapInfo`,
+give it a name, description, player limit and spawn points, and select its default mode prefab. `modes` lists the
+mode prefab ids it supports; an empty list accepts any mode. The map also owns its checkpoint file, restart scene
+and preview. A restart uses the current scene asset when no override is set.
+
+A mode is a prefab with `GameMode` (or your subclass) on its root, its player prefab and the HUD and controls it
+needs. Both `GameMode` and its root must be active, with `NetworkObject` on the root so clients can instantiate the
+mode selected by the server. Set its name,
+description and catalog order on `GameMode`. `MapCatalog` and `ModeCatalog` discover imported content without running
+its gameplay; the sandbox's main menu builds its map list from this data automatically.
+
+Before starting a map, the server can call `MapInfo::StartMode(prefab)` to select a supported mode; otherwise the
+first update starts `defaultMode`. Clients wait for the server's mode. The supplied Free mode is shared by the
+playground and the empty map, each with sixteen spawn points and its own checkpoint.
+
+`GameMode::allowsTimeScale` controls whether the rules allow pause and slow motion. Menus, the inventory wheel and
+the sandbox's `timescale` command share `WorldTime` in `gameplay/core/`: changes are allowed only while alone,
+including a host with no connected peers. A paused host resumes normal time when another player connects.
+
+### Starting a session
 
 Add the **NetworkModule** to the game's application, then host or join from your menus:
 
@@ -95,11 +132,16 @@ join or was disconnected. `Leave()` ends the session; the scene goes on alone.
 
 ## Testing on one machine
 
-Run two copies of the game, one hosting and one joining `127.0.0.1`. To see how the game plays over a bad network,
+Run two copies of the game, one hosting and one joining `127.0.0.1`. Both draw and share the computer, and the one
+in the background may be slowed down by the system: as the host is the server, everything then lags for everyone. A
+dedicated server avoids that: in the sandbox, `Sandbox --server` serves the playground without a window, and the
+copies that play join it. To see how the game plays over a bad network,
 set these in the console of either: `net.lag 0.1` (seconds each message takes), `net.jitter 0.03` and `net.loss 0.05`
-(the share of messages lost).
+(the share of messages lost). The `stats` console command shows the session's numbers with the others: round trip,
+loss, snapshots a second and the longest wait between them, bandwidth, and how many moving objects are shown late.
 
 ## Dedicated servers
 
 A server without a player needs no screen: run it with `ApplicationConfig::window.headless` set, graphics disabled
-(`graphics.enabled = false`) and without the audio module.
+(`graphics.enabled = false`) and without the audio module, with a frame rate cap (`maxFrameRate`) so it keeps a
+steady pace. Remove the map's local players before it starts, so its rules give no pawn to anyone on the server.

@@ -37,13 +37,17 @@ public:
 
 // Anything a controller can take over: the character on foot, a vehicle. Possession is the one switch between them,
 // so no part turns another's components on and off; parts of a pawn read their input through contexts activated on
-// its controller (see InputContext), and see none while it has no controller.
-class Pawn : public Spot::Component {
+// its controller (see InputContext), and see none while it has no controller. In a session, the server decides its
+// states, who rides it and whether it is possessed, and the other machines are shown them (see Spot::Replicated).
+class Pawn : public Spot::Component, public Spot::Replicated {
 public:
     // The entity it looks from, along its forward; the pawn's own when unset.
     Spot::EntityId eye = Spot::EntityId::Invalid;
     // The entity of the camera its controller shows while possessing it.
     Spot::EntityId viewCamera = Spot::EntityId::Invalid;
+    // States each machine keeps for itself, which the server does not decide: how its own player sees the pawn, and
+    // what each machine's parts work out themselves, as a firearm aiming, at once for its player.
+    std::vector<std::string> localStates = {"ThirdPerson", "Placing", "Choosing", "Aiming"};
 
     // The pawn of the entity or of the nearest entity above it; null when there is none.
     static Pawn* Of(const Spot::Entity& entity);
@@ -52,6 +56,12 @@ public:
 
     Controller* GetController() const;
     bool IsPossessed() const { return GetController() != nullptr; }
+    // Whether the machine deciding the pawn has it possessed: on clients, as the server last said; elsewhere, whether
+    // it is possessed.
+    bool IsPossessedWhereDecided() const;
+    // Runs a discrete action through this pawn's input listeners on the server. On its owning client, sends a
+    // reliable request instead; NetworkPlayers validates that the sender still possesses this pawn.
+    void Request(std::string_view name);
     // Aiming, interaction and whatever else looks where the pawn looks follow it.
     virtual ViewPoint GetViewPoint() const;
     virtual Spot::EntityId GetViewCamera() const { return viewCamera; }
@@ -81,6 +91,8 @@ public:
     // A state set on or off, as it changes, for whatever must act on it at once.
     Spot::Signal<std::string_view, bool> OnStateChanged;
 
+    void Replicate(Spot::Archive& archive) override;
+
 protected:
     // As a controller takes it over, before OnPossessed, and as it lets it go, before OnUnpossessed.
     virtual void OnPossess(Controller& /*controller*/) {}
@@ -95,6 +107,7 @@ private:
     Spot::EntityId m_controller = Spot::EntityId::Invalid;
     Spot::EntityId m_occupant = Spot::EntityId::Invalid;
     std::vector<std::string> m_states;
+    bool m_possessedOnServer = false;
 };
 
 } // namespace Gameplay
