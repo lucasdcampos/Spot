@@ -13,13 +13,13 @@ public:
 
     float rotorRpm = 420.0f;
     float spoolTime = 3.0f;
-    float maxTilt = Spot::ToRadians(22.0f);
-    float climbSpeed = 4.0f;
+    float maxTilt = Spot::ToRadians(30.0f);
+    float climbSpeed = 6.0f;
     float yawRate = Spot::ToRadians(65.0f);
     float liftResponse = 2.0f;
     float attitudeStrength = 18.0f;
     float attitudeDamping = 7.0f;
-    float horizontalDrag = 0.35f;
+    float horizontalDrag = 0.15f;
     float tailRotorRatio = 5.0f;
     Spot::EntityId mainRotor = Spot::EntityId::Invalid;
     Spot::EntityId tailRotor = Spot::EntityId::Invalid;

@@ -8,6 +8,7 @@
 #include "gameplay/health/health.h"
 #include "gameplay/inventory/inventory.h"
 #include "gameplay/inventory/view_model.h"
+#include "gameplay/vehicles/helicopter.h"
 #include "gameplay/vehicles/vehicle_health.h"
 #include "gameplay/vehicles/vehicle_seat.h"
 #include "gameplay/vehicles/vehicle_wheel.h"
@@ -15,6 +16,7 @@
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 #include <cmath>
 #include <cstddef>
@@ -265,6 +267,11 @@ TEST_CASE("Every authored vehicle has health and becomes a burned unusable wreck
         auto* health = entity.GetComponent<Gameplay::VehicleHealth>();
         REQUIRE(health);
         CAPTURE(entity.GetName());
+        const auto seats = vehicle.GetSeats();
+        REQUIRE(seats.size() == 2);
+        CHECK(seats.front()->driver);
+        CHECK_FALSE(seats.back()->driver);
+        CHECK(seats.front()->GetSeatPosition() != seats.back()->GetSeatPosition());
         CHECK(health->GetHealth() == 300.0f);
         CHECK(health->regenerationRate == 0.0f);
         REQUIRE(health->burnedMaterial);
@@ -302,4 +309,39 @@ TEST_CASE("The authored car's own explosion kills its driver and launches the wr
     CHECK(Spot::Length(body.GetAngularVelocity()) > 0.5f);
     driving.Run(0.2f);
     CHECK(driving.GetCarTransform().GetWorldPosition().y > start.y + 0.5f);
+}
+
+TEST_CASE("The authored helicopter survives gentle contacts and explodes in fast solid impacts",
+          "[sandbox][vehicles][helicopter][damage][impact]") {
+    const float speed = GENERATE(5.0f, 10.0f, 20.0f, 35.0f);
+    const float angle = GENERATE(0.0f, Spot::Pi * 0.25f);
+    CAPTURE(speed, angle);
+    Playground game;
+    auto* helicopter = game.scene.FindComponent<Gameplay::Helicopter>();
+    REQUIRE(helicopter);
+    auto& entity = helicopter->GetEntity();
+    auto& body = *entity.GetComponent<Spot::Rigidbody>();
+    auto& health = *entity.GetComponent<Gameplay::VehicleHealth>();
+    entity.GetTransform().SetWorldPosition({0.0f, 60.0f, 0.0f});
+    entity.GetTransform().SetWorldRotation({});
+    body.SetGravityScale(0.0f);
+    body.SetLinearVelocity({});
+    body.SetAngularVelocity({});
+    auto& wall = game.scene.CreateEntity("Crash test wall");
+    wall.GetTransform().SetPosition({0.0f, 60.0f, -8.0f});
+    wall.AddComponent<Spot::BoxCollider>(Spot::Vector3{100.0f, 100.0f, 1.0f});
+    game.Step();
+    REQUIRE(health.GetHealth() == 300.0f);
+    body.SetLinearVelocity({std::sin(angle) * speed, 0.0f, -std::cos(angle) * speed});
+    game.Run(180);
+    if (speed <= 5.0f) {
+        CHECK(health.GetHealth() == 300.0f);
+    } else if (speed < 20.0f) {
+        CHECK(health.GetHealth() < 300.0f);
+        CHECK_FALSE(health.IsDestroyed());
+    } else {
+        CHECK(health.IsDestroyed());
+        CHECK_FALSE(helicopter->IsOperational());
+        CHECK_FALSE(helicopter->GetAvailableSeat());
+    }
 }

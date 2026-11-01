@@ -2,6 +2,7 @@
 #include "temp_directory.h"
 
 #include "gameplay/camera/chase_camera.h"
+#include "gameplay/core/interactor.h"
 #include "gameplay/core/pawn.h"
 #include "gameplay/core/player_controller.h"
 #include "gameplay/health/damage.h"
@@ -9,6 +10,7 @@
 #include "gameplay/hud/hud.h"
 #include "gameplay/persistence/world_save.h"
 #include "gameplay/vehicles/vehicle_elements.h"
+#include "gameplay/vehicles/vehicle_passenger.h"
 #include "gameplay/vehicles/vehicle_seat.h"
 #include "gameplay/vehicles/vehicle_wheel.h"
 #include "gameplay/vehicles/wheeled_vehicle.h"
@@ -153,4 +155,67 @@ TEST_CASE("A vehicle seat rejects dead occupants and returns possession on disab
     CHECK_FALSE(pawn.HasState("Seated"));
     CHECK_FALSE(vehicle.HasDriver());
     CHECK_FALSE(seat.Enter(pawn));
+}
+
+TEST_CASE("Vehicle interaction fills the driver then each available passenger seat",
+          "[sandbox][gameplay][vehicles][passenger]") {
+    GameplayTests::World world;
+    auto& vehicle = world.scene.CreateEntity("Vehicle").AddComponent<TestVehicle>();
+    auto& driverSeat = vehicle.GetEntity().AddComponent<Gameplay::VehicleSeat>();
+    auto& front = vehicle.GetEntity().CreateChild("Front passenger").AddComponent<Gameplay::VehicleSeat>();
+    front.driver = false;
+    front.prompt = "Ride";
+    front.GetTransform().SetPosition({0.5f, 1.0f, 0.0f});
+    auto& rear = vehicle.GetEntity().CreateChild("Rear passenger").AddComponent<Gameplay::VehicleSeat>();
+    rear.driver = false;
+    rear.GetTransform().SetPosition({0.5f, 1.0f, 1.0f});
+    auto makePawn = [&]() -> Gameplay::Pawn& {
+        auto& pawn = world.scene.CreateEntity("Character").AddComponent<Gameplay::Pawn>();
+        pawn.GetEntity().AddComponent<Gameplay::VehiclePassenger>();
+        pawn.GetEntity().AddComponent<Gameplay::Interactor>();
+        world.scene.CreateEntity("Controller").AddComponent<Driver>().Possess(pawn);
+        return pawn;
+    };
+    auto& driver = makePawn();
+    auto& first = makePawn();
+    auto& second = makePawn();
+    auto& extra = makePawn();
+    world.Step();
+    const auto interact = [&](Gameplay::Pawn& pawn) {
+        auto& interactor = *pawn.GetEntity().GetComponent<Gameplay::Interactor>();
+        REQUIRE(driverSeat.CanInteract(interactor));
+        driverSeat.Interact(interactor);
+    };
+    interact(driver);
+    CHECK(driverSeat.GetOccupant() == &driver);
+    CHECK(driverSeat.GetPrompt(*first.GetEntity().GetComponent<Gameplay::Interactor>()) == "Ride");
+    front.SetEnabled(false);
+    interact(second);
+    CHECK(rear.GetOccupant() == &second);
+    front.SetEnabled(true);
+    interact(first);
+    CHECK(front.GetOccupant() == &first);
+    CHECK_FALSE(driverSeat.CanInteract(*extra.GetEntity().GetComponent<Gameplay::Interactor>()));
+    CHECK_FALSE(front.Enter(extra));
+    CHECK(first.GetController()->GetPawn() == &first);
+    CHECK(second.GetController()->GetPawn() == &second);
+    CHECK(vehicle.GetOccupant() == &driver);
+    CHECK(first.HasState("Passenger"));
+    vehicle.GetTransform().SetPosition({3.0f, 2.0f, -4.0f});
+    world.Step();
+    CHECK(first.GetTransform().GetWorldPosition() == front.GetSeatPosition());
+    CHECK(second.GetTransform().GetWorldPosition() == rear.GetSeatPosition());
+    first.Request("Gameplay.ExitVehicle");
+    CHECK_FALSE(front.IsOccupied());
+    CHECK_FALSE(first.HasState("Seated"));
+    CHECK_FALSE(first.HasState("Passenger"));
+    CHECK(driverSeat.GetOccupant() == &driver);
+    interact(extra);
+    CHECK(front.GetOccupant() == &extra);
+    second.SetState("Dead", true);
+    CHECK_FALSE(rear.IsOccupied());
+    vehicle.SetEnabled(false);
+    CHECK_FALSE(driverSeat.IsOccupied());
+    CHECK_FALSE(front.IsOccupied());
+    CHECK_FALSE(extra.HasState("Seated"));
 }

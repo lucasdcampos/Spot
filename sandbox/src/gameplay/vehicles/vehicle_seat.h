@@ -13,18 +13,19 @@ namespace Gameplay {
 class Pawn;
 class Vehicle;
 
-// The driver's seat of a vehicle, on the vehicle's entity or one below it whose colliders the driver looks at to get
-// in. Using it gets the pawn in: it is "Seated", which its own parts follow, as its body being put aside, it rides at
-// the seat's entity, and its controller possesses the vehicle. The vehicle's exit action gets it out, as do its states
+// A driver's or passenger's seat on a vehicle or below it. Interaction chooses the driver first, then the next free
+// seat in hierarchy order. Its occupant is "Seated" and follows the seat's transform. Only the driver transfers
+// possession to the vehicle; passengers keep their own controller and view. The exit action gets it out, as do states
 // of ejectWhen, as dying: beside the vehicle, at the first of the exits with room, then wherever around the vehicle's
 // colliders there is room, then above it, facing the way the vehicle does and moving as it moved; its controller
-// possesses it again. In a session, only the server enters and exits seats; clients present the vehicle's replicated
-// occupant and its pawn states, and request exits through Pawn::Request().
-class VehicleSeat : public Interactable, public SaveListener {
+// possesses it again. In a session, only the server enters and exits seats; each seat replicates its own occupant,
+// and clients request exits through Pawn::Request().
+class VehicleSeat : public Interactable, public SaveListener, public Spot::Replicated {
 public:
-    // Where the driver sits; the seat's own entity when unset.
+    bool driver = true;
+    // Where the occupant sits; the seat's own entity when unset.
     Spot::EntityId seat = Spot::EntityId::Invalid;
-    // Entities below the vehicle, on the ground where the driver gets out, the first tried first.
+    // Entities below the vehicle, on the ground where the occupant gets out, the first tried first.
     std::vector<Spot::EntityId> exits;
     std::string exitAction = "Use";
     std::vector<std::string> ejectWhen = {"Dead"};
@@ -37,23 +38,27 @@ public:
     Vehicle* GetVehicle() const;
     Pawn* GetOccupant() const;
     bool IsOccupied() const { return GetOccupant() != nullptr; }
-    // Gets the pawn in; false when the seat is taken, or the pawn has no controller to drive with.
+    // Gets the pawn into this seat; passengers need VehiclePassenger on their pawn.
     bool Enter(Pawn& occupant);
     void Exit();
-    // Where the driver sits, in the world.
+    // Where the occupant sits, in the world.
     Spot::Vector3 GetSeatPosition() const;
     Spot::Quaternion GetSeatRotation() const;
 
     bool CanInteract(const Interactor& interactor) const override;
+    std::string GetPrompt(const Interactor& interactor) const override;
     void Interact(Interactor& interactor) override;
+    void Replicate(Spot::Archive& archive) override;
 
 protected:
+    void OnStart() override;
     void OnBeforeLoad() override { Exit(); }
     void OnLateUpdate(float deltaTime) override;
     void OnDisable() override;
     void Serialize(Spot::Archive& archive) override;
 
 private:
+    friend class VehicleSeatSystem;
     // Where around the vehicle the occupant fits, standing on the ground.
     Spot::Vector3 FindExit(const Vehicle& vehicle, const Pawn& occupant) const;
     void PlaceOccupant(Pawn& occupant) const;

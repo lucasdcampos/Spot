@@ -152,7 +152,9 @@ void NetworkPlayers::CheckMovement(const std::vector<RemoteController*>& control
     for (RemoteController* controller : controllers) {
         Pawn* pawn = controller->GetPawn();
         const Spot::NetworkObject* object = pawn ? Spot::Network::GetObject(pawn->GetEntity()) : nullptr;
-        if (!object || !object->IsDecidedByClient() || object->GetOwner() != controller->GetPeer()) {
+        // Seats place their occupants from the vehicle, including on the server, rather than from walking intents.
+        if (!object || !object->IsDecidedByClient() || object->GetOwner() != controller->GetPeer() ||
+            pawn->HasState("Seated")) {
             continue;
         }
         const Spot::EntityId id = pawn->GetEntity().GetId();

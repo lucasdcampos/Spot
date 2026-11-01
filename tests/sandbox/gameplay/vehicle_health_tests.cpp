@@ -6,6 +6,7 @@
 #include "gameplay/persistence/world_save.h"
 #include "gameplay/vehicles/helicopter.h"
 #include "gameplay/vehicles/vehicle_health.h"
+#include "gameplay/vehicles/vehicle_passenger.h"
 #include "gameplay/vehicles/vehicle_seat.h"
 #include "gameplay/vehicles/wheeled_vehicle.h"
 
@@ -53,7 +54,7 @@ TEST_CASE("Vehicle health accumulates damage without regeneration", "[sandbox][g
     CHECK(entity.GetComponent<Gameplay::Vehicle>()->IsOperational());
 }
 
-TEST_CASE("A destroyed vehicle ejects its driver burns every part and blasts only once",
+TEST_CASE("A destroyed vehicle ejects its occupants burns every part and blasts only once",
           "[sandbox][gameplay][vehicles][damage]") {
     const bool helicopter = GENERATE(false, true);
     GameplayTests::World world;
@@ -62,6 +63,12 @@ TEST_CASE("A destroyed vehicle ejects its driver burns every part and blasts onl
     auto& vehicle = *entity.GetComponent<Gameplay::Vehicle>();
     auto& health = *entity.GetComponent<Gameplay::VehicleHealth>();
     auto& seat = *entity.GetComponent<Gameplay::VehicleSeat>();
+    auto& passengerSeat = entity.CreateChild("Passenger Seat").AddComponent<Gameplay::VehicleSeat>();
+    passengerSeat.driver = false;
+    auto& passenger = world.scene.CreateEntity("Passenger").AddComponent<Gameplay::Pawn>();
+    passenger.GetEntity().AddComponent<Gameplay::VehiclePassenger>();
+    auto& passengerController = world.scene.CreateEntity("Passenger Controller").AddComponent<Driver>();
+    passengerController.Possess(passenger);
     auto& rootRenderer = entity.AddComponent<Spot::MeshRenderer>();
     auto& wheelRenderer = entity.CreateChild("Wheel").CreateChild("Rim").AddComponent<Spot::MeshRenderer>();
     health.burnedMaterial = std::make_shared<const Spot::Material>(
@@ -89,6 +96,7 @@ TEST_CASE("A destroyed vehicle ejects its driver burns every part and blasts onl
         });
     world.Step();
     REQUIRE(seat.Enter(pawn));
+    REQUIRE(passengerSeat.Enter(passenger));
     vehicle.SetInput({.drive = 1.0f, .steer = 1.0f, .lift = 1.0f});
     REQUIRE(Gameplay::Damage::Apply(world.scene, id, {.amount = 300.0f, .instigator = pawn.GetEntity().GetId()}));
     CHECK(world.scene.GetEntity(id) == &entity);
@@ -98,6 +106,9 @@ TEST_CASE("A destroyed vehicle ejects its driver burns every part and blasts onl
     CHECK_FALSE(vehicle.IsOperational());
     CHECK_FALSE(vehicle.HasDriver());
     CHECK_FALSE(seat.IsOccupied());
+    CHECK_FALSE(passengerSeat.IsOccupied());
+    CHECK_FALSE(passenger.HasState("Seated"));
+    CHECK(passengerController.GetPawn() == &passenger);
     CHECK_FALSE(pawn.HasState("Seated"));
     CHECK(driver.GetPawn() == &pawn);
     CHECK(driverHealth.IsDead());

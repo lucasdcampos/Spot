@@ -1415,6 +1415,53 @@
       ],
       "tags": [],
       "parent": 1
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "ejectWhen": [
+              "Dead"
+            ],
+            "exitAction": "Use",
+            "exits": [
+              26,
+              25,
+              27,
+              28
+            ],
+            "prompt": "Ride",
+            "seat": 0,
+            "poseState": "CompactSeat",
+            "driver": false
+          },
+          "enabled": true,
+          "id": "646e7020165e4a1698d15ea719a13177",
+          "type": "VehicleSeat"
+        }
+      ],
+      "id": 33,
+      "layer": 0,
+      "name": "Passenger Seat",
+      "position": [
+        0.38,
+        0.35,
+        0.15
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
     }
   ],
   "format": "spot-scene",

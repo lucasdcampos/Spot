@@ -28,8 +28,8 @@
           "data": {
             "maxHealth": 300.0,
             "regenerationRate": 0.0,
-            "safeImpactSpeed": 8.0,
-            "damagePerSpeed": 15.0,
+            "safeImpactSpeed": 6.0,
+            "damagePerSpeed": 50.0,
             "burnedMaterial": "75489f82e7075e24d441dc3a6b5abe15"
           },
           "enabled": true,
@@ -49,7 +49,10 @@
               "ascend": "FlightAscend",
               "descend": "FlightDescend",
               "strafe": "FlightRoll"
-            }
+            },
+            "maxTilt": 0.5235987755982988,
+            "climbSpeed": 6.0,
+            "horizontalDrag": 0.15
           },
           "enabled": true,
           "id": "17181aa71b04487491caa93c5ef63230",
@@ -970,6 +973,51 @@
         0.28,
         2.1,
         5.9
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "seat": 0,
+            "exits": [
+              23,
+              22,
+              24
+            ],
+            "exitAction": "Use",
+            "ejectWhen": [
+              "Dead"
+            ],
+            "prompt": "Ride",
+            "driver": false
+          },
+          "enabled": true,
+          "id": "73e56d4d2f8b4d18a6963c3d3c40983d",
+          "type": "VehicleSeat"
+        }
+      ],
+      "id": 32,
+      "layer": 0,
+      "name": "Passenger Seat",
+      "position": [
+        0.43,
+        1.44,
+        -0.5
       ],
       "rotation": [
         0,

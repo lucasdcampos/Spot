@@ -2,6 +2,8 @@
 
 #include "gameplay/hud/input_prompts.h"
 #include "gameplay/vehicles/vehicle.h"
+#include "gameplay/vehicles/vehicle_passenger.h"
+#include "gameplay/vehicles/vehicle_seat.h"
 
 #include <algorithm>
 #include <cctype>
@@ -17,6 +19,12 @@ namespace {
 constexpr float FadeTime = 0.18f;
 
 const Vehicle* GetVehicle(const HudContext& context) {
+    if (context.pawn) {
+        const auto* passenger = context.pawn->GetEntity().GetComponent<VehiclePassenger>();
+        if (const VehicleSeat* seat = passenger ? passenger->GetSeat() : nullptr) {
+            return seat->GetVehicle();
+        }
+    }
     return dynamic_cast<const Vehicle*>(context.pawn);
 }
 
@@ -62,7 +70,10 @@ void VehicleElement::Refresh(const HudContext& context) {
         text->color = textColor;
     }
     SetText(detail, side);
-    SetText(hints, InputPrompts::Format(vehicle->DescribeHints()));
+    const auto* passenger = context.pawn->GetEntity().GetComponent<VehiclePassenger>();
+    const VehicleSeat* seat = passenger ? passenger->GetSeat() : nullptr;
+    SetText(hints,
+            InputPrompts::Format(seat ? std::vector<InputHint>{{seat->exitAction, "Exit"}} : vehicle->DescribeHints()));
     const float intro = context.hud ? context.hud->GetIntro() : 0.0f;
     if (auto* text = Get<Spot::UiText>(hints)) {
         text->color.a = std::clamp(std::max(itemOpacity, intro), 0.0f, 1.0f);

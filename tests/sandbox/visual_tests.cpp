@@ -39,7 +39,7 @@
 
 using Gameplay::DayCycle;
 
-TEST_CASE("The player's inspection body and seated drivers render through the vehicle windows",
+TEST_CASE("The player's inspection body and seated occupants render through the vehicle windows",
           "[gpu][sandbox][player_body][offscreen]") {
     if (!Spot::GraphicsDevice::IsSupported()) {
         SKIP("No usable graphics device");
@@ -134,25 +134,29 @@ TEST_CASE("The player's inspection body and seated drivers render through the ve
         auto* vehicle = entity->GetComponent<Gameplay::Vehicle>();
         REQUIRE(vehicle);
         scene->Update(0);
-        auto* seat = vehicle->GetSeat();
-        REQUIRE(seat);
-        REQUIRE(seat->Enter(*character));
-        scene->Update(0);
-        auto* vehicleCamera = scene->GetEntity(vehicle->GetViewCamera())->GetComponent<Spot::Camera>();
-        vehicleCamera->SetEnabled(false);
-        observerCamera.SetEnabled(true);
-        const auto focus = seat->GetSeatPosition() + Spot::Vector3{0, 0.45f, 0};
-        observer.GetTransform().SetWorldPosition(focus + Spot::Vector3{-1.9f, 0.35f, -1.3f});
-        observer.GetTransform().SetWorldRotation(
-            Spot::Quaternion::LookRotation(focus - observer.GetTransform().GetWorldPosition()));
-        const auto occupied = render(std::string("player_seated_") + name);
-        body->SetActive(false);
-        const auto empty = render("");
-        CHECK(difference(occupied, empty) > 100);
-        body->SetActive(true);
-        observerCamera.SetEnabled(false);
-        vehicleCamera->SetEnabled(true);
-        seat->Exit();
+        REQUIRE(vehicle->GetSeats().size() == 2);
+        for (auto* seat : vehicle->GetSeats()) {
+            CAPTURE(seat->driver);
+            REQUIRE(seat->Enter(*character));
+            scene->Update(0);
+            const auto* possessed = Gameplay::Players::GetPawn(*scene);
+            REQUIRE(possessed);
+            auto* activeCamera = scene->GetEntity(possessed->GetViewCamera())->GetComponent<Spot::Camera>();
+            activeCamera->SetEnabled(false);
+            observerCamera.SetEnabled(true);
+            const auto focus = seat->GetSeatPosition() + Spot::Vector3{0, 0.45f, 0};
+            observer.GetTransform().SetWorldPosition(focus + Spot::Vector3{seat->driver ? -1.9f : 1.9f, 0.35f, -1.3f});
+            observer.GetTransform().SetWorldRotation(
+                Spot::Quaternion::LookRotation(focus - observer.GetTransform().GetWorldPosition()));
+            const auto occupied = render(std::string(seat->driver ? "player_seated_" : "player_passenger_") + name);
+            body->SetActive(false);
+            const auto empty = render("");
+            CHECK(difference(occupied, empty) > 100);
+            body->SetActive(true);
+            observerCamera.SetEnabled(false);
+            activeCamera->SetEnabled(true);
+            seat->Exit();
+        }
         entity->Destroy();
         scene->Update(0);
     }

@@ -98,11 +98,7 @@ void VehicleHealth::OnCollisionEnter(const Spot::Collision& collision) {
         return;
     }
     Damage::Apply(GetScene(), GetEntity().GetId(),
-                  {.amount = amount,
-                   .type = "Impact",
-                   .point = point,
-                   .source = collision.other,
-                   .pushesBody = false});
+                  {.amount = amount, .type = "Impact", .point = point, .source = collision.other, .pushesBody = false});
 }
 
 bool VehicleHealth::IsHarmless(const Spot::Entity& other) const {
@@ -123,7 +119,7 @@ void VehicleHealth::ApplyWreck() {
     if (auto* vehicle = GetEntity().GetComponent<Vehicle>()) {
         vehicle->SetState("Destroyed", true);
         vehicle->SetInput({});
-        if (auto* seat = vehicle->GetSeat()) {
+        for (auto* seat : vehicle->GetSeats()) {
             seat->Exit();
         }
         if (auto* controller = vehicle->GetController()) {

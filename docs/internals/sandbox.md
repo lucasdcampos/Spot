@@ -203,10 +203,17 @@ rounded glazed cockpit with seats and controls, skid landing gear, a tapered tai
 lights and independent four-blade main and tail rotors with yellow tips. The generator also synthesizes its rotor
 loop; model and sound metadata come from the normal asset import.
 
+The car, coupe and helicopter each have a passenger seat on the right. Use fills the driver first, then the passenger.
+A passenger keeps their own view, uses E to exit independently, and never controls the vehicle. The server chooses
+and replicates each seat in multiplayer.
+
 Use (E) enters and exits through the existing `VehicleSeat`. W/S pitches forward/backward, A/D turns, Space climbs
 and Left Ctrl descends. On a gamepad RT climbs and LT descends proportionally; the left stick pitches and banks,
 and LB/RB turn left/right around the vertical axis. Aircraft use separate flight actions so walking and driving
 keep their own bindings. Both stick axes have a 0.2 dead zone, and diagonal tilt stays within the maximum bank angle.
+The helicopter reaches approximately 120 km/h in sustained forward flight and commands up to 6 m/s when climbing
+or descending. Its 300 health is exhausted by a solid impact with a normal closing speed of 12 m/s (about 43 km/h);
+contacts up to 6 m/s are safe. Its 30-degree maximum tilt and 0.15 horizontal drag also apply to sideways flight.
 The rotor takes three seconds to reach flight speed. Releasing the controls levels the body and holds height while
 horizontal drag slows it. The chase camera, HUD speed/climb/rotor readings, impact components, spawn catalog and
 checkpoint persistence use the same vehicle framework as the cars. `Helicopter` derives `Gameplay::Vehicle`; new

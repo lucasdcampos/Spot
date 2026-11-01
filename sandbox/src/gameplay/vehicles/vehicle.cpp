@@ -39,7 +39,44 @@ void VehicleControls::Serialize(Spot::Archive& archive) {
 }
 
 VehicleSeat* Vehicle::GetSeat() const {
-    return GetEntity().GetComponentInChildren<VehicleSeat>();
+    for (VehicleSeat* seat : GetSeats()) {
+        if (seat->driver) {
+            return seat;
+        }
+    }
+    return nullptr;
+}
+
+std::vector<VehicleSeat*> Vehicle::GetSeats() const {
+    std::vector<VehicleSeat*> seats;
+    const auto visit = [&](const auto& self, Spot::Entity& entity) -> void {
+        for (VehicleSeat* seat : entity.GetComponents<VehicleSeat>()) {
+            if (seat->GetVehicle() == this) {
+                seats.push_back(seat);
+            }
+        }
+        entity.ForEachChild([&](Spot::Entity& child) { self(self, child); });
+    };
+    visit(visit, GetEntity());
+    return seats;
+}
+
+VehicleSeat* Vehicle::GetAvailableSeat() const {
+    if (!IsActiveAndEnabled() || !IsOperational()) {
+        return nullptr;
+    }
+    const auto available = [this](const VehicleSeat* seat) {
+        return seat && seat->IsActiveAndEnabled() && !seat->IsOccupied() && (!seat->driver || !HasDriver());
+    };
+    if (VehicleSeat* seat = GetSeat(); available(seat)) {
+        return seat;
+    }
+    for (VehicleSeat* seat : GetSeats()) {
+        if (available(seat)) {
+            return seat;
+        }
+    }
+    return nullptr;
 }
 
 std::vector<Gauge> Vehicle::DescribeTelemetry() const {
@@ -110,6 +147,9 @@ void Vehicle::OnPlayerRequest(std::string_view request) {
 
 void Vehicle::OnDisable() {
     m_context.Deactivate();
+    for (VehicleSeat* seat : GetSeats()) {
+        seat->Exit();
+    }
 }
 
 void Vehicle::Serialize(Spot::Archive& archive) {

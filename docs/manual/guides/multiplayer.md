@@ -94,6 +94,11 @@ that player still possesses the pawn. The handler must check the action's rules 
 rechecks reach and obstacles on the server, and vehicles use requests to exit their seats. Movement continues through
 `SerializeIntent()`, so repeating movement packets cannot repeat a discrete action.
 
+In the Sandbox, press E while looking at a car, coupe or helicopter to take the driver's seat. If someone is already
+driving, you take its free passenger seat instead; a full vehicle offers no entry. Passengers keep their own view,
+see the vehicle's speed and an Exit hint, and press E to leave without affecting the driver. Each seat is chosen on
+the server and shown to all players, including those who join later. Passengers stay seated when the driver leaves.
+
 ## Hosting and joining
 
 ### Maps and modes in the gameplay framework

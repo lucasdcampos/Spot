@@ -341,3 +341,29 @@ TEST_CASE("Rotor wind sways nearby trees and lets them settle", "[sandbox][gamep
     CHECK_FALSE(skin->IsEnabled());
     CHECK(crown.GetComponent<Spot::MeshRenderer>()->IsEnabled());
 }
+
+TEST_CASE("A helicopter sustains faster forward flight and six meters per second climb and descent",
+          "[sandbox][gameplay][vehicles][helicopter][speed]") {
+    GameplayTests::World world;
+    auto& helicopter = MakeHelicopter(world.scene);
+    auto& body = *helicopter.GetEntity().GetComponent<Spot::Rigidbody>();
+    world.scene.CreateEntity("Pilot").AddComponent<Pilot>().Possess(helicopter);
+    helicopter.SetInput({.lift = 1.0f});
+    world.Run(10.0f);
+    CHECK(body.GetLinearVelocity().y == Catch::Approx(6.0f).margin(0.3f));
+
+    helicopter.SetInput({.drive = 1.0f});
+    world.Run(40.0f);
+    const float speedKmh = helicopter.GetForwardSpeed() * 3.6f;
+    INFO("Forward speed: " << speedKmh << " km/h");
+    CHECK(speedKmh > 110.0f);
+    CHECK(speedKmh < 125.0f);
+    CHECK(std::abs(body.GetLinearVelocity().y) < 0.3f);
+
+    helicopter.SetInput({.lift = -1.0f});
+    world.Run(5.0f);
+    CHECK(body.GetLinearVelocity().y == Catch::Approx(-6.0f).margin(0.3f));
+    helicopter.SetInput({});
+    world.Run(3.0f);
+    CHECK(std::abs(body.GetLinearVelocity().y) < 0.3f);
+}

@@ -18,6 +18,7 @@
 #include "gameplay/network/server_list.h"
 #include "gameplay/network/session.h"
 #include "gameplay/vehicles/vehicle.h"
+#include "gameplay/vehicles/vehicle_passenger.h"
 #include "gameplay/vehicles/vehicle_seat.h"
 
 #include <catch2/catch_approx.hpp>
@@ -100,6 +101,7 @@ Spot::AssetRef<Spot::Prefab> MakePlayerPrefab(bool ownerDecided = false) {
     AddCamera(player.AddComponent<TestPawn>());
     player.AddComponent<Walker>();
     player.AddComponent<Gameplay::Interactor>();
+    player.AddComponent<Gameplay::VehiclePassenger>();
     auto prefab = Spot::Prefab::FromString(player.SaveToString());
     REQUIRE(prefab);
     return Spot::AssetRef<Spot::Prefab>(PlayerPrefab, std::make_shared<const Spot::Prefab>(std::move(*prefab)));
@@ -114,6 +116,11 @@ Spot::AssetRef<Spot::Prefab> MakeVehiclePrefab() {
     AddCamera(entity.AddComponent<TestVehicle>());
     entity.AddComponent<Spot::BoxCollider>(Spot::Vector3{1.0f, 1.0f, 1.0f});
     entity.AddComponent<Gameplay::VehicleSeat>().poseState = "Driving";
+    auto& passenger = entity.CreateChild("Passenger Seat");
+    passenger.GetTransform().SetPosition({0.4f, 0.0f, 0.0f});
+    auto& seat = passenger.AddComponent<Gameplay::VehicleSeat>();
+    seat.driver = false;
+    seat.prompt = "Ride";
     auto prefab = Spot::Prefab::FromString(entity.SaveToString());
     REQUIRE(prefab);
     return Spot::AssetRef<Spot::Prefab>(VehiclePrefab, std::make_shared<const Spot::Prefab>(std::move(*prefab)));
@@ -750,4 +757,105 @@ TEST_CASE("Rooms on the local network are found with their address, players and 
     CHECK(found[1].address.ends_with(":27015"));
     // The address joins the room's game port, on the machine that answered.
     CHECK(Spot::NetAddress::Parse(found[1].address, 0)->port == 27015);
+}
+
+TEST_CASE("Clients compete for a passenger seat without taking control from the driver",
+          "[sandbox][gameplay][network][vehicles][passenger]") {
+    Session session(true);
+    auto& driverSeat = session.AddVehicle();
+    session.Step(16);
+    auto* driverController = FindRemote(session.server.scene);
+    REQUIRE(driverSeat.Enter(*driverController->GetPawn()));
+    session.Step(12);
+    const auto owner = driverSeat.GetVehicle()->GetEntity().GetComponent<Spot::NetworkObject>()->GetOwner();
+    Machine first;
+    Machine second;
+    session.Join(first);
+    session.Join(second);
+    const auto step = [&](int count) {
+        for (int i = 0; i < count; ++i) {
+            session.Step();
+            first.Step();
+            second.Step();
+        }
+    };
+    step(24);
+    auto* firstPawn = Gameplay::Players::GetPawn(first.scene);
+    auto* secondPawn = Gameplay::Players::GetPawn(second.scene);
+    REQUIRE(firstPawn);
+    REQUIRE(secondPawn);
+    REQUIRE(firstPawn->GetEntity().GetComponent<Gameplay::Interactor>()->Interact());
+    REQUIRE(secondPawn->GetEntity().GetComponent<Gameplay::Interactor>()->Interact());
+    step(20);
+    auto* passengerSeat = driverSeat.GetVehicle()->GetSeats().at(1);
+    REQUIRE(passengerSeat->IsOccupied());
+    CHECK(firstPawn->HasState("Passenger") != secondPawn->HasState("Passenger"));
+    Machine& passengerMachine = firstPawn->HasState("Passenger") ? first : second;
+    auto* passenger = Gameplay::Players::GetPawn(passengerMachine.scene);
+    REQUIRE(passenger);
+    CHECK(passenger->HasState("Seated"));
+    CHECK(passengerMachine.scene.GetEntity(passenger->viewCamera)->GetComponent<Spot::Camera>()->IsEnabled());
+    CHECK(driverController->GetPawn() == driverSeat.GetVehicle());
+    CHECK(driverSeat.GetVehicle()->GetEntity().GetComponent<Spot::NetworkObject>()->GetOwner() == owner);
+    auto* clientSeat = passenger->GetEntity().GetComponent<Gameplay::VehiclePassenger>()->GetSeat();
+    REQUIRE(clientSeat);
+    CHECK(clientSeat->GetOccupant() == passenger);
+    clientSeat->Exit();
+    CHECK(clientSeat->IsOccupied());
+    CHECK_FALSE(clientSeat->Enter(*passenger));
+
+    session.client.actions.Add("Accelerate", Spot::InputActionType::Button).Bind(Spot::InputControl::Of(Spot::Key::W));
+    session.client.input.OnEvent(Spot::KeyPressedEvent{Spot::Key::W, false});
+    driverSeat.GetVehicle()->GetTransform().SetWorldRotation(Spot::Quaternion::FromAxisAngle({0.0f, 1.0f, 0.0f}, 0.5f));
+    step(90);
+    CHECK(passenger->GetTransform().GetWorldRotation() == clientSeat->GetSeatRotation());
+    CHECK(Spot::Distance(passenger->GetTransform().GetWorldPosition(), clientSeat->GetSeatPosition()) < 0.01f);
+    CHECK(session.server.scene.FindComponent<Gameplay::NetworkPlayers>()->GetCorrections() == 0);
+    session.client.input.OnEvent(Spot::KeyReleasedEvent{Spot::Key::W});
+    step(12);
+
+    Machine observer;
+    session.Join(observer);
+    for (int i = 0; i < 24; ++i) {
+        step(1);
+        observer.Step();
+    }
+    auto* observed = observer.scene.FindComponent<TestVehicle>();
+    REQUIRE(observed);
+    CHECK(observed->GetSeat()->IsOccupied());
+    REQUIRE(observed->GetSeats().at(1)->GetOccupant());
+    CHECK(observed->GetSeats().at(1)->GetOccupant()->HasState("Passenger"));
+    CHECK(observed->GetSeats().at(1)->GetOccupant() != observed->GetOccupant());
+
+    SECTION("A passenger exits with reliable input and leaves the driver seated") {
+        auto& transport =
+            dynamic_cast<Spot::ConditionedNetTransport&>(passengerMachine.session->GetHost().GetTransport());
+        transport.SetConditions({.loss = 1.0f, .duplicates = 1.0f});
+        passengerMachine.actions.Add("Use", Spot::InputActionType::Button).Bind(Spot::InputControl::Of(Spot::Key::E));
+        passengerMachine.input.OnEvent(Spot::KeyPressedEvent{Spot::Key::E, false});
+        step(20);
+        CHECK_FALSE(passengerSeat->IsOccupied());
+        CHECK_FALSE(passenger->HasState("Seated"));
+        CHECK(Gameplay::Players::GetPawn(passengerMachine.scene) == passenger);
+        CHECK(driverSeat.IsOccupied());
+    }
+    SECTION("A passenger disconnects without ejecting the driver") {
+        passengerMachine.session->GetHost().Disconnect(passengerMachine.session->GetServerPeer());
+        step(20);
+        CHECK_FALSE(passengerSeat->IsOccupied());
+        CHECK(driverSeat.IsOccupied());
+    }
+    SECTION("A driver's departure keeps the passenger seated") {
+        session.client.session->GetHost().Disconnect(session.client.session->GetServerPeer());
+        step(20);
+        CHECK_FALSE(driverSeat.IsOccupied());
+        CHECK(passengerSeat->IsOccupied());
+        CHECK(passenger->HasState("Seated"));
+        CHECK(driverSeat.GetVehicle()->GetAvailableSeat() == &driverSeat);
+        passenger->Request("Gameplay.ExitVehicle");
+        step(20);
+        CHECK_FALSE(passengerSeat->IsOccupied());
+    }
+    CHECK(driverSeat.GetVehicle()->GetEntity().GetComponent<Spot::NetworkObject>()->GetOwner() ==
+          (driverSeat.IsOccupied() ? owner : Spot::NetPeerId::Invalid));
 }

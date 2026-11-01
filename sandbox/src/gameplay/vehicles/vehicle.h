@@ -69,6 +69,10 @@ public:
     bool HasDriver() const { return IsPossessedWhereDecided(); }
     // The seat its driver sits in; null when it has none.
     VehicleSeat* GetSeat() const;
+    // All seats in hierarchy order, including disabled seats.
+    std::vector<VehicleSeat*> GetSeats() const;
+    // The enabled, free driver seat first, then the next enabled, free passenger seat.
+    VehicleSeat* GetAvailableSeat() const;
 
     // Meters per second forward, negative backing up.
     virtual float GetForwardSpeed() const = 0;

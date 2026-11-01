@@ -200,7 +200,8 @@
           "data": {
             "action": "Use",
             "blockedBy": [
-              "Dead"
+              "Dead",
+              "Seated"
             ],
             "reach": 3.0
           },
@@ -310,6 +311,12 @@
           "data": {
             "ragdoll": 201014
           }
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "88c15fc5fc0d42eaa9ecfa51af364e9b",
+          "type": "VehiclePassenger"
         }
       ],
       "id": 117,

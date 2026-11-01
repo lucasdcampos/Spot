@@ -5,6 +5,7 @@
 #include "gameplay/core/interactor.h"
 #include "gameplay/core/pawn.h"
 #include "gameplay/vehicles/vehicle.h"
+#include "gameplay/vehicles/vehicle_passenger.h"
 
 #include <algorithm>
 #include <cmath>
@@ -14,21 +15,41 @@ namespace Gameplay {
 
 SPOT_COMPONENT(VehicleSeat);
 
+// Network interpolation runs after components' late updates. Passengers follow the vehicle as shown this frame.
+class VehicleSeatSystem final : public Spot::SceneSystem {
+public:
+    VehicleSeatSystem() : SceneSystem(100) {}
+
+protected:
+    void OnLateUpdate(float /*deltaTime*/) override {
+        GetScene().ForEachComponent<VehicleSeat>([](VehicleSeat& seat) {
+            if (Pawn* occupant = seat.driver ? nullptr : seat.GetOccupant()) {
+                Spot::Entity* eye = seat.GetScene().GetEntity(occupant->eye);
+                const auto eyeRotation = eye ? eye->GetTransform().GetWorldRotation() : Spot::Quaternion{};
+                seat.PlaceOccupant(*occupant);
+                if (eye && eye != &occupant->GetEntity()) {
+                    eye->GetTransform().SetWorldRotation(eyeRotation);
+                }
+            }
+        });
+    }
+};
+
 namespace {
 
 constexpr Spot::Vector3 Up = {0.0f, 1.0f, 0.0f};
 
 } // namespace
 
+void VehicleSeat::OnStart() {
+    GetScene().GetOrAddSystem<VehicleSeatSystem>();
+}
+
 Vehicle* VehicleSeat::GetVehicle() const {
     return GetEntity().GetComponentInParent<Vehicle>();
 }
 
 Pawn* VehicleSeat::GetOccupant() const {
-    if (Spot::Network::IsClient(GetScene())) {
-        const Vehicle* vehicle = GetVehicle();
-        return vehicle ? vehicle->GetOccupant() : nullptr;
-    }
     const Spot::Entity* entity = GetScene().GetEntity(m_occupant);
     return entity ? entity->GetComponent<Pawn>() : nullptr;
 }
@@ -48,15 +69,28 @@ void VehicleSeat::PlaceOccupant(Pawn& occupant) const {
     occupant.GetEntity().GetTransform().SetWorldRotation(GetSeatRotation());
 }
 
-bool VehicleSeat::CanInteract(const Interactor& /*interactor*/) const {
+bool VehicleSeat::CanInteract(const Interactor& interactor) const {
     const Vehicle* vehicle = GetVehicle();
-    return vehicle && vehicle->IsActiveAndEnabled() && vehicle->IsOperational() && !IsOccupied() &&
-           !vehicle->HasDriver();
+    const Pawn* pawn = interactor.GetPawn();
+    const auto* passenger = pawn ? pawn->GetEntity().GetComponent<VehiclePassenger>() : nullptr;
+    const VehicleSeat* available = vehicle ? vehicle->GetAvailableSeat() : nullptr;
+    return vehicle && vehicle->IsActiveAndEnabled() && vehicle->IsOperational() && pawn && !pawn->HasState("Seated") &&
+           available && !pawn->HasAnyState(available->ejectWhen) &&
+           (available->driver || (passenger && passenger->IsActiveAndEnabled()));
+}
+
+std::string VehicleSeat::GetPrompt(const Interactor& /*interactor*/) const {
+    const Vehicle* vehicle = GetVehicle();
+    const VehicleSeat* available = vehicle ? vehicle->GetAvailableSeat() : nullptr;
+    return available ? available->prompt : prompt;
 }
 
 void VehicleSeat::Interact(Interactor& interactor) {
-    if (Pawn* pawn = interactor.GetPawn()) {
-        Enter(*pawn);
+    Vehicle* vehicle = GetVehicle();
+    if (Pawn* pawn = interactor.GetPawn(); pawn && vehicle && CanInteract(interactor)) {
+        if (VehicleSeat* available = vehicle->GetAvailableSeat()) {
+            available->Enter(*pawn);
+        }
     }
 }
 
@@ -66,8 +100,10 @@ bool VehicleSeat::Enter(Pawn& occupant) {
     }
     Vehicle* vehicle = GetVehicle();
     Controller* controller = occupant.GetController();
+    const auto* passenger = occupant.GetEntity().GetComponent<VehiclePassenger>();
     if (!IsActiveAndEnabled() || !vehicle || !vehicle->IsActiveAndEnabled() || !vehicle->IsOperational() ||
-        !controller || IsOccupied() || vehicle->HasDriver() || &occupant == vehicle || occupant.HasState("Seated") ||
+        !controller || IsOccupied() || (driver && vehicle->HasDriver()) || &occupant == vehicle ||
+        (!driver && (!passenger || !passenger->IsActiveAndEnabled())) || occupant.HasState("Seated") ||
         occupant.HasAnyState(ejectWhen)) {
         return false;
     }
@@ -77,8 +113,13 @@ bool VehicleSeat::Enter(Pawn& occupant) {
         occupant.SetState(poseState, true);
     }
     PlaceOccupant(occupant);
-    vehicle->SetOccupant(&occupant);
-    // What gets the driver out at once, as dying.
+    if (driver) {
+        vehicle->SetOccupant(&occupant);
+    } else {
+        occupant.SetState("Passenger", true);
+        occupant.SetState("InVehicle", true);
+    }
+    // What gets the occupant out at once, as dying.
     m_states = occupant.OnStateChanged.Connect([this](std::string_view state, bool on) {
         if (on && std::ranges::find(ejectWhen, state) != ejectWhen.end()) {
             Exit();
@@ -87,7 +128,9 @@ bool VehicleSeat::Enter(Pawn& occupant) {
     if (auto* body = vehicle->GetEntity().GetComponent<Spot::Rigidbody>()) {
         body->WakeUp();
     }
-    controller->Possess(*vehicle);
+    if (driver) {
+        controller->Possess(*vehicle);
+    }
     vehicle->OnEntered.Emit(occupant);
     return true;
 }
@@ -101,19 +144,23 @@ void VehicleSeat::Exit() {
     Vehicle* vehicle = GetVehicle();
     m_occupant = Spot::EntityId::Invalid;
     m_states.Disconnect();
-    if (vehicle && vehicle->GetOccupant() == occupant) {
+    if (driver && vehicle && vehicle->GetOccupant() == occupant) {
         vehicle->SetOccupant(nullptr);
     }
     if (!occupant) {
-        if (occupied && vehicle) {
+        if (driver && occupied && vehicle) {
             if (Controller* controller = vehicle->GetController()) {
                 controller->Unpossess();
             }
         }
         return;
     }
-    Controller* controller = vehicle ? vehicle->GetController() : nullptr;
+    Controller* controller = driver && vehicle ? vehicle->GetController() : nullptr;
     occupant->SetState("Seated", false);
+    if (!driver) {
+        occupant->SetState("Passenger", false);
+        occupant->SetState("InVehicle", false);
+    }
     if (!poseState.empty()) {
         occupant->SetState(poseState, false);
     }
@@ -182,8 +229,16 @@ Spot::Vector3 VehicleSeat::FindExit(const Vehicle& vehicle, const Pawn& occupant
 }
 
 void VehicleSeat::OnLateUpdate(float /*deltaTime*/) {
+    const Vehicle* vehicle = GetVehicle();
+    if (Spot::Network::IsServer(GetScene()) && (!vehicle || !vehicle->IsOperational())) {
+        Exit();
+    }
     if (Pawn* occupant = GetOccupant()) {
-        PlaceOccupant(*occupant);
+        if (!driver && Spot::Network::IsServer(GetScene()) && !occupant->IsPossessed()) {
+            Exit();
+        } else {
+            PlaceOccupant(*occupant);
+        }
     } else if (Spot::Network::IsServer(GetScene()) && m_occupant != Spot::EntityId::Invalid) {
         Exit();
     }
@@ -195,11 +250,16 @@ void VehicleSeat::OnDisable() {
 
 void VehicleSeat::Serialize(Spot::Archive& archive) {
     Interactable::Serialize(archive);
-    archive.Field("seat", seat, {.tooltip = "Where the driver sits; this entity when unset"});
-    archive.Field("exits", exits, {.tooltip = "Where the driver gets out, on the ground, the first tried first"});
+    archive.Field("driver", driver, {.tooltip = "Transfers possession to the vehicle; otherwise rides as a passenger"});
+    archive.Field("seat", seat, {.tooltip = "Where the occupant sits; this entity when unset"});
+    archive.Field("exits", exits, {.tooltip = "Where the occupant gets out, on the ground, the first tried first"});
     archive.Field("exitAction", exitAction);
-    archive.Field("ejectWhen", ejectWhen, {.tooltip = "States of the driver that get it out at once"});
+    archive.Field("ejectWhen", ejectWhen, {.tooltip = "States of the occupant that get it out at once"});
     archive.Field("poseState", poseState, {.tooltip = "Optional occupant state for the seat's presentation pose"});
+}
+
+void VehicleSeat::Replicate(Spot::Archive& archive) {
+    archive.Field("occupant", m_occupant);
 }
 
 } // namespace Gameplay

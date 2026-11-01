@@ -189,10 +189,21 @@ Tests use an unrelated one-bone rig and arbitrary item subclasses, without sandb
 ## Vehicles
 
 `gameplay/vehicles/` needs `core`, `environment`, `health`, `hud`, `persistence` and `weapons`.
-`Vehicle` is a pawn driven by `VehicleInput`; its `controls` map a player's actions, and other controllers call `SetInput()`. A `VehicleSeat` gets an existing pawn
+`Vehicle` is a pawn driven by `VehicleInput`; its `controls` map a player's actions, and other controllers call `SetInput()`. A driver's `VehicleSeat` gets an existing pawn
 in, marks it "Seated", transfers possession and keeps it at the seat's position and rotation. An optional `poseState` is set on entry and cleared on exit,
 so character presentation can select the seat's authored pose without a vehicle or skeleton dependency. Exiting finds room at authored
 exits or around the body's boxes, then restores possession and places the pawn facing and moving with the vehicle.
+Interaction fills the driver's seat first, then enabled, free seats in hierarchy order. `Vehicle::GetSeat()` remains the
+driver's seat; `GetSeats()` enumerates all seats. A seat with `driver = false` accepts pawns with `VehiclePassenger`:
+they keep their own possession and camera, enter the replicated "Passenger" and "Seated" states and cannot drive.
+`VehiclePassenger` resolves its seat from its replicated occupant and routes the exit action through the character's
+reliable `Gameplay.ExitVehicle` request. Each `VehicleSeat` replicates its own occupant, including to late joiners;
+clients never choose or change occupancy. Passenger entry and exit preserve vehicle ownership and driver possession.
+A late `VehicleSeatSystem` places passengers again after network interpolation, preserving their eye rotation, so
+their bodies and cameras follow the vehicle shown this frame. Seated characters are placed on the server too, so movement validation does
+not apply their walking speed limit while riding. Death, disconnection, disabling and destruction release the affected
+seats; disabling or wrecking the vehicle releases all of them. Passengers remain seated when the driver leaves.
+
 Death and checkpoint loading get it out too. The vehicle exposes its occupant through the pawn contract so the HUD
 can keep showing that occupant's health.
 
@@ -218,7 +229,9 @@ context, so ground vehicles keep their original controls.
 
 `Helicopter` is a second simulation using this contract. Its Rigidbody receives rotor lift, horizontal drag and
 stabilizing torque through public physics APIs. Forward/backward and lateral intent tilt the rotor plane, with
-combined tilt limited to `maxTilt`; steering commands yaw rate, and lift commands climb rate. Neutral input levels
+combined tilt limited to `maxTilt`; steering commands yaw rate, and lift commands climb rate. The defaults use a
+30-degree tilt, 0.15 horizontal drag and a 6 m/s climb/descent rate, giving approximately 120 km/h on the forward-speed
+gauge in sustained level flight. The authored helicopter prefab sets these values explicitly. Neutral input levels
 it and damps vertical velocity. Lift compensates for
 tilt and scales with squared rotor speed during spin-up and coast-down. Without a driver or while dead, the engine
 spools down and gravity brings it down. It does not lock the body's transform or bypass collisions. The authored
@@ -242,7 +255,10 @@ regeneration. Bullets and nearby blasts use the existing damage receivers; colli
 (default 8 m/s) take `(closingSpeed - safeImpactSpeed) * damagePerSpeed` health. At zero health it marks the pawn
 "Destroyed", clears its input, ejects the driver and unpossesses any remaining controller. Seats refuse dead or
 destroyed vehicles, and the drivetrain, flight controls and engine audio require `Vehicle::IsOperational()`.
-The rigidbody and colliders remain, so the wreck still interacts with physics.
+The rigidbody and colliders remain, so the wreck still interacts with physics. The authored helicopter uses a
+6 m/s safe impact speed and 50 damage per excess m/s, retaining 300 health: a direct solid impact at 12 m/s
+(about 43 km/h) destroys it from full health, while gentle landings remain safe. Glancing impacts use only the
+velocity toward the surface, and light props retain the shared harmless-mass exemption.
 
 Its own configurable `blast` has a 12-meter radius, 600 damage at the center and a 4,000 Ns impulse. It uses the
 static `Explosive::Explode()` to damage and push surroundings, play the existing explosion particles at 2.4 times
