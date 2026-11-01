@@ -3,6 +3,7 @@
 #include "gameplay/core/pawn.h"
 #include "gameplay/health/damage.h"
 #include "gameplay/health/health.h"
+#include "gameplay/network/player_info.h"
 
 #include <algorithm>
 #include <cmath>
@@ -130,6 +131,12 @@ std::string KillFeedElement::Describe(Spot::Scene& scene, const DamageApplied& d
             return {};
         }
         const Pawn* pawn = Pawn::Of(*entity);
+        const Spot::EntityId pawnId = pawn ? pawn->GetEntity().GetId() : id;
+        for (const PlayerInfo* info : PlayerInfos::GetAll(scene)) {
+            if (info->pawn == pawnId) {
+                return info->name;
+            }
+        }
         return pawn ? pawn->GetEntity().GetName() : entity->GetName();
     };
     const std::string victim = nameOf(death.target);
