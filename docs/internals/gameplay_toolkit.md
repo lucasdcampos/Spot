@@ -171,3 +171,7 @@ if replacement fails; a failed rollback reports the backup's location. Successfu
 temporary files. This is a single-writer store; on Windows, a process interruption during the rename sequence can
 leave a backup for recovery. Loading callbacks should read into temporary game data before applying changes if
 they need transactional changes to live objects.
+
+The sandbox uses recorded firearm shots and weapon-specific reload sequences from `sandbox/assets/sounds/`, with sources and CC0 licenses in `CREDITS.md` there. Reload events follow the magazine seating and action release animation timings; shotgun reloads use four shell insertions and a pump cycle. Shots retain their fast pressure transient and use shortened reflection tails.
+
+`ImpactSounds::impactSound` overrides the material impact for objects with their own acoustic behavior. Vehicle prefabs use the dedicated crash recording, including crushing and debris, and a 0.35-second cooldown to avoid overlapping crashes from adjacent contacts. Other objects continue to use their surface's impact and the default 0.08-second cooldown. The override follows the same network effect relay as material impacts.

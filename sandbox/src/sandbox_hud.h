@@ -27,3 +27,7 @@ struct PlayerLabel {
 // Nearby visible players, projected into the HUD's Y-up coordinates.
 std::vector<PlayerLabel> GetPlayerLabels(Spot::Scene& scene, Spot::Vector2 viewSize);
 void DrawPlayerLabels(Spot::Renderer2D& renderer, Spot::Scene& scene, Spot::Vector2 viewSize);
+
+// A small shield, procedural so it stays within the public quad renderer; marks a developer-authenticated player
+// above their head and beside their name in chat.
+void DrawDeveloperBadge(Spot::Renderer2D& renderer, Spot::Vector2 center, float opacity);

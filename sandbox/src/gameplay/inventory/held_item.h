@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gameplay/core/input_context.h"
+#include "gameplay/core/interactable.h"
 #include "gameplay/hud/input_prompts.h"
 
 #include <spot.h>
@@ -80,17 +81,43 @@ struct ItemPose {
     bool active = false;
 };
 
+// Bone-local placement of the firing grip. Angles are pitch, yaw and roll, in radians.
+struct ItemStance {
+    Spot::Vector3 position;
+    Spot::Vector3 angles;
+    void Serialize(Spot::Archive& archive);
+};
+
+struct ItemWorldPose {
+    bool enabled = false;
+    ItemStance ready;
+    ItemStance aiming;
+    ItemStance sprint;
+    // Moves the support contact along the model's foregrip without changing the character's wrist offsets.
+    Spot::Vector3 supportOffset;
+    float readyAimWeight = 1.0f;
+    void Serialize(Spot::Archive& archive);
+};
+
 // An item that can be in hand, on an entity of its own below an Inventory's: a firearm, a tool. The inventory equips
 // it and gives it, each frame, what the player does with it through its actions (OnUse()), so it never reads input
 // itself. It says what it shows (DescribeStatus()) and how it is held (DescribePose()), so the HUD and the view model
 // know no kind of item; a new kind of item is one subclass.
-class HeldItem : public Spot::Component {
+class HeldItem : public Interactable {
 public:
     std::string displayName = "Item";
     // What the HUD and the weapon wheel show for it.
     Spot::AssetRef<Spot::Texture> icon;
     // What is held while it is in hand (see ViewModel).
     Spot::AssetRef<Spot::Model> model;
+    ItemWorldPose worldPose;
+    bool droppable = true;
+    Spot::Vector3 worldSize = {0.15f, 0.2f, 0.5f};
+    Spot::Vector3 worldCenter;
+
+    bool CanInteract(const Interactor& interactor) const override;
+    std::string GetPrompt(const Interactor& interactor) const override;
+    void Interact(Interactor& interactor) override;
 
     // The inventory it is in; null when there is none above it.
     Inventory* GetInventory() const;
@@ -126,6 +153,7 @@ protected:
 private:
     InputContext m_input;
     bool m_equipped = false;
+    Spot::EntityId m_droppedModel = Spot::EntityId::Invalid;
 };
 
 } // namespace Gameplay

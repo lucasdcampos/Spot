@@ -39,7 +39,10 @@ Inventory* ItemPanelElement::GetInventory(const HudContext& context) {
 void ItemPanelElement::Refresh(const HudContext& context) {
     const Inventory* inventory = GetInventory(context);
     const HeldItem* item = inventory ? inventory->GetEquipped() : nullptr;
-    const ItemStatus status = item ? item->DescribeStatus() : ItemStatus{};
+    ItemStatus status = item ? item->DescribeStatus() : ItemStatus{};
+    if (item && item->droppable) {
+        status.hints.push_back({inventory->dropAction, "Drop"});
+    }
     m_nameLeft = std::max(m_nameLeft - context.deltaTime, 0.0f);
     const Spot::EntityId id = item ? item->GetEntity().GetId() : Spot::EntityId::Invalid;
     if (id != m_lastItem) {
@@ -63,6 +66,12 @@ void ItemPanelElement::Refresh(const HudContext& context) {
     if (auto* text = Get<Spot::UiText>(count)) {
         text->fontSize = status.countIsWord ? wordSize : countSize;
         text->color = status.warning ? warningColor : textColor;
+        const auto* countRect = Get<Spot::UiRect>(count);
+        auto* iconRect = Get<Spot::UiRect>(icon);
+        if (countRect && iconRect) {
+            // Follow the right-aligned glyphs, rather than the unused width of the counter's rectangle.
+            iconRect->layout.offset.x = countRect->layout.offset.x - text->GetPreferredSize().x - 12.0f;
+        }
     }
     SetText(detail, status.detail);
     SetText(hints, InputPrompts::Format(status.hints));
@@ -113,7 +122,7 @@ void WheelElement::Refresh(const HudContext& context) {
     }
     widget->highlighted = inventory->GetWheelSlot();
     widget->selected = inventory->GetSelected();
-    widget->sectors = inventory->wheelSlots;
+    widget->sectors = inventory->GetItemCount();
 }
 
 void WheelElement::Serialize(Spot::Archive& archive) {

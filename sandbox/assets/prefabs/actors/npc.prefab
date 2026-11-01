@@ -526,6 +526,8 @@
             "mount": 6,
             "animator": 1,
             "poseLayer": "Holding",
+            "poseMount": true,
+            "sprintState": "Running",
             "aim": 8,
             "rightHand": 10,
             "leftHand": 11
@@ -593,6 +595,12 @@
               "Seated"
             ]
           }
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "ee844536bb0f488e882a1321fd16d17e",
+          "type": "KillFeedSubject"
         }
       ]
     },
@@ -1127,6 +1135,60 @@
               0.3
             ],
             "weight": 0
+          }
+        }
+      ],
+      "parent": 1
+    },
+    {
+      "id": 12,
+      "name": "Hair",
+      "active": true,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "SkinnedMeshRenderer",
+          "id": "da949189d67c46b880fdce83ae054ccd",
+          "enabled": true,
+          "data": {
+            "mesh": "01f6028dfa3fda7793507e29670faab5",
+            "material": "e1b7ca654765f46159f2fd05a6ebcb45",
+            "animator": 1,
+            "submesh": 4294967295,
+            "castsShadows": true,
+            "boundsPadding": 1,
+            "meshTranslation": [
+              0,
+              0,
+              0
+            ],
+            "meshRotation": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "meshScale": [
+              1,
+              1,
+              1
+            ]
           }
         }
       ],

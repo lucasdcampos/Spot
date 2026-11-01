@@ -748,6 +748,40 @@
           "bindings": [
             {
               "control": {
+                "code": 7,
+                "source": 0
+              },
+              "deadZone": 0.0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1.0
+            }
+          ],
+          "name": "Drop Weapon",
+          "pressPoint": 0.5,
+          "type": 0
+        },
+        {
+          "bindings": [
+            {
+              "control": {
+                "code": 27,
+                "source": 0
+              },
+              "deadZone": 0.0,
+              "invertX": false,
+              "invertY": false,
+              "scale": 1.0
+            }
+          ],
+          "name": "Holster Weapon",
+          "pressPoint": 0.5,
+          "type": 0
+        },
+        {
+          "bindings": [
+            {
+              "control": {
                 "code": 6,
                 "source": 0
               },
@@ -1127,23 +1161,6 @@
             }
           ],
           "name": "Physics Debug",
-          "pressPoint": 0.5,
-          "type": 0
-        },
-        {
-          "bindings": [
-            {
-              "control": {
-                "code": 7,
-                "source": 0
-              },
-              "deadZone": 0.0,
-              "invertX": false,
-              "invertY": false,
-              "scale": 1.0
-            }
-          ],
-          "name": "Shadows",
           "pressPoint": 0.5,
           "type": 0
         },

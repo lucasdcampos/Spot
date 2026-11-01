@@ -21,8 +21,9 @@ public:
     std::string toggleAction = "Help";
     // The actions it lists, in its order; those the action map lacks are left out.
     std::vector<std::string> actions = {
-        "Move",       "Jump", "Sprint",   "Crouch",   "Fire",       "Aim",    "Reload", "Use",        "Weapon Wheel",
-        "Spawn Menu", "Undo", "Clean Up", "Unfreeze", "Flashlight", "Noclip", "Pause",  "Statistics", "Help"};
+        "Move",     "Jump",         "Sprint",      "Crouch",         "Fire",       "Aim",  "Reload",
+        "Use",      "Weapon Wheel", "Drop Weapon", "Holster Weapon", "Spawn Menu", "Undo", "Clean Up",
+        "Unfreeze", "Flashlight",   "Noclip",      "Pause",          "Statistics", "Help"};
     Spot::AssetRef<Spot::Font> font;
     // For the keys; the font when unset.
     Spot::AssetRef<Spot::Font> monoFont;

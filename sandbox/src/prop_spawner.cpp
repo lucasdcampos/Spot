@@ -5,6 +5,7 @@
 
 #include "gameplay/core/pawn.h"
 #include "gameplay/core/physics_drive.h"
+#include "gameplay/inventory/held_item.h"
 
 #include <algorithm>
 #include <array>
@@ -225,7 +226,7 @@ void PropSpawner::Cleanup() {
         return;
     }
     for (const Spot::EntityId id : m_spawned) {
-        if (Spot::Entity* entity = GetScene().GetEntity(id)) {
+        if (Spot::Entity* entity = GetScene().GetEntity(id); entity && IsSpawned(id)) {
             entity->Destroy();
         }
     }
@@ -234,11 +235,13 @@ void PropSpawner::Cleanup() {
 
 std::size_t PropSpawner::GetSpawnedCount() const {
     return static_cast<std::size_t>(
-        std::ranges::count_if(m_spawned, [this](Spot::EntityId id) { return GetScene().GetEntity(id) != nullptr; }));
+        std::ranges::count_if(m_spawned, [this](Spot::EntityId id) { return IsSpawned(id); }));
 }
 
 bool PropSpawner::IsSpawned(Spot::EntityId id) const {
-    return std::ranges::find(m_spawned, id) != m_spawned.end() && GetScene().GetEntity(id);
+    const auto* entity = GetScene().GetEntity(id);
+    const auto* item = entity ? entity->GetComponent<Gameplay::HeldItem>() : nullptr;
+    return std::ranges::find(m_spawned, id) != m_spawned.end() && entity && !(item && item->GetInventory());
 }
 
 void PropSpawner::TrackSpawned(Spot::EntityId id) {

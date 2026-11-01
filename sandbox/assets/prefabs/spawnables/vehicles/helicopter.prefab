@@ -236,6 +236,8 @@
         },
         {
           "data": {
+            "impactSound": "5aff7d2b46abc65e421a7112111e7b80",
+            "cooldown": 0.35,
             "fullSpeed": 10.0,
             "minSpeed": 1.5
           },
@@ -253,7 +255,7 @@
         },
         {
           "data": {
-            "category": 0,
+            "category": 4,
             "clearance": 0.05,
             "order": 17
           },

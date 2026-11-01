@@ -11694,6 +11694,81 @@
           }
         }
       ]
+    },
+    {
+      "id": 3078,
+      "name": "Work In Progress",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "UiRect",
+          "id": "e0a1b2c3d4e5f60718293a4b5c6d7e8f",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              0,
+              1
+            ],
+            "pivot": [
+              0,
+              1
+            ],
+            "offset": [
+              24,
+              -18
+            ],
+            "sizeDelta": [
+              200,
+              20
+            ]
+          }
+        },
+        {
+          "type": "UiText",
+          "id": "f1b2c3d4e5a60718293a4b5c6d7e8f90",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 12,
+            "color": [
+              0.807,
+              0.8228,
+              0.8469,
+              0.35
+            ],
+            "text": "WORK IN PROGRESS",
+            "layout": {
+              "alignment": 0,
+              "verticalAlignment": 1,
+              "overflow": 0,
+              "wrap": false
+            }
+          }
+        }
+      ],
+      "parent": 2
     }
   ],
   "format": "spot-scene",

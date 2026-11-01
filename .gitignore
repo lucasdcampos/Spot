@@ -2,6 +2,9 @@
 build/
 !/tools/build/
 out/
+dist/
+stage/
+
 
 # Local CMake settings
 CMakeUserPresets.json

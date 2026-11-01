@@ -4,20 +4,88 @@
       "active": true,
       "components": [
         {
+          "type": "NetworkObject",
+          "id": "71f37af2b9d044eea9b4c0ff1291fc8a",
+          "enabled": true,
+          "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 150.0
+          }
+        },
+        {
+          "type": "NetworkTransform",
+          "id": "45497bddf70744348483d039a37c4459",
+          "enabled": true,
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          }
+        },
+        {
           "data": {
             "automatic": false,
-            "damage": 9.0,
+            "damage": 16.0,
             "displayName": "Shotgun",
+            "worldSize": [0.050999999046325684, 0.1392781212925911, 1.074217528104782],
+            "worldCenter": [0.0, -0.03613905981183052, -0.12289120256900787],
             "fireInterval": 0.8,
-            "fireSound": "51d6dca9ada9968c54c3e40b09eda2d4",
+            "fireSound": "cfc16c502faa41d03dd3f4ddc3611c18",
             "impulse": 15.0,
             "magazineSize": 6,
             "muzzleFlash": 1.6,
             "model": "3085bcbeaca8e5c75565e7b9f4bd00b7",
+            "worldPose": {
+              "enabled": true,
+              "ready": {
+                "position": [
+                  0.03563,
+                  -0.04,
+                  -0.2667
+                ],
+                "angles": [
+                  -0.35,
+                  0.6,
+                  0
+                ]
+              },
+              "aiming": {
+                "position": [
+                  -0.04696,
+                  0.16,
+                  -0.31047
+                ],
+                "angles": [
+                  0,
+                  0.8,
+                  0
+                ]
+              },
+              "sprint": {
+                "position": [
+                  0.16,
+                  -0.1,
+                  -0.24
+                ],
+                "angles": [
+                  -0.55,
+                  0.9,
+                  0
+                ]
+              },
+              "supportOffset": [
+                0,
+                0,
+                0.1
+              ],
+              "readyAimWeight": 1
+            },
             "pellets": 10,
             "projectileSpeed": 0.0,
             "range": 60.0,
-            "reloadSound": "0c7379df4ea628e65c4ab48d8973707e",
+            "reloadSound": "f8bcf4f0a7f00b978ebb1a8cbff4d176",
             "reloadTime": 2.5,
             "reserveAmmo": 48,
             "spread": 0.09,

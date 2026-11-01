@@ -6,6 +6,7 @@
 #include "gameplay/effects/surface.h"
 
 #include <spot.h>
+#include <spot/scene/audio/audio_system.h>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -81,4 +82,29 @@ TEST_CASE("Camera shakes reach the views within their radius", "[sandbox][gamepl
     CHECK(farView.GetRotation().w == 1.0f);
     world.Run(1.5f);
     CHECK(nearView.GetRotation().w == 1.0f);
+}
+
+TEST_CASE("Object impact sounds work without a surface library and respect their cooldown", "[sandbox][gameplay]") {
+    Spot::AudioDevice device{{.manualMix = true}};
+    struct AudioBinding {
+        Spot::AudioDevice* previous = Spot::Audio::GetDevice();
+        ~AudioBinding() { Spot::Audio::SetDevice(previous); }
+    } binding;
+    Spot::Audio::SetDevice(&device);
+    GameplayTests::World world;
+    world.scene.CreateEntity("Listener").AddComponent<Spot::AudioListener>();
+    auto& impact = world.scene.CreateEntity("Vehicle").AddComponent<Gameplay::ImpactSounds>();
+    impact.impactSound = std::make_shared<Spot::Sound>(44100, 1, std::vector<float>(44100, 0.1f));
+    impact.cooldown = 0.35f;
+    world.Run(0.6f);
+    impact.Play(0.5f, {});
+    CHECK(device.GetVoiceCount() == 0);
+    impact.Play(10.0f, {});
+    CHECK(device.GetVoiceCount() == 1);
+    world.Run(0.15f);
+    impact.Play(10.0f, {});
+    CHECK(device.GetVoiceCount() == 1);
+    world.Run(0.25f);
+    impact.Play(10.0f, {});
+    CHECK(device.GetVoiceCount() == 2);
 }

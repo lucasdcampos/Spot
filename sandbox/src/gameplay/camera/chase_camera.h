@@ -31,6 +31,8 @@ public:
     std::string lookAction = "Look";
     // Follow the eyes' position, yaw and pitch, converging on their target.
     bool followView = false;
+    // Limits the boom's elevation, independently of the aim, so looking up keeps it above the floor.
+    float maxBoomPitch = 0.65f;
     // To the right of the eyes when following the view; negative puts it over the left shoulder.
     float shoulderOffset = 0.0f;
     bool orbit = true;
@@ -49,7 +51,7 @@ private:
     float GetPawnSpeed() const;
     // Behind the pawn, as it starts following it.
     void Recenter();
-    void FollowView(const Pawn& pawn);
+    void FollowView(const Pawn& pawn, float deltaTime);
 
     InputContext m_input{{.name = "Chase Camera", .actions = {"Look"}}};
     // Around Y, the angle it looks from, and how far Look has turned it from behind the pawn.
@@ -59,6 +61,8 @@ private:
     float m_sinceLook = 0.0f;
     float m_fieldOfView = 0.0f;
     bool m_following = false;
+    float m_viewDistance = -1.0f;
+    Spot::Vector3 m_viewPivot;
 };
 
 } // namespace Gameplay

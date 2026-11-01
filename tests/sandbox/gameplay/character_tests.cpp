@@ -121,6 +121,28 @@ TEST_CASE("An inspection camera changes presentation without changing the charac
     wall.AddComponent<Spot::BoxCollider>(Spot::Vector3{2, 3, .2f});
     world.Step();
     CHECK(cameraEntity.GetTransform().GetWorldPosition().z < 0.8f);
+    const float blocked = cameraEntity.GetTransform().GetWorldPosition().z;
+    wall.Destroy();
+    world.Step();
+    CHECK(cameraEntity.GetTransform().GetWorldPosition().z > blocked);
+    CHECK(cameraEntity.GetTransform().GetWorldPosition().z < chase.distance - 0.1f);
+    world.Run(0.7f);
+    CHECK(cameraEntity.GetTransform().GetWorldPosition().z == Approx(chase.distance).margin(0.01f));
+    for (const float pitch : {-1.5f, 0.0f, 1.5f}) {
+        for (int turn = 0; turn <= 24; ++turn) {
+            const float yaw = static_cast<float>(turn) * Spot::Pi / 6;
+            view->SetLook(yaw, pitch);
+            world.Step();
+            const auto position = cameraEntity.GetTransform().GetWorldPosition();
+            const auto rotation = cameraEntity.GetTransform().GetWorldRotation();
+            const auto forward = rotation * Spot::Vector3{0, 0, -1};
+            CHECK(std::isfinite(position.x));
+            CHECK(position.y > 0.2f);
+            CHECK(Spot::Distance(position, world.character.GetViewPoint().position) > 0.5f);
+            CHECK(Spot::Dot(forward, view->GetAimDirection()) > 0.65f);
+            CHECK((rotation * Spot::Vector3{0, 1, 0}).y > 0);
+        }
+    }
     REQUIRE(world.character.SetThirdPerson(false));
     CHECK_FALSE(camera.IsEnabled());
     CHECK_FALSE(world.character.HasState("ThirdPerson"));
@@ -143,7 +165,12 @@ TEST_CASE("Character presentation uses configurable pose layers on an unrelated 
                                                                           {0, 1},
                                                                           {{0, 0, 0, 1}, {0, 0, 0, 1}}}}});
     auto controller = std::make_shared<Spot::AnimatorController>();
-    controller->parameters = {{"Pace"}};
+    controller->parameters = {{"Pace"},
+                              {"Advance"},
+                              {"Strafe"},
+                              {"Low", Spot::AnimatorParameterType::Bool},
+                              {"InAir", Spot::AnimatorParameterType::Bool},
+                              {"Lift"}};
     controller->states = {{.name = "Idle", .clip = clip}};
     REQUIRE(animator.SetController(controller));
     const std::array layers{Spot::AnimationLayer{.name = "Bench", .clip = clip, .weight = 0},
@@ -153,6 +180,11 @@ TEST_CASE("Character presentation uses configurable pose layers on an unrelated 
     visual.modelRoot = model.GetId();
     visual.animator.Set(&animator);
     visual.speedParameter = "Pace";
+    visual.forwardParameter = "Advance";
+    visual.sidewaysParameter = "Strafe";
+    visual.crouchParameter = "Low";
+    visual.airborneParameter = "InAir";
+    visual.verticalParameter = "Lift";
     visual.seatedLayer = "Bench";
     visual.stateLayers = {{"Custom pose", "Special seat"}};
     visual.standingOffset = {0, 0.04f, 0};
@@ -179,6 +211,30 @@ TEST_CASE("Character presentation uses configurable pose layers on an unrelated 
     CHECK(animator.GetLayers()[0].weight == 0);
     CHECK(animator.GetLayers()[1].weight == 0);
     CHECK(animator.GetControllerRuntime().GetParameter("Pace").value() > 0.5f);
+    CHECK(animator.GetControllerRuntime().GetParameter("Advance").value() > 0.5f);
+    world.movement.SetIntent({.move = {1, 0}});
+    world.Run(0.5f);
+    CHECK(animator.GetControllerRuntime().GetParameter("Strafe").value() > 0.8f);
+    CHECK(std::abs(animator.GetControllerRuntime().GetParameter("Advance").value()) < 0.1f);
+    world.movement.SetIntent({.move = {0, -1}});
+    world.Run(0.5f);
+    CHECK(animator.GetControllerRuntime().GetParameter("Advance").value() < -0.8f);
+    world.movement.SetIntent({.move = {0, 1}, .crouch = true});
+    world.Run(0.5f);
+    CHECK(animator.GetControllerRuntime().GetParameter("Low").value() == 1);
+    CHECK(animator.GetControllerRuntime().GetParameter("Advance").value() == Approx(1).margin(0.1f));
+    world.movement.SetIntent({});
+    world.Run(0.3f);
+    world.movement.SetIntent({.jump = true});
+    world.Run(0.1f);
+    CHECK(animator.GetControllerRuntime().GetParameter("InAir").value() == 1);
+    CHECK(animator.GetControllerRuntime().GetParameter("Lift").value() > 0);
+    world.movement.SetIntent({});
+    world.Run(0.25f);
+    CHECK(animator.GetControllerRuntime().GetParameter("InAir").value() == 1);
+    CHECK(animator.GetControllerRuntime().GetParameter("Lift").value() < 0);
+    world.Run(0.7f);
+    CHECK(animator.GetControllerRuntime().GetParameter("InAir").value() == 0);
 }
 
 TEST_CASE("Character states suspend its body and block movement including noclip", "[sandbox][gameplay][character]") {

@@ -95,8 +95,10 @@ protected:
             }
             const auto* player = Gameplay::Players::FindComponent<Gameplay::FirstPersonView>(*scene);
             const auto* camera = Spot::FindMainCamera(*scene);
+            // Movement adds up to 0.9 degrees of cosmetic pitch without changing the gameplay aim.
             if (!Require(player && camera &&
-                             Spot::Length(camera->GetCamera3D().GetForward() - player->GetAimDirection()) < .001f,
+                             Spot::Length(camera->GetCamera3D().GetForward() - player->GetAimDirection()) <
+                                 Spot::ToRadians(1.0f),
                          "The camera and gameplay aim disagree")) {
                 return;
             }

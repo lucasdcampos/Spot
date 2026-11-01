@@ -44,10 +44,17 @@ void CrosshairElement::Refresh(const HudContext& /*context*/) {
         {"Top", {0, gap}}, {"Bottom", {0, -gap}}, {"Left", {-gap, 0}}, {"Right", {gap, 0}}};
     for (const auto& [lineName, position] : lines) {
         if (Spot::Entity* line = GetEntity().FindChild(lineName)) {
+            line->SetActive(lineName != "Top" || !tShape);
             if (auto* rect = line->GetComponent<Spot::UiRect>()) {
                 rect->layout.offset = position;
             }
         }
+    }
+    if (Spot::Entity* center = GetEntity().FindChild("Dot")) {
+        center->SetActive(dot);
+    }
+    if (Spot::Entity* outline = GetEntity().FindChild("Dot Outline")) {
+        outline->SetActive(dot);
     }
 }
 
@@ -55,6 +62,8 @@ void CrosshairElement::Serialize(Spot::Archive& archive) {
     HudElement::Serialize(archive);
     archive.Field("hiddenBy", hiddenBy, {.tooltip = "Pawn states it goes with, unless also in one of shownBy"});
     archive.Field("shownBy", shownBy, {.tooltip = "Pawn states it shows with, whatever hiddenBy says"});
+    archive.Field("tShape", tShape, {.tooltip = "Hide the top arm for a T-shaped crosshair"});
+    archive.Field("dot", dot, {.tooltip = "Show the center dot"});
 }
 
 } // namespace Gameplay

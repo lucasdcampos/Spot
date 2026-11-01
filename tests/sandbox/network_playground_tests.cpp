@@ -1,10 +1,14 @@
 #include "developer_mode.h"
+#include "player_appearance.h"
 #include "playground_fixture.h"
+#include "prop_spawner.h"
 #include "sandbox_commands.h"
+#include "spawn_menu.h"
 
 #include "gameplay/camera/first_person_view.h"
 #include "gameplay/character/carrier.h"
 #include "gameplay/character/character_movement.h"
+#include "gameplay/character/character_visual.h"
 #include "gameplay/character/flashlight.h"
 #include "gameplay/core/body_authority.h"
 #include "gameplay/core/interactor.h"
@@ -27,6 +31,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <memory>
@@ -205,6 +210,103 @@ Spot::Vector3 InFront(Gameplay::Pawn& pawn, float distance) {
 
 } // namespace
 
+TEST_CASE("A guest's spawn menu fills after its pawn arrives and spawns every Free category without cheats",
+          "[sandbox][network][spawn][ui]") {
+    Room room(true);
+    Spot::Console::Get().SetCheatsEnabled(false);
+    auto* menu = room.guest.scene.FindComponent<SpawnMenu>();
+    auto* spawner = Gameplay::Players::FindComponent<PropSpawner>(room.guest.scene);
+    auto* onHost = room.GetGuestOnHost();
+    REQUIRE(menu);
+    REQUIRE(spawner);
+    REQUIRE(onHost);
+    REQUIRE(menu->GetSpawnButtons().empty());
+    // Open between the interface arriving and the local controller possessing the replicated character.
+    Gameplay::Players::Get(room.guest.scene)->Unpossess();
+    menu->Open();
+    CHECK(menu->GetSpawnButtons().empty());
+    room.Run(3);
+    REQUIRE(menu->IsOpen());
+    const auto catalog = spawner->GetSpawnables();
+    REQUIRE(menu->GetSpawnButtons().size() == catalog.size());
+    REQUIRE(catalog.size() == 24);
+    const auto count = [&](Spot::EntityId tab) {
+        return room.guest.scene.GetEntity(tab)->FindChild("Count")->GetComponent<Spot::UiText>()->text;
+    };
+    CHECK(count(menu->propsTab) != "0");
+    CHECK(count(menu->lampsTab) != "0");
+    CHECK(count(menu->npcsTab) != "0");
+    CHECK(count(menu->vehiclesTab) == "3");
+    CHECK(count(menu->weaponsTab) == "6");
+    CHECK(std::ranges::none_of(catalog, [](const auto& item) { return item.name == "Ray Gun"; }));
+    auto* hostSpawner = onHost->GetComponent<PropSpawner>();
+    REQUIRE(hostSpawner);
+    for (const auto* name : {"Crate", "Lamp", "Pistol", "Physics Gun", "Tool Gun", "Ally", "Car"}) {
+        INFO(name);
+        const auto found = std::ranges::find(catalog, name, &SpawnableItem::name);
+        REQUIRE(found != catalog.end());
+        const auto index = static_cast<std::size_t>(found - catalog.begin());
+        menu->Open();
+        menu->SelectCategory(found->category);
+        CHECK(menu->GetSpawnButtons().size() == catalog.size());
+        room.guest.scene.GetEntity(menu->GetSpawnButtons()[index])->GetComponent<Spot::UiButton>()->Click();
+        REQUIRE(spawner->IsPlacing());
+        spawner->ConfirmPlacement();
+        room.Run(15);
+        REQUIRE(hostSpawner->GetSpawnedCount() == 1);
+        Spot::Entity* spawned = nullptr;
+        room.host.scene.ForEachComponent<Spawnable>([&](Spawnable& item) {
+            if (hostSpawner->IsSpawned(item.GetEntity().GetId())) {
+                spawned = &item.GetEntity();
+            }
+        });
+        REQUIRE(spawned);
+        CHECK(spawned->GetPrefabAssetId() == found->prefab.GetId());
+        CHECK(room.guest.Find(*spawned));
+        CHECK(room.other.Find(*spawned));
+        spawner->Cleanup();
+        room.Run(15);
+        CHECK(hostSpawner->GetSpawnedCount() == 0);
+    }
+}
+
+TEST_CASE("A player's random appearance agrees across the server, owner and other clients",
+          "[sandbox][network][appearance]") {
+    Room room(true);
+    room.Run(45);
+    auto* pawn = Gameplay::Players::GetBody(room.guest.scene);
+    REQUIRE(pawn);
+    auto* server = room.host.Find(pawn->GetEntity());
+    auto* observer = room.other.Find(pawn->GetEntity());
+    REQUIRE(server);
+    REQUIRE(observer);
+    auto* appearance = server->GetComponent<PlayerAppearance>();
+    REQUIRE(appearance);
+    REQUIRE(appearance->GetSeed() != 0);
+    for (auto* entity : {&pawn->GetEntity(), observer}) {
+        REQUIRE(entity->GetComponent<PlayerAppearance>());
+        CHECK(entity->GetComponent<PlayerAppearance>()->GetSeed() == appearance->GetSeed());
+        const auto* visual = entity->GetComponent<Gameplay::CharacterVisual>();
+        const auto* serverVisual = server->GetComponent<Gameplay::CharacterVisual>();
+        REQUIRE(visual);
+        REQUIRE(serverVisual);
+        auto* body = entity->GetScene().GetEntity(visual->modelRoot);
+        auto* serverBody = room.host.scene.GetEntity(serverVisual->modelRoot);
+        REQUIRE(body);
+        REQUIRE(serverBody);
+        for (const auto* name : {"Shirt", "Trousers", "Skin", "Hair", "Details"}) {
+            REQUIRE(body->FindChild(name));
+            REQUIRE(serverBody->FindChild(name));
+            const auto& material = body->FindChild(name)->GetComponent<Spot::SkinnedMeshRenderer>()->GetMaterial();
+            const auto& expected =
+                serverBody->FindChild(name)->GetComponent<Spot::SkinnedMeshRenderer>()->GetMaterial();
+            REQUIRE(material);
+            REQUIRE(expected);
+            CHECK(material->baseColor == expected->baseColor);
+        }
+    }
+}
+
 TEST_CASE("Developer smite and yeet reach another client and reject callers without cheats",
           "[sandbox][network][developer][powers]") {
     Room room(true);
@@ -245,7 +347,7 @@ TEST_CASE("Developer smite and yeet reach another client and reject callers with
     SECTION("The target is on foot") {
     }
     SECTION("The target is ejected before being launched") {
-        auto& car = room.Spawn("prefabs/spawnables/props/car.prefab", {0, 30, 0});
+        auto& car = room.Spawn("prefabs/spawnables/vehicles/car.prefab", {0, 30, 0});
         seat = car.GetComponent<Gameplay::VehicleSeat>();
         REQUIRE(seat);
         room.Run(4);
@@ -368,7 +470,7 @@ TEST_CASE("A developer guest unlocks only its own Ray Gun on the server and both
     REQUIRE(onHost);
     CHECK_FALSE(guest->IsUnlocked());
     bool authenticated = false;
-    SECTION("The command requires cheats") {
+    SECTION("Enabling cheats cannot grant a guest the operator's Ray Gun") {
         Spot::Console console;
         SandboxCommands commands(console, room.guest.scene);
         REQUIRE_FALSE(console.AreCheatsEnabled());
@@ -380,13 +482,17 @@ TEST_CASE("A developer guest unlocks only its own Ray Gun on the server and both
         CHECK_FALSE(guest->IsUnlocked());
         Spot::Console::Get().SetCheatsEnabled(true);
         REQUIRE(console.Execute("imthegamedev"));
+        room.Run(10);
+        CHECK_FALSE(guest->IsUnlocked());
+        // A raw loopback session has no operator registry; the server grants the unlock explicitly.
+        onHost->GetComponent<DeveloperMode>()->Unlock();
     }
     SECTION("The server authenticates the guest's private key by challenge-response") {
         authenticated = true;
         Spot::Console::Get().SetCheatsEnabled(true);
         REQUIRE(DeveloperMode::ActivateLocal(room.guest.scene));
         room.Run(10);
-        REQUIRE(guest->IsUnlocked());
+        REQUIRE_FALSE(guest->IsUnlocked());
         CHECK_FALSE(guest->IsAuthenticated());
         constexpr DeveloperMode::Seed TestSeed = {0x9d, 0x61, 0xb1, 0x9d, 0xef, 0xfd, 0x5a, 0x60, 0xba, 0x84, 0x4a,
                                                   0xf4, 0x92, 0xec, 0x2c, 0xc4, 0x44, 0x49, 0xc5, 0x69, 0x7b, 0x32,
@@ -497,6 +603,16 @@ TEST_CASE("A guest in the playground moves, switches, carries, shoots and rides 
     room.Run(20);
     CHECK(guestItems.GetSelected() == 1);
     CHECK(onHost->GetComponent<Gameplay::Inventory>()->GetSelected() == guestItems.GetSelected());
+    room.guest.Press(Spot::Key::Digit0);
+    room.Run(2);
+    room.guest.Release(Spot::Key::Digit0);
+    room.Run(20);
+    CHECK_FALSE(guestItems.GetEquipped());
+    CHECK_FALSE(onHost->GetComponent<Gameplay::Inventory>()->GetEquipped());
+    guestItems.Select(1);
+    room.Run(20);
+    CHECK(guestItems.GetEquipped());
+    CHECK(onHost->GetComponent<Gameplay::Inventory>()->GetEquipped());
     Gameplay::Pawn* hostPawn = room.host.GetPawn();
     REQUIRE(hostPawn);
     hostPawn->GetEntity().GetComponent<Gameplay::Inventory>()->Select(2);
@@ -681,7 +797,7 @@ TEST_CASE("A guest in the playground moves, switches, carries, shoots and rides 
     CHECK(health->GetHealth() < before);
 
     // A helicopter the host flies spins its rotor on the guest's machine.
-    Spot::Entity& helicopter = room.Spawn("prefabs/spawnables/props/helicopter.prefab", InFront(*hostPawn, 8.0f));
+    Spot::Entity& helicopter = room.Spawn("prefabs/spawnables/vehicles/helicopter.prefab", InFront(*hostPawn, 8.0f));
     room.Run(30);
     REQUIRE(helicopter.GetComponentInChildren<Gameplay::VehicleSeat>()->Enter(*hostPawn));
     room.Run(120);
@@ -692,7 +808,7 @@ TEST_CASE("A guest in the playground moves, switches, carries, shoots and rides 
     // The guest gets into a car behind it, drives it at once on its own machine, pushing what it meets, and the host
     // sees it go.
     Spot::Entity& spawned =
-        room.Spawn("prefabs/spawnables/props/car.prefab", InFront(*pawn, -3.0f) + Spot::Vector3{0, 0.5f, 0});
+        room.Spawn("prefabs/spawnables/vehicles/car.prefab", InFront(*pawn, -3.0f) + Spot::Vector3{0, 0.5f, 0});
     room.Run(90);
     Spot::Entity* spawnedOnGuest = room.guest.Find(spawned);
     REQUIRE(spawnedOnGuest);

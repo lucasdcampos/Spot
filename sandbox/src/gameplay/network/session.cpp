@@ -74,11 +74,19 @@ std::string ValidateSessionHello(const SessionSettings& settings, std::uint64_t 
     return {};
 }
 
+namespace {
+std::vector<Session*> s_sessions;
+}
+
 // To a client: whether it may use cheats, as an operator or because the server permits them.
 struct RoomPermissions {
     static constexpr std::string_view NetName = "Gameplay.RoomPermissions";
     bool cheats = false;
-    void Serialize(Spot::Archive& archive) { archive.Field("cheats", cheats); }
+    bool isOperator = false;
+    void Serialize(Spot::Archive& archive) {
+        archive.Field("cheats", cheats);
+        archive.Field("isOperator", isOperator);
+    }
 };
 
 struct Session::Welcome {
@@ -95,17 +103,38 @@ struct Session::Welcome {
     }
 };
 
-Session* Session::Get() {
+Session::Session() {
+    s_sessions.push_back(this);
+}
+
+Session::~Session() {
+    std::erase(s_sessions, this);
+}
+
+Session* Session::Get(const Spot::NetworkSession* session) {
+    if (session) {
+        for (Session* room : s_sessions) {
+            if (room->m_bound == session) {
+                return room;
+            }
+        }
+    }
+    if (!s_sessions.empty()) {
+        return s_sessions.front();
+    }
     Spot::Application* application = Spot::Application::TryGet();
     return application ? application->GetModule<Session>() : nullptr;
 }
 
 bool Session::IsHost() const {
+    if (m_bound) {
+        return m_bound->IsServer();
+    }
     return IsActive() && m_network->GetSession()->IsServer();
 }
 
 bool Session::IsActive() const {
-    return m_network && m_network->GetSession();
+    return m_bound || (m_network && m_network->GetSession());
 }
 
 std::string Session::GetPlayerName(Spot::NetPeerId peer) const {
@@ -130,6 +159,9 @@ std::vector<Spot::NetPeerId> Session::FindPlayers(std::string_view name) const {
 }
 
 bool Session::IsOperator(Spot::NetPeerId peer) const {
+    if (IsActive() && !IsHost() && peer == Spot::NetPeerId::Invalid) {
+        return m_isOperator;
+    }
     return peer == Spot::NetPeerId::Invalid ? !IsActive() || IsHost() : m_operators.contains(peer);
 }
 
@@ -158,9 +190,14 @@ void Session::SendPermissions() {
     }
     for (const Spot::NetPeerId peer : m_bound->GetHost().GetPeers()) {
         const bool cheats = MayCheat(peer);
-        if (const auto told = m_toldCheats.find(peer); told == m_toldCheats.end() || told->second != cheats) {
+        const bool op = IsOperator(peer);
+        const auto toldCheats = m_toldCheats.find(peer);
+        const auto toldOp = m_toldOperators.find(peer);
+        if (toldCheats == m_toldCheats.end() || toldCheats->second != cheats || toldOp == m_toldOperators.end() ||
+            toldOp->second != op) {
             m_toldCheats[peer] = cheats;
-            m_bound->Send(peer, RoomPermissions{cheats});
+            m_toldOperators[peer] = op;
+            m_bound->Send(peer, RoomPermissions{cheats, op});
         }
     }
 }
@@ -192,7 +229,9 @@ void Session::ClearConnections() {
     m_responder.reset();
     m_operators.clear();
     m_toldCheats.clear();
+    m_toldOperators.clear();
     m_mayCheat = false;
+    m_isOperator = false;
     m_connections.clear();
     m_names.clear();
     m_bound = nullptr;
@@ -342,10 +381,12 @@ void Session::Bind(Spot::NetworkSession& session) {
         m_names.erase(peer);
         m_operators.erase(peer);
         m_toldCheats.erase(peer);
+        m_toldOperators.erase(peer);
     }));
     session.GetMessages().On<RoomPermissions>([this](Spot::NetPeerId, RoomPermissions& permissions) {
         if (!IsHost()) {
             m_mayCheat = permissions.cheats;
+            m_isOperator = permissions.isOperator;
         }
     });
     session.GetMessages().On<Welcome>([this](Spot::NetPeerId, Welcome& welcome) {

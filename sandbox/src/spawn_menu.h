@@ -21,7 +21,8 @@ public:
     Spot::EntityId grid = Spot::EntityId::Invalid, scroll = Spot::EntityId::Invalid,
                    itemTemplate = Spot::EntityId::Invalid;
     Spot::EntityId propsTab = Spot::EntityId::Invalid, lampsTab = Spot::EntityId::Invalid,
-                   weaponsTab = Spot::EntityId::Invalid, npcsTab = Spot::EntityId::Invalid;
+                   weaponsTab = Spot::EntityId::Invalid, npcsTab = Spot::EntityId::Invalid,
+                   vehiclesTab = Spot::EntityId::Invalid;
     Spot::EntityId closeButton = Spot::EntityId::Invalid, cleanupButton = Spot::EntityId::Invalid,
                    undoButton = Spot::EntityId::Invalid;
     // The search field, the frame drawn around it, the number of objects shown and the buttons of the two views.
@@ -53,7 +54,7 @@ protected:
 
 private:
     // The tab of each category, in their order.
-    std::array<Spot::EntityId, 4> GetTabs() const { return {propsTab, lampsTab, weaponsTab, npcsTab}; }
+    std::array<Spot::EntityId, 5> GetTabs() const { return {propsTab, lampsTab, weaponsTab, npcsTab, vehiclesTab}; }
     void Build();
     void ChooseSpawn(std::size_t index);
     void ApplyFilter();

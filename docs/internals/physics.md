@@ -13,6 +13,9 @@ Physics simulates 3D bodies, shapes, joints, characters and queries with Jolt be
 `engine/spot/physics/jolt/`. Games can simulate bodies directly in code with `Physics3D` without a scene, or use the
 scene components and `PhysicsWorld` (`engine/spot/scene/physics/`).
 
+`PhysicsWorld` can be included on its own; include `joint.h` where joint component definitions are needed.
+Jolt is built with C++ RTTI to match the engine's job adapter, which derives from `JPH::JobSystemWithBarrier`.
+
 ## Simulating directly in code
 
 Include `<spot/physics/physics_3d.h>` and construct a `Physics3D`. It initializes its backend and needs no scene,

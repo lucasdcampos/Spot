@@ -3,8 +3,10 @@
 #include "playground_fixture.h"
 
 #include "gameplay/camera/first_person_view.h"
+#include "gameplay/character/flashlight.h"
 #include "gameplay/core/interactor.h"
 #include "gameplay/core/pawn.h"
+#include "gameplay/environment/day_cycle.h"
 #include "gameplay/health/health.h"
 #include "gameplay/inventory/inventory.h"
 #include "gameplay/inventory/view_model.h"
@@ -344,4 +346,114 @@ TEST_CASE("The authored helicopter survives gentle contacts and explodes in fast
         CHECK_FALSE(helicopter->IsOperational());
         CHECK_FALSE(helicopter->GetAvailableSeat());
     }
+}
+
+TEST_CASE(
+    "Headlights turn on automatically when entering the car at night and stay off if toggled off until re-entering",
+    "[sandbox][car][headlights]") {
+    Playground game;
+    Driving driving{game};
+    auto* day = game.scene.FindComponent<Gameplay::DayCycle>();
+    REQUIRE(day);
+    auto* flashlight = driving.car.GetEntity().GetComponent<Gameplay::Flashlight>();
+    REQUIRE(flashlight);
+
+    // Parked at night: headlights start off.
+    day->SetTimeOfDay(0.0f);
+    game.Step();
+    REQUIRE(day->IsNight());
+    CHECK_FALSE(flashlight->IsOn());
+
+    // Entering the car at night automatically switches headlights on.
+    driving.Enter();
+    CHECK(flashlight->IsOn());
+
+    // Driver manually toggles headlights off.
+    flashlight->Toggle();
+    CHECK_FALSE(flashlight->IsOn());
+
+    // Running while driving: headlights remain off.
+    driving.Run(0.5f);
+    CHECK_FALSE(flashlight->IsOn());
+
+    // Driver exits the car.
+    driving.Tap(Spot::Key::E);
+    game.Step();
+    CHECK_FALSE(driving.car.HasDriver());
+
+    // Driver re-enters at night: headlights automatically switch on again.
+    driving.Enter();
+    CHECK(flashlight->IsOn());
+
+    // Driver exits, day comes.
+    driving.Tap(Spot::Key::E);
+    game.Step();
+    flashlight->SetOn(false);
+    day->SetTimeOfDay(0.5f);
+    game.Step();
+    REQUIRE_FALSE(day->IsNight());
+
+    // Entering during the day does not turn headlights on automatically.
+    driving.Enter();
+    CHECK_FALSE(flashlight->IsOn());
+}
+
+TEST_CASE("Brake lights turn on when the driver brakes or applies the handbrake", "[sandbox][car][brakelight]") {
+    Playground game;
+    Driving driving{game};
+    driving.PlaceOnRoad(-20.0f);
+    auto* brakeLights = game.scene.GetEntity(driving.car.brakeLights);
+    REQUIRE(brakeLights);
+
+    const auto areBrakeLightsOn = [&](Spot::Entity* root) {
+        bool on = false;
+        const auto check = [&](const auto& self, Spot::Entity& entity) -> void {
+            if (auto* light = entity.GetComponent<Spot::Light>()) {
+                on = on || light->IsEnabled();
+            }
+            entity.ForEachChild([&](Spot::Entity& child) { self(self, child); });
+        };
+        if (root) {
+            check(check, *root);
+        }
+        return on;
+    };
+
+    // Without a driver, brake lights are off.
+    CHECK_FALSE(driving.car.IsBraking());
+    CHECK_FALSE(areBrakeLightsOn(brakeLights));
+
+    driving.Enter();
+    game.Step();
+    CHECK_FALSE(driving.car.IsBraking());
+    CHECK_FALSE(areBrakeLightsOn(brakeLights));
+
+    // Driving forward: not braking.
+    driving.Press(Spot::Key::W);
+    driving.Run(1.0f);
+    CHECK_FALSE(driving.car.IsBraking());
+    CHECK_FALSE(areBrakeLightsOn(brakeLights));
+
+    // Hitting the brake while moving forward: brake lights turn on.
+    driving.Release(Spot::Key::W);
+    driving.Press(Spot::Key::S);
+    game.Step();
+    CHECK(driving.car.IsBraking());
+    CHECK(areBrakeLightsOn(brakeLights));
+
+    // Releasing brake: brake lights turn off.
+    driving.Release(Spot::Key::S);
+    game.Step();
+    CHECK_FALSE(driving.car.IsBraking());
+    CHECK_FALSE(areBrakeLightsOn(brakeLights));
+
+    // Handbrake: brake lights turn on.
+    driving.Press(Spot::Key::Space);
+    game.Step();
+    CHECK(driving.car.IsBraking());
+    CHECK(areBrakeLightsOn(brakeLights));
+    driving.Release(Spot::Key::Space);
+    game.Step();
+    CHECK_FALSE(driving.car.IsBraking());
+    CHECK_FALSE(areBrakeLightsOn(brakeLights));
 }

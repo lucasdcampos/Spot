@@ -53,36 +53,6 @@
                 ]
               },
               {
-                "name": "Crouching",
-                "clip": "54521162f95965f50240b070e0e57ed7",
-                "mode": 0,
-                "weight": 0,
-                "speed": 1,
-                "loop": true,
-                "mask": [
-                  {
-                    "bone": "Pelvis",
-                    "weight": 1,
-                    "descendants": false
-                  },
-                  {
-                    "bone": "Spine",
-                    "weight": 1,
-                    "descendants": false
-                  },
-                  {
-                    "bone": "LeftUpperLeg",
-                    "weight": 1,
-                    "descendants": true
-                  },
-                  {
-                    "bone": "RightUpperLeg",
-                    "weight": 1,
-                    "descendants": true
-                  }
-                ]
-              },
-              {
                 "name": "Sitting",
                 "clip": "8eaaa4cff3dc22e2aa67290ccc661f46",
                 "mode": 0,
@@ -989,6 +959,61 @@
               0.3
             ],
             "weight": 0
+          }
+        }
+      ],
+      "parent": 1,
+      "layer": 0
+    },
+    {
+      "id": 11,
+      "name": "Hair",
+      "active": true,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "SkinnedMeshRenderer",
+          "id": "0efc6c4109f243ff884567ec689ca88e",
+          "enabled": true,
+          "data": {
+            "mesh": "01f6028dfa3fda7793507e29670faab5",
+            "material": "e1b7ca654765f46159f2fd05a6ebcb45",
+            "animator": 1,
+            "submesh": 4294967295,
+            "castsShadows": true,
+            "boundsPadding": 1,
+            "meshTranslation": [
+              0,
+              0,
+              0
+            ],
+            "meshRotation": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "meshScale": [
+              1,
+              1,
+              1
+            ]
           }
         }
       ],

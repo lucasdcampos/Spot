@@ -1,5 +1,6 @@
 #include "network_smoke_test.h"
 
+#include "developer_mode.h"
 #include "gameplay/camera/first_person_view.h"
 #include "gameplay/core/pawn.h"
 #include "gameplay/core/physics_drive.h"
@@ -197,6 +198,10 @@ protected:
                 } else if (!m_host && command.stage == 1) {
                     BeginMovement();
                     m_initialCrates = command.crates;
+                } else if (!m_host && command.stage == 4) {
+                    if (!DeveloperMode::ActivateLocal(*GetScene())) {
+                        Fail("The operator could not request its Ray Gun");
+                    }
                 } else if (!m_host && command.stage == 3) {
                     m_passed = true;
                     m_finished = Clock::now();
@@ -264,25 +269,41 @@ protected:
             m_ready = true;
         }
         if (m_host && !m_moving && m_guestReady) {
-            // The host's console commands the room: who is in it, and its password.
-            auto& console = Spot::Console::Get();
-            const Spot::ConsoleResult status = console.Execute("status");
-            if (!status || status.message.find("Guest") == std::string::npos ||
-                status.message.find("with a password") == std::string::npos) {
-                Fail("The room's status did not list the guest and the password: " + status.message);
-                return;
-            }
-            if (!console.Execute("password") || !room->GetSettings().password.empty() ||
-                console.Execute("kick Nobody")) {
-                Fail("The room's password or kick commands did not do as asked");
+            if (m_operatorRequested) {
+                const auto* info = Gameplay::PlayerInfos::GetAll(*scene).back();
+                const auto* entity = scene->GetEntity(info->pawn);
+                const auto* developer = entity ? entity->GetComponent<DeveloperMode>() : nullptr;
+                if (!developer || !developer->IsUnlocked()) {
+                    return;
+                }
+            } else {
+                // The host's console commands the room: who is in it, and its password.
+                auto& console = Spot::Console::Get();
+                const Spot::ConsoleResult status = console.Execute("status");
+                if (!status || status.message.find("Guest") == std::string::npos ||
+                    status.message.find("with a password") == std::string::npos) {
+                    Fail("The room's status did not list the guest and the password: " + status.message);
+                    return;
+                }
+                if (!console.Execute("password") || !room->GetSettings().password.empty() ||
+                    console.Execute("kick Nobody")) {
+                    Fail("The room's password or kick commands did not do as asked");
+                    return;
+                }
+                const auto guest = room->FindPlayers("Guest");
+                if (guest.size() != 1 || !console.Execute("op Guest") || !room->IsOperator(guest.front()) ||
+                    !room->MayCheat(guest.front()) ||
+                    console.Execute("status").message.find("(operator)") == std::string::npos) {
+                    Fail("The room's op command did not do as asked");
+                    return;
+                }
+                m_operatorRequested = true;
+                network->Send(guest.front(), Command{4});
                 return;
             }
             const auto guest = room->FindPlayers("Guest");
-            if (guest.size() != 1 || !console.Execute("op Guest") || !room->IsOperator(guest.front()) ||
-                !room->MayCheat(guest.front()) ||
-                console.Execute("status").message.find("(operator)") == std::string::npos ||
-                !console.Execute("deop Guest") || room->IsOperator(guest.front())) {
-                Fail("The room's op and deop commands did not do as asked");
+            if (guest.size() != 1 || !Spot::Console::Get().Execute("deop Guest") || room->IsOperator(guest.front())) {
+                Fail("The room's deop command did not do as asked");
                 return;
             }
             for (const auto* player : players) {
@@ -405,6 +426,7 @@ private:
     bool m_refused = false;
     bool m_ready = false;
     bool m_guestReady = false;
+    bool m_operatorRequested = false;
     bool m_moving = false;
     bool m_spawned = false;
     bool m_reported = false;

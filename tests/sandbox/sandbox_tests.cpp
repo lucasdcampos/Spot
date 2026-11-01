@@ -334,21 +334,51 @@ TEST_CASE("The kill feed lists who killed whom with what", "[sandbox][npc][hud]"
     playground.Run(0.5f);
     auto& neutral = SpawnNpc(playground, "neutral", InFront(playground, 6), {0, 0, 1});
     playground.Run(0.1f);
-    std::string described;
+    Gameplay::KillFeedElement::Entry described;
     auto connection =
         Gameplay::DamageSystem::Get(playground.scene).OnKilled.Connect([&](const Gameplay::DamageApplied& death) {
             described = Gameplay::KillFeedElement::Describe(playground.scene, death);
         });
+    const auto* weapon = GetFirearms(*playground.player->GetComponent<Gameplay::Inventory>()).front();
+    REQUIRE(weapon->icon.GetId().IsValid());
     Gameplay::Damage::Apply(playground.scene, neutral.GetEntity().GetId(),
-                            {.amount = 500, .type = "Bullet", .instigator = playground.player->GetId()});
+                            {.amount = 500,
+                             .type = "Bullet",
+                             .instigator = playground.player->GetId(),
+                             .source = weapon->GetEntity().GetId()});
     CHECK(neutral.IsDead());
-    CHECK(described == "Player  [Bullet]  Neutral");
+    CHECK(described.icon == weapon->icon);
+    CHECK(described.killer == "Player");
+    CHECK(described.victim == "Neutral");
     playground.Run(0.2f);
     auto* row = playground.scene.FindEntity("Kill Feed Row 1");
     REQUIRE(row);
-    CHECK(row->GetComponent<Spot::UiText>()->text == described);
-    playground.Run(7.0f);
-    CHECK(row->GetComponent<Spot::UiText>()->text.empty());
+    auto* feedRow = row->GetComponent<Gameplay::KillFeedRow>();
+    REQUIRE(feedRow);
+    CHECK(feedRow->killer == described.killer);
+    CHECK(feedRow->victim == described.victim);
+    REQUIRE(feedRow->icon.GetId().IsValid());
+    CHECK(feedRow->killerColor != feedRow->victimColor);
+    CHECK(feedRow->opacity > 0);
+    // Destroying inanimate objects, including possessed vehicles, never adds a row.
+    Gameplay::DamageSystem::Get(playground.scene)
+        .Report({playground.scene.FindComponent<Gameplay::Vehicle>()->GetEntity().GetId(),
+                 {.amount = 500, .type = "Explosion"}},
+                true);
+    playground.Run(0.1f);
+    CHECK(feedRow->victim == "Neutral");
+    Gameplay::DamageSystem::Get(playground.scene).Report({playground.player->GetId(), {.type = "Fall"}}, true);
+    playground.Run(0.1f);
+    CHECK(feedRow->killer.empty());
+    CHECK(feedRow->victim == "Player");
+    CHECK(feedRow->icon.GetId() == playground.assets.FindByPath("generated/textures/icon_fall.png").value());
+    CHECK(feedRow->victimColor == playground.scene.FindComponent<Gameplay::KillFeedElement>()->accent);
+    playground.Run(5.3f);
+    CHECK(feedRow->opacity > 0);
+    CHECK(feedRow->opacity < 1);
+    playground.Run(1.0f);
+    CHECK(feedRow->victim.empty());
+    CHECK(feedRow->opacity == 0);
 }
 
 TEST_CASE("Vehicle impacts knock NPCs down as ragdolls, and they get up again", "[sandbox][npc]") {
@@ -524,7 +554,7 @@ TEST_CASE("The player's visible body sits and rotates with every vehicle seat an
     REQUIRE(character);
     REQUIRE(visual);
     REQUIRE(character->SetThirdPerson(true));
-    const auto prefab = game.assets.Load<Spot::Prefab>(std::string("prefabs/spawnables/props/") + name + ".prefab");
+    const auto prefab = game.assets.Load<Spot::Prefab>(std::string("prefabs/spawnables/vehicles/") + name + ".prefab");
     auto* entity = game.scene.Instantiate(prefab);
     REQUIRE(entity);
     entity->GetTransform().SetWorldPosition({20, 1, 0});
@@ -602,9 +632,9 @@ TEST_CASE("The player's visible body sits and rotates with every vehicle seat an
     }
     CHECK(Spot::FindMainCamera(game.scene)->GetEntity().GetId() == character->thirdPersonCamera);
     CHECK(game.player->GetComponent<Gameplay::WorldModel>()->GetModelEntity());
-    CHECK(Spot::Distance(game.scene.GetEntity(character->eye)->GetTransform().GetWorldRotation() *
-                             Spot::Vector3{0, 0, -1},
-                         character->GetViewPoint().direction) < 0.001f);
+    // Movement sway affects the rendered head while the aiming direction remains steady.
+    CHECK(Spot::Dot(game.scene.GetEntity(character->eye)->GetTransform().GetWorldRotation() * Spot::Vector3{0, 0, -1},
+                    character->GetViewPoint().direction) > 0.9999f);
 }
 
 TEST_CASE("The sandbox population includes an armed humanoid and two unarmed humanoids",
@@ -975,6 +1005,7 @@ TEST_CASE("Mouse look turns the camera and movement follows the visible directio
     auto* flashlight = playground.scene.GetEntity(playground.player->GetComponent<Gameplay::Flashlight>()->light);
     REQUIRE(flashlight);
     CHECK(flashlight->GetParent() == head);
+    CHECK(flashlight->GetTransform().GetPosition().x < -0.1f);
     playground.Press(Key::F);
     playground.Run(Step);
     CHECK(flashlight->GetComponent<Spot::Light>()->IsEnabled());
@@ -1269,7 +1300,7 @@ TEST_CASE("Every catalog entry spawns its complete prefab and undo removes its t
     playground.Run(Step);
     auto& spawner = *playground.player->GetComponent<PropSpawner>();
     auto& undo = *playground.player->GetComponent<UndoList>();
-    REQUIRE(spawner.GetSpawnables().size() == 22);
+    REQUIRE(spawner.GetSpawnables().size() == 24);
     const std::vector<std::string> shortcuts{"Crate", "Barrel", "Explosive Barrel", "Ball", "Plank", "Beam",
                                              "Cone",  "Wheel"};
     for (std::size_t i = 0; i < spawner.GetSpawnables().size(); ++i) {
@@ -1299,7 +1330,8 @@ TEST_CASE("Every catalog entry spawns its complete prefab and undo removes its t
             }
         });
         if (item.category == Spawnable::Category::Weapon) {
-            CHECK(spawned->HasComponent<Firearm>());
+            CHECK(spawned->HasComponent<Gameplay::HeldItem>());
+            CHECK(item.name != "Ray Gun");
             CHECK(tree.size() > 1);
             bool drawable = false;
             playground.scene.ForEachComponent<Spot::MeshRenderer>([&](Spot::MeshRenderer& renderer) {

@@ -28,11 +28,14 @@ public:
 
     // How much daylight there is, from 0 at night to 1 once the sun is well up.
     float GetDaylight() const { return m_daylight; }
+    // Whether it is night (the sun is below or near the horizon and daylight is fading).
+    bool IsNight() const { return m_daylight < 0.5f; }
     // Applies a time in [0, 1) immediately, including the sky, fog and exposure.
     void SetTimeOfDay(float time);
     // The time of day, which the server keeps, so every machine has the same sky; between its states, each machine's
     // own day goes on.
     void Replicate(Spot::Archive& archive) override;
+    void OnReplicated() override;
 
 protected:
     void OnStart() override;
@@ -42,6 +45,7 @@ protected:
     void OnValidate() override;
 
 private:
+    void Bind();
     void UpdateSun();
     // Lights the effects as much as the day is.
     void UpdateEffectLight();
@@ -49,6 +53,7 @@ private:
     void UpdateAtmosphere(float sunHeight);
 
     float m_daylight = 1.0f;
+    Spot::NetworkSystem* m_system = nullptr;
 };
 
 } // namespace Gameplay

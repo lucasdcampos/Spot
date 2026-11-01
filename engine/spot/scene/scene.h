@@ -4,6 +4,7 @@
 #include "spot/scene/entity.h"
 #include "spot/scene/scene_system.h"
 
+#include <algorithm>
 #include <array>
 #include <concepts>
 #include <cstddef>

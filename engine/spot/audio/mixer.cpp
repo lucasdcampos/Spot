@@ -104,13 +104,28 @@ SoundInstance Mixer::Play(std::shared_ptr<const Sound> sound, const PlayParams& 
         }
     }
 
+    FrameSource* source = stream.get();
+    const std::uint32_t sampleRate = sound->GetSampleRate();
+    return Start({.sound = std::move(sound), .stream = std::move(stream)}, source, sampleRate, params);
+}
+
+SoundInstance Mixer::Play(std::shared_ptr<LiveAudio> live, const PlayParams& params) {
+    if (!live) {
+        return {};
+    }
+    FrameSource* source = live.get();
+    const std::uint32_t sampleRate = live->GetSampleRate();
+    return Start({.live = std::move(live)}, source, sampleRate, params);
+}
+
+SoundInstance Mixer::Start(GameVoice played, FrameSource* source, std::uint32_t sampleRate, const PlayParams& params) {
     std::scoped_lock lock(m_mutex);
     CollectEnded();
 
     // Voices are in the order they started, so the first found is the oldest.
     const auto isActive = [](const GameVoice& voice) { return !voice.stopping; };
-    if (params.maxInstances > 0) {
-        const auto sameSound = [&](const GameVoice& voice) { return isActive(voice) && voice.sound == sound; };
+    if (params.maxInstances > 0 && played.sound) {
+        const auto sameSound = [&](const GameVoice& voice) { return isActive(voice) && voice.sound == played.sound; };
         if (std::ranges::count_if(m_gameVoices, sameSound) >= params.maxInstances) {
             StopVoice(*std::ranges::find_if(m_gameVoices, sameSound), 0.0f);
         }
@@ -137,12 +152,20 @@ SoundInstance Mixer::Play(std::shared_ptr<const Sound> sound, const PlayParams& 
     if (m_nextId == 0) {
         m_nextId = 1;
     }
-    PlayParams played = params;
-    if (ToSlot(played.bus) >= MaxBuses || !m_gameBuses[ToSlot(played.bus)].used) {
-        played.bus = AudioBusId::Master;
+    played.id = id;
+    played.params = params;
+    if (ToSlot(played.params.bus) >= MaxBuses || !m_gameBuses[ToSlot(played.params.bus)].used) {
+        played.params.bus = AudioBusId::Master;
     }
-    m_gameVoices.push_back({.id = id, .sound = sound, .stream = stream, .params = played});
-    Send({.type = CommandType::Start, .id = id, .params = played, .sound = sound.get(), .stream = stream.get()});
+    const Sound* sound = played.sound.get();
+    const PlayParams startParams = played.params;
+    m_gameVoices.push_back(std::move(played));
+    Send({.type = CommandType::Start,
+          .id = id,
+          .params = startParams,
+          .sound = sound,
+          .stream = source,
+          .sampleRate = sampleRate});
     return {id};
 }
 
@@ -446,6 +469,7 @@ void Mixer::ApplyCommands() {
                         .id = command->id,
                         .params = command->params,
                         .stream = command->stream,
+                        .sampleRate = command->sampleRate,
                         .leftGain = leftGain,
                         .rightGain = rightGain,
                         .fade = command->params.fadeIn > 0.0f ? 0.0f : 1.0f,
@@ -688,6 +712,25 @@ bool Mixer::ReadStreamFrame(Voice& voice, std::array<float, 2>& frame) {
 }
 
 void Mixer::MixVoice(Voice& voice, std::span<float> output, float gain) const {
+    auto [leftTarget, rightTarget] = GetGains(voice.params);
+    leftTarget *= gain;
+    rightTarget *= gain;
+
+    if (voice.stream) {
+        const double step = static_cast<double>(voice.sampleRate) / static_cast<double>(m_sampleRate) *
+                            static_cast<double>(std::max(voice.params.pitch, 0.0f));
+        for (std::size_t i = 0; i + 1 < output.size(); i += 2) {
+            std::array<float, 2> frame = {};
+            if (!StepEnvelope(voice, leftTarget, rightTarget) || !ReadStreamFrame(voice, frame)) {
+                return;
+            }
+            output[i] += frame[0] * voice.leftGain * voice.fade;
+            output[i + 1] += frame[1] * voice.rightGain * voice.fade;
+            voice.position += step;
+        }
+        return;
+    }
+
     const Sound& sound = *voice.sound;
     // The game's side holds the sound until the voice ended.
     const std::span<const float> samples = sound.GetSamples();
@@ -701,23 +744,6 @@ void Mixer::MixVoice(Voice& voice, std::span<float> output, float gain) const {
 
     const double step = static_cast<double>(sound.GetSampleRate()) / static_cast<double>(m_sampleRate) *
                         static_cast<double>(std::max(voice.params.pitch, 0.0f));
-    auto [leftTarget, rightTarget] = GetGains(voice.params);
-    leftTarget *= gain;
-    rightTarget *= gain;
-
-    if (voice.stream) {
-        for (std::size_t i = 0; i + 1 < output.size(); i += 2) {
-            std::array<float, 2> frame = {};
-            if (!StepEnvelope(voice, leftTarget, rightTarget) || !ReadStreamFrame(voice, frame)) {
-                return;
-            }
-            output[i] += frame[0] * voice.leftGain * voice.fade;
-            output[i + 1] += frame[1] * voice.rightGain * voice.fade;
-            voice.position += step;
-        }
-        return;
-    }
-
     // Past the end, a looping sound continues from its start and any other sound is silent.
     const auto sampleAt = [&](std::uint64_t frame, std::uint32_t channel) {
         if (frame >= frameCount) {

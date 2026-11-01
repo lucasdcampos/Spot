@@ -54,6 +54,20 @@ void CharacterVisual::Synchronize() {
     const float run = movement ? movement->runSpeed : 9.0f;
     target->SetFloat(speedParameter, speed <= walk ? speed / std::max(walk, 0.01f)
                                                    : 1.0f + (speed - walk) / std::max(run - walk, 0.01f));
+    const auto facing = PhysicsDrive::GetFacing(PhysicsDrive::GetYaw(pawn->GetViewPoint().direction));
+    const auto localVelocity = Spot::Inverse(facing) * Spot::Vector3{velocity.x, 0, velocity.z};
+    const float normalizedSpeed = crouching       ? speed / std::max(movement->crouchSpeed, 0.01f)
+                                  : speed <= walk ? speed / std::max(walk, 0.01f)
+                                                  : 1 + (speed - walk) / std::max(run - walk, 0.01f);
+    const float scale = speed > 0.05f ? std::clamp(normalizedSpeed, 0.0f, 2.0f) / speed : 0;
+    target->SetFloat(forwardParameter, -localVelocity.z * scale);
+    target->SetFloat(sidewaysParameter, localVelocity.x * scale);
+    target->SetBool(crouchParameter, crouching);
+    const bool airborne =
+        body && movement && !movement->IsGrounded() && !movement->IsFlying() && !seated && !pawn->HasState("Dead");
+    target->SetBool(airborneParameter, airborne);
+    target->SetFloat(verticalParameter,
+                     airborne ? std::clamp(moved.y / std::max(movement->jumpSpeed, 0.01f), -1.0f, 1.0f) : 0.0f);
     if (!seatedLayer.empty()) {
         target->SetLayerWeight(seatedLayer, seated ? 1.0f : 0.0f);
     }
@@ -90,6 +104,11 @@ void CharacterVisual::Serialize(Spot::Archive& archive) {
     archive.Field("modelRoot", modelRoot);
     archive.Field("animator", animator);
     archive.Field("speedParameter", speedParameter);
+    archive.Field("forwardParameter", forwardParameter);
+    archive.Field("sidewaysParameter", sidewaysParameter);
+    archive.Field("crouchParameter", crouchParameter);
+    archive.Field("airborneParameter", airborneParameter);
+    archive.Field("verticalParameter", verticalParameter);
     archive.Field("seatedLayer", seatedLayer);
     archive.Field("crouchLayer", crouchLayer);
     archive.Field("seatedState", seatedState);

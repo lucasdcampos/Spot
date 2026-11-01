@@ -4,6 +4,7 @@
 // reads, each from its side and without locks: the worker is the only one writing and the audio thread the only one
 // reading.
 
+#include "spot/audio/frame_source.h"
 #include "spot/audio/sound.h"
 #include "spot/audio/sound_decoder.h"
 
@@ -16,7 +17,7 @@
 
 namespace Spot::Detail {
 
-class SoundStream {
+class SoundStream final : public FrameSource {
 public:
     // How far ahead the stream decodes.
     static constexpr float BufferSeconds = 0.5f;
@@ -29,9 +30,9 @@ public:
     // Decodes until the buffer is full, or the sound ended, which a looping one never does. Only one thread fills.
     void Fill();
     // The next frame, as left and right; false, taking nothing, when none is decoded yet or the sound ended.
-    bool ReadFrame(std::array<float, 2>& frame);
+    bool ReadFrame(std::array<float, 2>& frame) override;
     // Whether the sound ended and every frame of it was read.
-    bool IsFinished() const;
+    bool IsFinished() const override;
 
 private:
     std::shared_ptr<const Sound> m_sound;

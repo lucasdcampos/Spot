@@ -622,7 +622,7 @@ void ShowSmite(Spot::Scene& scene, Spot::Vector3 position, const Spot::AssetRef<
 
 DeveloperMode* Sender(Spot::NetworkObject& object, Spot::NetPeerId from) {
     DeveloperMode* found = nullptr;
-    object.GetScene().ForEachComponent<Gameplay::RemoteController>([&](auto& controller) {
+    object.GetScene().ForEachComponent<Gameplay::RemoteController>([&](Gameplay::RemoteController& controller) {
         auto* body = controller.GetPlayerPawn();
         if (controller.GetPeer() == from && body && &body->GetEntity() == &object.GetEntity()) {
             found = body->GetEntity().GetComponent<DeveloperMode>();
@@ -1487,8 +1487,9 @@ void DeveloperMode::Bind() {
         });
         system->OnObjectMessage<DeveloperRequest>(
             [](Spot::NetworkObject& object, Spot::NetPeerId from, DeveloperRequest&) {
-                if (!MayUseDeveloperCommands(from)) {
-                    Spot::Log::Warning("Developer mode refused: cheats or operator permission are required");
+                const auto* session = Gameplay::Session::Get();
+                if (!session || !session->IsHost() || !session->IsOperator(from)) {
+                    Spot::Log::Warning("Developer mode refused: operator permission is required");
                     return;
                 }
                 // A request can unlock only the sender's own character, including while driving another pawn.

@@ -60,25 +60,40 @@ void ChaseCamera::OnStart() {
 void ChaseCamera::OnDisable() {
     m_input.Deactivate();
     m_following = false;
+    m_viewDistance = -1.0f;
 }
 
-void ChaseCamera::FollowView(const Pawn& pawn) {
+void ChaseCamera::FollowView(const Pawn& pawn, float deltaTime) {
     const ViewPoint view = pawn.GetViewPoint();
     auto& physics = GetScene().GetOrAddSystem<Spot::PhysicsWorld>();
     const auto query = Spot::QueryFilter{.ignore = pawn.GetEntity().GetId()};
     const Spot::Vector3 pivot = view.position + Up * lookHeight;
-    const Spot::Vector3 offset = view.rotation * Spot::Vector3{shoulderOffset, 0.0f, distance};
+    const auto direction = Spot::Normalize(view.direction);
+    const float yaw = std::atan2(-direction.x, -direction.z);
+    const float elevation = std::clamp(std::asin(std::clamp(direction.y, -1.0f, 1.0f)), -std::max(maxBoomPitch, 0.0f),
+                                       std::max(maxBoomPitch, 0.0f));
+    const auto boom = Spot::Quaternion::FromAxisAngle(Up, yaw) * Spot::Quaternion::FromAxisAngle({1, 0, 0}, elevation);
+    const Spot::Vector3 offset = boom * Spot::Vector3{shoulderOffset, 0.0f, distance};
     const float length = Spot::Length(offset);
     const Spot::Vector3 back = length > 0.001f ? offset / length : -view.direction;
     float reach = length;
     if (const auto hit = physics.SphereCast(pivot, 0.25f, back, length, query)) {
         reach = std::max(hit->distance - 0.03f, 0.0f);
     }
-    // Converging on the eye ray keeps the reticle on what interaction and weapons actually target.
+    // Retract immediately for safety; returning gradually avoids jumps as the boom clears a corner.
+    const bool relocated = Spot::Distance(pivot, m_viewPivot) > std::max(distance * 2, 5.0f);
+    if (m_viewDistance < 0 || reach < m_viewDistance || relocated) {
+        m_viewDistance = reach;
+    } else {
+        m_viewDistance =
+            Spot::Lerp(m_viewDistance, reach, 1 - std::exp(-std::max(followRate, 0.0f) * std::max(deltaTime, 0.0f)));
+    }
+    m_viewPivot = pivot;
+    // Keep the reticle on the same point as interactions and shots, including nearby targets.
     const auto hit = physics.Raycast(view.position, view.direction, 1000.0f, query);
-    const Spot::Vector3 target = hit ? hit->point : view.position + view.direction * 1000.0f;
+    const Spot::Vector3 target = hit ? hit->point : view.position + direction * 1000.0f;
     auto& transform = GetEntity().GetTransform();
-    transform.SetWorldPosition(pivot + back * reach);
+    transform.SetWorldPosition(pivot + back * m_viewDistance);
     transform.SetWorldRotation(Spot::Quaternion::LookRotation(target - transform.GetWorldPosition()));
 }
 
@@ -88,12 +103,13 @@ void ChaseCamera::OnLateUpdate(float deltaTime) {
     if (!pawn || !camera || !camera->IsEnabled()) {
         m_input.Deactivate();
         m_following = false;
+        m_viewDistance = -1.0f;
         return;
     }
     if (followView) {
         m_input.Deactivate();
         m_following = false;
-        FollowView(*pawn);
+        FollowView(*pawn, deltaTime);
         return;
     }
     if (!m_following) {
@@ -154,6 +170,7 @@ void ChaseCamera::Serialize(Spot::Archive& archive) {
     archive.Field("speedFieldOfView", speedFieldOfView, {.min = 0.0f, .max = 1.0f, .speed = 0.005f, .angle = true});
     archive.Field("lookAction", lookAction);
     archive.Field("followView", followView);
+    archive.Field("maxBoomPitch", maxBoomPitch, {.min = 0.0f, .max = 1.2f, .angle = true});
     archive.Field("shoulderOffset", shoulderOffset, {.min = -2.0f, .max = 2.0f, .speed = 0.01f});
     archive.Field("orbit", orbit);
 }

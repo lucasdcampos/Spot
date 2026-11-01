@@ -185,6 +185,7 @@ void Npc::OnUpdate(float deltaTime) {
     // The server thinks for it; clients show it walking where the server moves it.
     if (!Spot::Network::HasAuthority(GetEntity())) {
         animator->SetFloat("speed", m_speed);
+        SetState("Running", m_speed > 1.5f);
         return;
     }
     if (m_down > 0) {
@@ -217,6 +218,7 @@ void Npc::OnUpdate(float deltaTime) {
     }
     m_speed = move.speed;
     animator->SetFloat("speed", move.speed);
+    SetState("Running", move.speed > 1.5f);
     if (const auto listener = GetScene().GetOrAddSystem<Spot::AudioSystem>().FindListener()) {
         const float away = Spot::Distance(listener->position, GetEntity().GetTransform().GetWorldPosition());
         animator->SetUpdateInterval(away < animationNear ? 0.0f : away < animationFar ? 1.0f / 30.0f : 1.0f / 12.0f);
@@ -332,6 +334,7 @@ void Npc::UseItem(bool fire) {
     Gameplay::ItemInput input;
     input.active = input.canUse = true;
     input.Set("Fire", fire, fire);
+    input.Set("Aim", m_seesTarget && m_target != Spot::EntityId::Invalid);
     inventory->Use(input);
 }
 
@@ -346,7 +349,8 @@ Gameplay::ViewPoint Npc::GetViewPoint() const {
 
 void Npc::OnFixedUpdate(float deltaTime) {
     auto* character = GetEntity().GetComponent<Spot::CharacterController>();
-    if (!Spot::Network::HasAuthority(GetEntity()) || m_dead || m_down > 0 || !character || !character->IsActiveAndEnabled()) {
+    if (!Spot::Network::HasAuthority(GetEntity()) || m_dead || m_down > 0 || !character ||
+        !character->IsActiveAndEnabled()) {
         return;
     }
     m_fall = character->IsGrounded()
@@ -364,12 +368,11 @@ void Npc::OnAnimationEvent(const Spot::AnimationEvent& event) {
     const auto* sounds = library ? library->Get(footstepSurface) : nullptr;
     if (sounds && !sounds->footsteps.empty()) {
         const auto& sound = sounds->footsteps[(m_footsteps - 1) % sounds->footsteps.size()];
-        Gameplay::EffectLibrary::PlaySound(
-            GetScene(), sound, GetEntity().GetTransform().GetWorldPosition(),
-            {.volume = 0.25f,
-             .bus = "Effects",
-             .spatialSettings = {.minDistance = 1, .maxDistance = 20},
-             .maxInstances = 3});
+        Gameplay::EffectLibrary::PlaySound(GetScene(), sound, GetEntity().GetTransform().GetWorldPosition(),
+                                           {.volume = 0.25f,
+                                            .bus = "Effects",
+                                            .spatialSettings = {.minDistance = 1, .maxDistance = 20},
+                                            .maxInstances = 3});
     }
 }
 

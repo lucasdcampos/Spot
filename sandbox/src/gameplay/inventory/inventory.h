@@ -12,7 +12,6 @@
 
 namespace Gameplay {
 
-
 // What a pawn has in hand: one of its items, the child entities with a HeldItem, in their order. Each of the select
 // actions takes the item of its place, and the cycle action (the mouse wheel, or the shoulders) goes through them.
 // Holding the wheel action opens a wheel of the items and slows time: the look points at one, and letting go takes
@@ -23,14 +22,14 @@ namespace Gameplay {
 // used while it is in none of blockedBy either, as running; it magnifies the pawn's view as it says (ViewZoom).
 class Inventory : public Spot::Component, public ViewZoom, public PlayerInputListener, public Spot::Replicated {
 public:
-    // How many items the wheel has room for, clockwise from the top.
-    int wheelSlots = 8;
     // How much the wheel slows time while it is open.
     float wheelTimeScale = 0.3f;
     std::vector<std::string> selectActions = {"Weapon 1", "Weapon 2", "Weapon 3", "Weapon 4", "Weapon 5",
                                               "Weapon 6", "Weapon 7", "Weapon 8", "Weapon 9"};
     std::string cycleAction = "Switch Weapon";
     std::string wheelAction = "Weapon Wheel";
+    std::string dropAction = "Drop Weapon";
+    std::string holsterAction = "Holster Weapon";
     std::string lookAction = "Look";
     std::vector<std::string> stowedBy = {"Dead", "Seated"};
     std::vector<std::string> blockedBy = {"Sprinting", "Placing"};
@@ -40,15 +39,21 @@ public:
     // Its items, in their order.
     std::vector<HeldItem*> GetItems() const;
     int GetItemCount() const;
-    int GetSelected() const { return m_selected; }
+    int GetSelected() const { return m_holstered ? -1 : m_selected; }
     // Takes the item of the place, counted around from either end.
     void Select(int slot);
     void Select(const HeldItem& item);
+    // Leaves the hands empty, keeping every item in the inventory.
+    void Holster();
     // The item in hand; null when there is none.
     HeldItem* GetEquipped() const;
     // Makes the prefab an item of its own, at the end, without what it has to be a body in the world, and returns it;
     // null when it has no HeldItem.
     HeldItem* AddFromPrefab(const Spot::AssetRef<Spot::Prefab>& prefab);
+    // Transfers an unowned world item into this inventory, preserving its state, and selects it.
+    bool PickUp(HeldItem& item);
+    // Releases the selected item as a physical world object; null when it cannot be dropped.
+    HeldItem* Drop();
 
     // Whether the item in hand can be used now: not while choosing in the wheel, nor in a state of stowedBy or
     // blockedBy.
@@ -67,6 +72,7 @@ public:
 protected:
     void OnPlayerInput(PlayerController& player) override;
     void OnPlayerUnpossess() override;
+    void OnPlayerRequest(std::string_view request) override;
     void SerializeIntent(Spot::Archive& archive) override;
     void OnStart() override;
     void OnUpdate(float deltaTime) override;
@@ -88,6 +94,7 @@ private:
     InputContext m_input{{.name = "Inventory", .priority = 10}};
     InputContext m_wheel{{.name = "Weapon Wheel", .priority = 20, .actions = {"Look"}}};
     int m_selected = 0;
+    bool m_holstered = false;
     Spot::EntityId m_equipped = Spot::EntityId::Invalid;
     bool m_wheelOpen = false;
     int m_wheelSlot = 0;

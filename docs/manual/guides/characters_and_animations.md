@@ -91,3 +91,30 @@ Blend shapes, such as facial expressions, and lights and cameras in the file are
 own are not supported: put the transparency in the base color's alpha.
 
 Players and NPCs hold weapons with both hands at the model’s grip nodes. Players bleed when shot and fall into a physical ragdoll when killed, including in multiplayer. Restoring their health returns them to their animated body and movement.
+
+## Sandbox character poses
+
+The Sandbox player blends forward, backward and sideways steps while walking, running or crouching. Holding Aim
+raises the weapon from a low ready posture into a sighted posture; both hands follow its grip nodes. NPCs raise
+their weapons when engaging a visible enemy.
+
+To replace a Sandbox character, assign its skeleton and compatible clips to the Animator, keep the player
+controller's `forward`, `sideways` and `crouching` parameters, and configure CharacterVisual's model and animator.
+The locomotion clips are in place because CharacterMovement moves the player. On WorldModel, enable `poseMount`
+and tune `readyPosition`, `aimingPosition` and their pitches for the new model's arm length. Configure the mount's
+BoneAttachment bone and each hand's TwoBoneIK bone, grip offset and elbow pole. Clips can use the animator's
+name-based retargeting for skeletons with matching bone names; other naming conventions require compatible clips.
+
+Jumping blends distinct rising and falling poses and returns to locomotion on landing. When adapting the Sandbox
+controller, preserve its `airborne` boolean and `vertical` float parameters alongside the directional parameters.
+WorldModel lowers weapons during a sprint; tune `sprintPosition`, `sprintPitch` and `sprintState` for the character.
+The third-person camera now sits closer over the shoulder. On ChaseCamera, `distance` and `shoulderOffset` set the
+framing, `maxBoomPitch` keeps steep upward looks from driving the camera into the ground, and `followRate` controls
+how quickly it returns after an obstacle clears.
+
+For weapons of different shapes, enable `worldPose` on the held item's prefab. Author separate `ready`, `aiming`
+and `sprint` positions and angles (pitch, yaw, roll). These positions place the firing hand in the mount bone's
+space. The yaw lets the character turn the chest sideways while keeping the barrel aimed forward, leaving room
+for a rifle or shotgun stock beside the neck. Use `supportOffset` to move the support contact along the handguard
+or pump; the character's wrist offsets remain on its TwoBoneIK components. Disabled item profiles use the
+WorldModel defaults. Check each posture from the front and side on the intended rig, including when crouching.

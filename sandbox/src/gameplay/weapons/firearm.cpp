@@ -415,7 +415,7 @@ void Firearm::Replicate(Spot::Archive& archive) {
 ItemStatus Firearm::DescribeStatus() const {
     ItemStatus status = HeldItem::DescribeStatus();
     if (infiniteAmmo) {
-        status.count = "INF";
+        status.count = "\xe2\x88\x9e";
         status.summary = "Infinite ammunition";
         status.hints = {{aimAction, "Aim"}};
         return status;

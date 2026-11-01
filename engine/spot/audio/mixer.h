@@ -1,5 +1,7 @@
 #pragma once
 
+#include "spot/audio/frame_source.h"
+#include "spot/audio/live_audio.h"
 #include "spot/audio/playback.h"
 #include "spot/audio/sound.h"
 #include "spot/audio/sound_stream.h"
@@ -54,6 +56,9 @@ public:
     // A null sound returns the default instance, which never plays, as does a sound that finds no voice (see
     // PlayParams::priority). Voices for a bus that does not exist play on the master bus.
     SoundInstance Play(std::shared_ptr<const Sound> sound, const PlayParams& params = {});
+    // Plays what is written to the live audio as it comes; null returns the default instance.
+    SoundInstance Play(std::shared_ptr<LiveAudio> live, const PlayParams& params = {});
+    SoundInstance Play(std::nullptr_t, const PlayParams& = {}) { return {}; }
     // Fades the sound out over the seconds, or ClickFadeSeconds when that is longer. The instance stops matching at
     // once.
     void Stop(SoundInstance instance, float fadeOut = 0.0f);
@@ -132,9 +137,11 @@ private:
         bool paused = false;
         bool stopping = false;
         bool ended = false;
-        // Streamed sounds only: the decoded frames played between, the first of which is the stream's frame of that
-        // index, and how many silent frames followed the end.
-        SoundStream* stream = nullptr;
+        // Streamed sounds and live audio only: the frames played between, the first of which is the source's frame of
+        // that index, and how many silent frames followed the end.
+        FrameSource* stream = nullptr;
+        // The source's, which the voice's sound gives otherwise.
+        std::uint32_t sampleRate = 0;
         std::array<float, 2> frame0 = {};
         std::array<float, 2> frame1 = {};
         std::uint64_t streamFrame = 0;
@@ -152,6 +159,7 @@ private:
         std::uint32_t id = 0;
         std::shared_ptr<const Sound> sound = {};
         std::shared_ptr<SoundStream> stream = {};
+        std::shared_ptr<LiveAudio> live = {};
         PlayParams params = {};
         bool pauseRequested = false;
         bool stopping = false;
@@ -174,7 +182,8 @@ private:
         std::uint32_t id = 0;
         PlayParams params = {};
         const Sound* sound = nullptr;
-        SoundStream* stream = nullptr;
+        FrameSource* stream = nullptr;
+        std::uint32_t sampleRate = 0;
         float value = 0.0f;
         bool flag = false;
         bool muted = false;
@@ -196,6 +205,8 @@ private:
     };
 
     GameVoice* FindVoice(SoundInstance instance);
+    // Takes a voice for what it plays, its source being the voice's stream or live audio, if any.
+    SoundInstance Start(GameVoice played, FrameSource* source, std::uint32_t sampleRate, const PlayParams& params);
     const GameVoice* FindVoice(SoundInstance instance) const;
     Voice* FindRenderVoice(std::uint32_t id);
     void Send(const Command& command);

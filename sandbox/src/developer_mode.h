@@ -10,7 +10,7 @@
 #include <string_view>
 
 // The sandbox's developer easter egg. The server unlocks the developer skin and Ray Gun for a player's character when
-// authenticated with the developer private key or through the cheat/operator console command; presentation follows on
+// authenticated with the developer private key or through the operator console command; presentation follows on
 // every machine, while PlayerInfo keeps the unlock when the player respawns.
 class DeveloperMode final : public Spot::Component, public Spot::Replicated {
 public:

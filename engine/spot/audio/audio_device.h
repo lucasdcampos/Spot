@@ -1,5 +1,6 @@
 #pragma once
 
+#include "spot/audio/live_audio.h"
 #include "spot/audio/playback.h"
 #include "spot/audio/sound.h"
 
@@ -49,6 +50,10 @@ public:
     // The device keeps the sound alive while it plays. Without an output, or with a null sound, it returns the
     // default instance, which never plays.
     SoundInstance Play(std::shared_ptr<const Sound> sound, const PlayParams& params = {});
+    // Plays what is written to the live audio as it comes, until it is closed and played out or the playback stopped
+    // (see LiveAudio). PlayParams::loop does nothing.
+    SoundInstance Play(std::shared_ptr<LiveAudio> live, const PlayParams& params = {});
+    SoundInstance Play(std::nullptr_t, const PlayParams& = {}) { return {}; }
     // Fades the sound out over the seconds, or a few milliseconds, so it never clicks. The instance stops matching at
     // once.
     void Stop(SoundInstance instance, float fadeOut = 0.0f);

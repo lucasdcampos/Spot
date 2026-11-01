@@ -1,4 +1,5 @@
 #include "undo_list.h"
+#include "gameplay/inventory/held_item.h"
 
 #include <utility>
 
@@ -37,6 +38,9 @@ bool UndoList::UndoAction(const Action& action) {
     switch (action.kind) {
     case Action::Kind::Spawn:
         if (Spot::Entity* entity = scene.GetEntity(action.entity)) {
+            if (const auto* item = entity->GetComponent<Gameplay::HeldItem>(); item && item->GetInventory()) {
+                return false;
+            }
             entity->Destroy();
             return true;
         }

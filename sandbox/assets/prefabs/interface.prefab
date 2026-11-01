@@ -417,7 +417,7 @@
             ],
             "offset": [
               24,
-              -18
+              -38
             ],
             "sizeDelta": [
               640,
@@ -765,11 +765,11 @@
             ],
             "offset": [
               -24,
-              -44
+              -52
             ],
             "sizeDelta": [
-              420,
-              100
+              500,
+              214
             ]
           }
         },
@@ -784,7 +784,38 @@
               344,
               345
             ],
-            "lifetime": 6.0
+            "lifetime": 6.0,
+            "fallbackIcon": "e1a4a806c7946b408137094c01b6bfaa",
+            "causeIcons": [
+              {
+                "type": "Bullet",
+                "icon": "e87c0eff29368b70299d17998a94e979"
+              },
+              {
+                "type": "Explosion",
+                "icon": "31233483b15e2937ddb25d8dd33852a9"
+              },
+              {
+                "type": "Fall",
+                "icon": "88651d9d8f301cd2c29f29cfc4a03419"
+              },
+              {
+                "type": "Impact",
+                "icon": "a5c034c90ca3345de3f7c6ea4fcdcd68"
+              },
+              {
+                "type": "Melee",
+                "icon": "e9c81ba09dd256d3acdbe1717015e29b"
+              },
+              {
+                "type": "Hit",
+                "icon": "a5c034c90ca3345de3f7c6ea4fcdcd68"
+              },
+              {
+                "type": "Smite",
+                "icon": "1bb8ef2e62192a5aca897045979e16b8"
+              }
+            ]
           },
           "enabled": true,
           "id": "49a7f4b5f10c4d69ae9331d1c0ad4e52",
@@ -838,30 +869,17 @@
             ],
             "sizeDelta": [
               0,
-              18
+              38
             ]
           }
         },
         {
           "id": "00000000000001550000000000000002",
-          "type": "UiText",
+          "type": "KillFeedRow",
           "enabled": true,
           "data": {
             "font": "765534ac9cdf585cba22b54d61df0209",
-            "text": "",
-            "fontSize": 13,
-            "color": [
-              0.807,
-              0.8228,
-              0.8469,
-              1.0
-            ],
-            "layout": {
-              "alignment": 2,
-              "overflow": 0,
-              "wrap": false,
-              "verticalAlignment": 1
-            }
+            "fontSize": 18
           }
         }
       ],
@@ -908,34 +926,21 @@
             ],
             "offset": [
               0,
-              -20
+              -44
             ],
             "sizeDelta": [
               0,
-              18
+              38
             ]
           }
         },
         {
           "id": "00000000000001560000000000000002",
-          "type": "UiText",
+          "type": "KillFeedRow",
           "enabled": true,
           "data": {
             "font": "765534ac9cdf585cba22b54d61df0209",
-            "text": "",
-            "fontSize": 13,
-            "color": [
-              0.807,
-              0.8228,
-              0.8469,
-              1.0
-            ],
-            "layout": {
-              "alignment": 2,
-              "overflow": 0,
-              "wrap": false,
-              "verticalAlignment": 1
-            }
+            "fontSize": 18
           }
         }
       ],
@@ -982,34 +987,21 @@
             ],
             "offset": [
               0,
-              -40
+              -88
             ],
             "sizeDelta": [
               0,
-              18
+              38
             ]
           }
         },
         {
           "id": "00000000000001570000000000000002",
-          "type": "UiText",
+          "type": "KillFeedRow",
           "enabled": true,
           "data": {
             "font": "765534ac9cdf585cba22b54d61df0209",
-            "text": "",
-            "fontSize": 13,
-            "color": [
-              0.807,
-              0.8228,
-              0.8469,
-              1.0
-            ],
-            "layout": {
-              "alignment": 2,
-              "overflow": 0,
-              "wrap": false,
-              "verticalAlignment": 1
-            }
+            "fontSize": 18
           }
         }
       ],
@@ -1056,34 +1048,21 @@
             ],
             "offset": [
               0,
-              -60
+              -132
             ],
             "sizeDelta": [
               0,
-              18
+              38
             ]
           }
         },
         {
           "id": "00000000000001580000000000000002",
-          "type": "UiText",
+          "type": "KillFeedRow",
           "enabled": true,
           "data": {
             "font": "765534ac9cdf585cba22b54d61df0209",
-            "text": "",
-            "fontSize": 13,
-            "color": [
-              0.807,
-              0.8228,
-              0.8469,
-              1.0
-            ],
-            "layout": {
-              "alignment": 2,
-              "overflow": 0,
-              "wrap": false,
-              "verticalAlignment": 1
-            }
+            "fontSize": 18
           }
         }
       ],
@@ -1130,34 +1109,21 @@
             ],
             "offset": [
               0,
-              -80
+              -176
             ],
             "sizeDelta": [
               0,
-              18
+              38
             ]
           }
         },
         {
           "id": "00000000000001590000000000000002",
-          "type": "UiText",
+          "type": "KillFeedRow",
           "enabled": true,
           "data": {
             "font": "765534ac9cdf585cba22b54d61df0209",
-            "text": "",
-            "fontSize": 13,
-            "color": [
-              0.807,
-              0.8228,
-              0.8469,
-              1.0
-            ],
-            "layout": {
-              "alignment": 2,
-              "overflow": 0,
-              "wrap": false,
-              "verticalAlignment": 1
-            }
+            "fontSize": 18
           }
         }
       ],
@@ -1179,6 +1145,345 @@
       ],
       "tags": [],
       "parent": 340
+    },
+    {
+      "id": 800,
+      "name": "HUD Chat",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000003200000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [0, 0],
+            "anchorMax": [0, 0],
+            "pivot": [0, 0],
+            "offset": [24, 140],
+            "sizeDelta": [560, 256]
+          }
+        },
+        {
+          "id": "00000000000003200000000000000002",
+          "type": "ChatElement",
+          "enabled": true,
+          "data": {
+            "hideWhen": [],
+            "showWhen": [],
+            "rows": [801, 802, 803, 804, 805, 806, 807, 808],
+            "input": 809,
+            "lifetime": 8.0,
+            "nameColor": [0.35, 0.75, 1.0, 1.0],
+            "textColor": [1.0, 1.0, 1.0, 1.0],
+            "systemColor": [1.0, 0.72, 0.2, 1.0]
+          }
+        }
+      ],
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "id": 801,
+      "name": "Chat Row 1",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000003210000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [0, 0],
+            "anchorMax": [1, 0],
+            "pivot": [0.5, 0],
+            "offset": [0, 0],
+            "sizeDelta": [0, 28]
+          }
+        },
+        {
+          "id": "00000000000003210000000000000002",
+          "type": "ChatRow",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 18
+          }
+        }
+      ],
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1],
+      "tags": [],
+      "parent": 800
+    },
+    {
+      "id": 802,
+      "name": "Chat Row 2",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000003220000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [0, 0],
+            "anchorMax": [1, 0],
+            "pivot": [0.5, 0],
+            "offset": [0, 32],
+            "sizeDelta": [0, 28]
+          }
+        },
+        {
+          "id": "00000000000003220000000000000002",
+          "type": "ChatRow",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 18
+          }
+        }
+      ],
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1],
+      "tags": [],
+      "parent": 800
+    },
+    {
+      "id": 803,
+      "name": "Chat Row 3",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000003230000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [0, 0],
+            "anchorMax": [1, 0],
+            "pivot": [0.5, 0],
+            "offset": [0, 64],
+            "sizeDelta": [0, 28]
+          }
+        },
+        {
+          "id": "00000000000003230000000000000002",
+          "type": "ChatRow",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 18
+          }
+        }
+      ],
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1],
+      "tags": [],
+      "parent": 800
+    },
+    {
+      "id": 804,
+      "name": "Chat Row 4",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000003240000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [0, 0],
+            "anchorMax": [1, 0],
+            "pivot": [0.5, 0],
+            "offset": [0, 96],
+            "sizeDelta": [0, 28]
+          }
+        },
+        {
+          "id": "00000000000003240000000000000002",
+          "type": "ChatRow",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 18
+          }
+        }
+      ],
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1],
+      "tags": [],
+      "parent": 800
+    },
+    {
+      "id": 805,
+      "name": "Chat Row 5",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000003250000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [0, 0],
+            "anchorMax": [1, 0],
+            "pivot": [0.5, 0],
+            "offset": [0, 128],
+            "sizeDelta": [0, 28]
+          }
+        },
+        {
+          "id": "00000000000003250000000000000002",
+          "type": "ChatRow",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 18
+          }
+        }
+      ],
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1],
+      "tags": [],
+      "parent": 800
+    },
+    {
+      "id": 806,
+      "name": "Chat Row 6",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000003260000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [0, 0],
+            "anchorMax": [1, 0],
+            "pivot": [0.5, 0],
+            "offset": [0, 160],
+            "sizeDelta": [0, 28]
+          }
+        },
+        {
+          "id": "00000000000003260000000000000002",
+          "type": "ChatRow",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 18
+          }
+        }
+      ],
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1],
+      "tags": [],
+      "parent": 800
+    },
+    {
+      "id": 807,
+      "name": "Chat Row 7",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000003270000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [0, 0],
+            "anchorMax": [1, 0],
+            "pivot": [0.5, 0],
+            "offset": [0, 192],
+            "sizeDelta": [0, 28]
+          }
+        },
+        {
+          "id": "00000000000003270000000000000002",
+          "type": "ChatRow",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 18
+          }
+        }
+      ],
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1],
+      "tags": [],
+      "parent": 800
+    },
+    {
+      "id": 808,
+      "name": "Chat Row 8",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000003280000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [0, 0],
+            "anchorMax": [1, 0],
+            "pivot": [0.5, 0],
+            "offset": [0, 224],
+            "sizeDelta": [0, 28]
+          }
+        },
+        {
+          "id": "00000000000003280000000000000002",
+          "type": "ChatRow",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 18
+          }
+        }
+      ],
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1],
+      "tags": [],
+      "parent": 800
+    },
+    {
+      "id": 809,
+      "name": "Chat Input",
+      "active": false,
+      "components": [
+        {
+          "id": "00000000000003290000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [0, 0],
+            "anchorMax": [1, 0],
+            "pivot": [0.5, 0],
+            "offset": [0, -36],
+            "sizeDelta": [0, 30]
+          }
+        },
+        {
+          "id": "00000000000003290000000000000002",
+          "type": "UiInputField",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "fontSize": 18,
+            "textColor": [1, 1, 1, 1],
+            "placeholder": "Say something...",
+            "maxLength": 240
+          }
+        }
+      ],
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "scale": [1, 1, 1],
+      "tags": [],
+      "parent": 800
     },
     {
       "id": 203,
@@ -1217,7 +1522,9 @@
             "hideWhen": [
               "InVehicle"
             ],
-            "showWhen": []
+            "showWhen": [],
+            "tShape": true,
+            "dot": false
           },
           "enabled": true,
           "id": "5c2da333bbb54413c8dc41308f262e0b",
@@ -1246,7 +1553,7 @@
     {
       "id": 204,
       "name": "Dot Outline",
-      "active": true,
+      "active": false,
       "components": [
         {
           "id": "00000000000000cc0000000000000001",
@@ -1318,7 +1625,7 @@
     {
       "id": 205,
       "name": "Dot",
-      "active": true,
+      "active": false,
       "components": [
         {
           "id": "00000000000000cd0000000000000001",
@@ -1390,7 +1697,7 @@
     {
       "id": 206,
       "name": "Top",
-      "active": true,
+      "active": false,
       "components": [
         {
           "id": "00000000000000ce0000000000000001",
@@ -2700,12 +3007,12 @@
               0.5
             ],
             "offset": [
-              -170,
+              -118,
               0
             ],
             "sizeDelta": [
-              80,
-              40
+              56,
+              28
             ]
           }
         },
@@ -2718,7 +3025,7 @@
               0.807,
               0.8228,
               0.8469,
-              0.6
+              0.85
             ],
             "borders": [
               0,
@@ -3253,6 +3560,8 @@
               "Reload",
               "Use",
               "Weapon Wheel",
+              "Drop Weapon",
+              "Holster Weapon",
               "Spawn Menu",
               "Undo",
               "Clean Up",
@@ -5586,7 +5895,7 @@
             ],
             "sizeDelta": [
               -16,
-              100
+              158
             ]
           }
         },
@@ -13056,7 +13365,8 @@
             "toggleAction": "Spawn Menu",
             "undoButton": 24,
             "weaponsTab": 16,
-            "npcsTab": 702
+            "npcsTab": 702,
+            "vehiclesTab": 707
           },
           "enabled": true,
           "id": "d338855c583b0a49e7fc6b401673b980",
@@ -13258,6 +13568,476 @@
       ],
       "tags": [],
       "parent": 700
+    },
+    {
+      "id": 707,
+      "name": "Vehicles Tab",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000002c30000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0.5,
+              0.5
+            ],
+            "anchorMax": [
+              0.5,
+              0.5
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              160,
+              30
+            ]
+          }
+        },
+        {
+          "id": "00000000000002c30000000000000002",
+          "type": "UiButton",
+          "enabled": true,
+          "data": {
+            "style": {
+              "normal": [
+                0.0144,
+                0.0176,
+                0.0232,
+                0
+              ],
+              "hovered": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "pressed": [
+                0.007,
+                0.008,
+                0.0097,
+                1.0
+              ],
+              "focused": [
+                0.0144,
+                0.0176,
+                0.0232,
+                1.0
+              ],
+              "disabled": [
+                0.0091,
+                0.011,
+                0.0137,
+                0.5
+              ],
+              "accent": [
+                0.807,
+                0.3663,
+                0.0467,
+                1.0
+              ],
+              "texture": "88686c16704f97f193d65bdd3af0d1d8",
+              "borders": [
+                6,
+                6,
+                6,
+                6
+              ]
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 11
+    },
+    {
+      "id": 708,
+      "name": "Marker",
+      "active": false,
+      "components": [
+        {
+          "id": "00000000000002c40000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              0,
+              0
+            ],
+            "sizeDelta": [
+              2,
+              14
+            ]
+          }
+        },
+        {
+          "id": "00000000000002c40000000000000002",
+          "type": "UiImage",
+          "enabled": true,
+          "data": {
+            "tint": [
+              0.807,
+              0.3663,
+              0.0467,
+              1.0
+            ],
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "texture": null
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 707
+    },
+    {
+      "id": 709,
+      "name": "Icon",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000002c50000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0.5
+            ],
+            "anchorMax": [
+              0,
+              0.5
+            ],
+            "pivot": [
+              0,
+              0.5
+            ],
+            "offset": [
+              12,
+              0
+            ],
+            "sizeDelta": [
+              14,
+              14
+            ]
+          }
+        },
+        {
+          "id": "00000000000002c50000000000000002",
+          "type": "UiImage",
+          "enabled": true,
+          "data": {
+            "tint": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1.0
+            ],
+            "borders": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "texture": "0a8bb02b18c8fe7e60f7a341d1c4e2f3"
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 707
+    },
+    {
+      "id": 710,
+      "name": "Label",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000002c60000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              0.5,
+              0.5
+            ],
+            "offset": [
+              17,
+              0
+            ],
+            "sizeDelta": [
+              -34,
+              0
+            ]
+          }
+        },
+        {
+          "id": "00000000000002c60000000000000002",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "7d86b4e529829ceeab7f66ef8cded958",
+            "text": "Vehicles",
+            "fontSize": 12,
+            "color": [
+              0.3231,
+              0.3663,
+              0.4233,
+              1.0
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 707
+    },
+    {
+      "id": 711,
+      "name": "Count",
+      "active": true,
+      "components": [
+        {
+          "id": "00000000000002c70000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              1,
+              0
+            ],
+            "anchorMax": [
+              1,
+              1
+            ],
+            "pivot": [
+              1,
+              0.5
+            ],
+            "offset": [
+              -10,
+              0
+            ],
+            "sizeDelta": [
+              40,
+              0
+            ]
+          }
+        },
+        {
+          "id": "00000000000002c70000000000000002",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "text": "0",
+            "fontSize": 11,
+            "color": [
+              0.1274,
+              0.15,
+              0.1845,
+              1.0
+            ],
+            "layout": {
+              "alignment": 2,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 707
+    },
+    {
+      "id": 810,
+      "name": "HUD Work In Progress",
+      "active": true,
+      "components": [
+        {
+          "id": "000000000000032a0000000000000001",
+          "type": "UiRect",
+          "enabled": true,
+          "data": {
+            "anchorMin": [
+              0,
+              1
+            ],
+            "anchorMax": [
+              0,
+              1
+            ],
+            "pivot": [
+              0,
+              1
+            ],
+            "offset": [
+              24,
+              -18
+            ],
+            "sizeDelta": [
+              200,
+              20
+            ]
+          }
+        },
+        {
+          "id": "000000000000032a0000000000000002",
+          "type": "UiText",
+          "enabled": true,
+          "data": {
+            "font": "765534ac9cdf585cba22b54d61df0209",
+            "text": "WORK IN PROGRESS",
+            "fontSize": 12,
+            "color": [
+              0.807,
+              0.8228,
+              0.8469,
+              0.35
+            ],
+            "layout": {
+              "alignment": 0,
+              "overflow": 0,
+              "wrap": false,
+              "verticalAlignment": 1
+            }
+          }
+        }
+      ],
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "parent": 1
     }
   ]
 }

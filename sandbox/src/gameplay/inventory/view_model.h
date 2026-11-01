@@ -31,6 +31,8 @@ public:
     Spot::Vector3 offset = {0.15f, -0.15f, -0.33f};
     // Optional forearms and hands, posed at the model's RightHand and LeftHand markers.
     Spot::AssetRef<Spot::Model> armsModel;
+    // Optional body skin material, shared by all first-person forearms and hands.
+    Spot::ComponentRef<Spot::SkinnedMeshRenderer> armsMaterialSource;
     // A separate layer lets reflections exclude the first-person arms and held model. -1 inherits the pawn layer.
     int renderLayer = -1;
     const std::vector<Spot::EntityId>& GetArmEntities() const { return m_arms; }
@@ -84,6 +86,7 @@ private:
     void Show(const Spot::AssetRef<Spot::Model>& model);
     void Clear();
     void UpdateArms(const Spot::Matrix4& hand);
+    void UpdateArmsMaterial();
     void UpdateMotion(float deltaTime, const Spot::Quaternion& view);
     // Where the item is now, relative to the eyes and the view.
     Spot::Matrix4 ComputePose() const;

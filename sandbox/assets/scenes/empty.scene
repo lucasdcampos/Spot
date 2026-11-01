@@ -4164,12 +4164,6 @@
           "type": "DirectionalLight"
         },
         {
-          "data": {},
-          "enabled": true,
-          "id": "b704e321771b85245a7f6a9b947bc6a0",
-          "type": "ShadowToggle"
-        },
-        {
           "data": {
             "visible": false
           },

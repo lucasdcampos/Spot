@@ -4,15 +4,83 @@
       "active": true,
       "components": [
         {
+          "type": "NetworkObject",
+          "id": "9d498022446f46c1bf302709259a2597",
+          "enabled": true,
+          "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 150.0
+          }
+        },
+        {
+          "type": "NetworkTransform",
+          "id": "d8c52e21f7b8436a8d66acffdb3fe71c",
+          "enabled": true,
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          }
+        },
+        {
           "data": {
             "automatic": false,
             "displayName": "Rocket Launcher",
+            "worldSize": [0.15300000458955765, 0.22280798107385635, 1.254999965429306],
+            "worldCenter": [-0.0065000019967556, 0.014096003025770187, -0.21249999105930328],
             "fireInterval": 1.0,
             "fireSound": "a40bdc5547181232a3f1aca99a2888fa",
             "impulse": 0.0,
             "magazineSize": 1,
             "muzzleFlash": 1.4,
             "model": "f27b3975595947e82baeaa312a999887",
+            "worldPose": {
+              "enabled": true,
+              "ready": {
+                "position": [
+                  0.12942,
+                  0.0,
+                  -0.30684
+                ],
+                "angles": [
+                  -0.35,
+                  0.45,
+                  0
+                ]
+              },
+              "aiming": {
+                "position": [
+                  0.09391,
+                  0.13,
+                  -0.32262
+                ],
+                "angles": [
+                  0,
+                  0.65,
+                  0
+                ]
+              },
+              "sprint": {
+                "position": [
+                  0.16,
+                  -0.1,
+                  -0.24
+                ],
+                "angles": [
+                  -0.55,
+                  0.9,
+                  0
+                ]
+              },
+              "supportOffset": [
+                0,
+                0,
+                0.02
+              ],
+              "readyAimWeight": 1
+            },
             "pellets": 1,
             "projectileSpeed": 30.0,
             "range": 0.0,

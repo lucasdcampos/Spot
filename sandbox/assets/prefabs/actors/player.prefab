@@ -157,6 +157,7 @@
           "data": {
             "renderLayer": 29,
             "armsModel": "1f7ff6687b8c9da9a2f87197237659d7",
+            "armsMaterialSource": 201017,
             "bobAmount": 0.00800000037997961,
             "maxSway": 0.029999999329447746,
             "motionResponse": 12.0,
@@ -223,7 +224,7 @@
             ],
             "localLayer": 30,
             "seatedLayer": "Sitting",
-            "crouchLayer": "Crouching",
+            "crouchLayer": "",
             "stateLayers": [
               {
                 "state": "CompactSeat",
@@ -240,6 +241,7 @@
             "mount": 201019,
             "animator": 201014,
             "poseLayer": "Holding",
+            "poseMount": true,
             "renderLayer": 30,
             "aim": 201020,
             "rightHand": 201022,
@@ -317,6 +319,18 @@
           "enabled": true,
           "id": "88c15fc5fc0d42eaa9ecfa51af364e9b",
           "type": "VehiclePassenger"
+        },
+        {
+          "type": "PlayerAppearance",
+          "id": "e452b73f9e734d268c1c84ebd86a2df0",
+          "enabled": true,
+          "data": {}
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "211c8aa15fa2463d8efbc68c24a4fcc0",
+          "type": "KillFeedSubject"
         }
       ],
       "id": 117,
@@ -420,8 +434,8 @@
       "name": "Flashlight",
       "parent": 118,
       "position": [
-        0.0,
-        0.0,
+        -0.25,
+        -0.15,
         0.0
       ],
       "rotation": [
@@ -486,6 +500,14 @@
       "overrides": {
         "1": [
           {
+            "op": "remove",
+            "path": "/components/c31bfe1c9df14547b5e0e3652bbf6dda"
+          },
+          {
+            "op": "remove",
+            "path": "/components/8ebeea6b747b4782a55345664efde015"
+          },
+          {
             "op": "replace",
             "path": "/componentOrder",
             "value": [
@@ -525,147 +547,7 @@
       ]
     },
     {
-      "entityIds": {
-        "1": 124
-      },
-      "id": 124,
-      "overrides": {
-        "1": [
-          {
-            "op": "replace",
-            "path": "/componentOrder",
-            "value": [
-              "ee86e41d266e61aff13d0505bb077ffa",
-              "00000000000000010000000000000006",
-              "2ba8702b54cb42c5841df16e38b1ac59"
-            ]
-          },
-          {
-            "op": "remove",
-            "path": "/components/00000000000000010000000000000004"
-          },
-          {
-            "op": "remove",
-            "path": "/components/00000000000000010000000000000005"
-          },
-          {
-            "op": "remove",
-            "path": "/components/02845d35dda1322723f7ed5257739469"
-          },
-          {
-            "op": "remove",
-            "path": "/components/a6ea5d5c127675e61065dc7c1c61a3a5"
-          }
-        ]
-      },
-      "parent": 117,
-      "prefab": "5024eac3a04ce008179ee71796d55f15",
-      "removedEntities": [
-        5,
-        6,
-        7,
-        8,
-        9,
-        10,
-        11,
-        12
-      ]
-    },
-    {
-      "entityIds": {
-        "1": 129
-      },
-      "id": 129,
-      "overrides": {
-        "1": [
-          {
-            "op": "replace",
-            "path": "/componentOrder",
-            "value": [
-              "a1dfab66d97e9a63c4ee8d58e37f29e1",
-              "00000000000000010000000000000006",
-              "8d2a2074277a4ad387b3f8db1b4e6783"
-            ]
-          },
-          {
-            "op": "remove",
-            "path": "/components/00000000000000010000000000000004"
-          },
-          {
-            "op": "remove",
-            "path": "/components/00000000000000010000000000000005"
-          },
-          {
-            "op": "remove",
-            "path": "/components/09ef6d8ce953bee43803eb79b00e7566"
-          },
-          {
-            "op": "remove",
-            "path": "/components/ae961c47e79a2b4bf308e148f5fad6ea"
-          }
-        ]
-      },
-      "parent": 117,
-      "prefab": "fa4b9e83038571e546218ba8dd3aa187",
-      "removedEntities": [
-        9,
-        10,
-        11,
-        12,
-        13,
-        14,
-        15,
-        16
-      ]
-    },
-    {
-      "entityIds": {
-        "1": 133
-      },
-      "id": 133,
-      "overrides": {
-        "1": [
-          {
-            "op": "replace",
-            "path": "/componentOrder",
-            "value": [
-              "1043ac93cc2af29dd325548ec92584ee",
-              "00000000000000010000000000000006",
-              "45a880d0bfb343b880c504aae9d76774"
-            ]
-          },
-          {
-            "op": "remove",
-            "path": "/components/00000000000000010000000000000004"
-          },
-          {
-            "op": "remove",
-            "path": "/components/00000000000000010000000000000005"
-          },
-          {
-            "op": "remove",
-            "path": "/components/42e05f3b2fa51f90b57e5b05161ae547"
-          },
-          {
-            "op": "remove",
-            "path": "/components/f8297c1324ea461c9110fc4e755fffbc"
-          }
-        ]
-      },
-      "parent": 117,
-      "prefab": "1b28f91ff84a600b6be91d7768c16b90",
-      "removedEntities": [
-        12,
-        13,
-        14,
-        15,
-        16,
-        17,
-        18
-      ]
-    },
-    {
-      "active": true,
+      "active": false,
       "components": [
         {
           "data": {
@@ -835,12 +717,14 @@
           "id": "5f60bb2f2e584cdd9a6b1ab7e3832443",
           "enabled": true,
           "data": {
-            "distance": 2.4,
+            "distance": 1.65,
             "lookHeight": 0.05,
             "followView": true,
             "orbit": false,
             "speedFieldOfView": 0,
-            "shoulderOffset": 0.65
+            "shoulderOffset": 0.42,
+            "followRate": 12,
+            "maxBoomPitch": 0.65
           }
         }
       ]
@@ -875,6 +759,9 @@
           "enabled": true,
           "data": {
             "displayName": "Ray Gun",
+            "droppable": true,
+            "worldSize": [0.11, 0.18, 0.3],
+            "worldCenter": [0.0, -0.02, -0.13],
             "damage": 1337.0,
             "damageType": "Energy",
             "automatic": true,
@@ -890,6 +777,51 @@
             "muzzleEffect": "ray_gun.muzzle",
             "tracerEffect": "ray_gun.tracer",
             "model": "cf23fb0dbe3964d6ee38cb003dc395e1",
+            "worldPose": {
+              "enabled": true,
+              "ready": {
+                "position": [
+                  0.06143,
+                  -0.07,
+                  -0.32531
+                ],
+                "angles": [
+                  -0.35,
+                  0.25,
+                  0
+                ]
+              },
+              "aiming": {
+                "position": [
+                  -0.00386,
+                  0.12,
+                  -0.36053
+                ],
+                "angles": [
+                  0,
+                  0.35,
+                  0
+                ]
+              },
+              "sprint": {
+                "position": [
+                  0.16,
+                  -0.1,
+                  -0.24
+                ],
+                "angles": [
+                  -0.55,
+                  0.9,
+                  0
+                ]
+              },
+              "supportOffset": [
+                0,
+                0,
+                0
+              ],
+              "readyAimWeight": 1
+            },
             "icon": "e6d6926eba9a97e1216a5abda280b186",
             "fireSound": "f316d082893ebd9c3bf88503068540d3",
             "reloadSound": "0c7379df4ea628e65c4ab48d8973707e",

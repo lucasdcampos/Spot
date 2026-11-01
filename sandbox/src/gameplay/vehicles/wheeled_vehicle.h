@@ -79,11 +79,20 @@ public:
     float GetThrottle() const override { return m_throttle; }
     float GetSlip() const override;
 
+    // The entity of the brake light(s) turned on while braking, as Headlight Beams for headlights.
+    Spot::EntityId brakeLights = Spot::EntityId::Invalid;
+
+    // Whether the driver has the brakes applied.
+    bool IsBraking() const;
+
 protected:
     void OnPossess(Controller& controller) override;
     void OnUnpossess() override;
     void OnStart() override;
+    void OnUpdate(float deltaTime) override;
     void OnFixedUpdate(float fixedDeltaTime) override;
+    void OnDisable() override;
+    void Replicate(Spot::Archive& archive) override;
     void Serialize(Spot::Archive& archive) override;
 
 private:
@@ -100,6 +109,8 @@ private:
     // Shifts as an automatic gearbox does, and works out throttle and brakes from the input.
     void UpdateGearbox(float deltaTime, float& brake, const std::vector<VehicleWheel*>& wheels);
     void Reset();
+    bool ComputeBraking() const;
+    void UpdateBrakeLights();
 
     // Where the body's mass is centered, from the vehicle, as its box colliders put it.
     Spot::Vector3 m_centerOfMass;
@@ -112,6 +123,7 @@ private:
     float m_shiftLeft = 0.0f;
     // Seconds the parked vehicle has stood still, to put it to sleep.
     float m_still = 0.0f;
+    bool m_braking = false;
 };
 
 } // namespace Gameplay

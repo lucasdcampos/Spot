@@ -83,8 +83,6 @@ std::vector<PlayerLabel> GetPlayerLabels(Spot::Scene& scene, Spot::Vector2 viewS
     return labels;
 }
 
-namespace {
-
 void DrawDeveloperBadge(Spot::Renderer2D& renderer, Spot::Vector2 center, float opacity) {
     constexpr float Height = 22.0f;
     constexpr float HalfWidth = 10.0f;
@@ -115,8 +113,6 @@ void DrawDeveloperBadge(Spot::Renderer2D& renderer, Spot::Vector2 center, float 
     stroke({-1.5f, -3.8f}, {1.5f, 3.8f});
     renderer.DrawQuad(center + Spot::Vector2{0, 8.5f}, {9.5f, 1}, {0.5f, 0.85f, 1, opacity * 0.7f});
 }
-
-} // namespace
 
 void DrawPlayerLabels(Spot::Renderer2D& renderer, Spot::Scene& scene, Spot::Vector2 viewSize) {
     const auto* hud = scene.FindComponent<Gameplay::Hud>();

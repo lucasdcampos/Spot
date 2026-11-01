@@ -26,7 +26,7 @@ so those systems also bring `hud` even when a particular game does not author th
 | `core`, `effects`, `persistence` | Engine only |
 | `camera` | `core` |
 | `hud` | `core` |
-| `health` | `core`, `hud` |
+| `health` | `core`, `hud`, `inventory`, `network` |
 | `character` | `camera`, `core`, `effects`, `health`, `hud`, `persistence` |
 | `inventory` | `core`, `hud`, `menus` |
 | `weapons` | `camera`, `core`, `effects`, `health`, `inventory` |
@@ -132,7 +132,14 @@ Possession uses the selected camera on return from a vehicle; changing the selec
 vehicle camera in control. The console commands themselves belong to the sandbox.
 
 `CharacterVisual` presents an authored `modelRoot` with an animator reference and configurable speed parameter,
-seated/crouching layer names and offsets. It follows aim yaw on foot and the root's full rotation while seated.
+seated/crouching layer names and offsets. Its configurable `forwardParameter` and `sidewaysParameter` carry
+view-relative horizontal velocity (walk = 1, run = 2); `crouchParameter` selects crouched locomotion with movement
+normalized by crouch speed. `airborneParameter` selects the jump tree and `verticalParameter` carries vertical velocity normalized by
+jump speed. CharacterMovement replicates its actual grounded flag, so remote characters retain the airborne pose
+through the apex rather than guessing from vertical speed. Seated, dead and noclip characters suppress jumping.
+The player controller blends four directions in standing and crouched states with
+0.18-second transitions, leaving the hands free for weapon IK. The legacy crouch layer remains optional for other
+controllers. It follows aim yaw on foot and the root's full rotation while seated.
 Additional `stateLayers` map arbitrary pawn states to authored pose layers, including seat-specific poses.
 `CharacterAim` points two optional AimIK constraints at `distance` ahead of the pawn's view point, so a character
 pitches as well as turns toward what it looks at: `look`, which it turns off in `hiddenWhen` states, and `aim`, whose
@@ -146,9 +153,15 @@ Tests: `character_tests.cpp`.
 
 `gameplay/inventory/` needs `core`, `hud` and `menus` (to close the wheel before a menu pauses time). `Inventory`
 discovers child entities with a `HeldItem` in sibling order, equips the selected one and sends it an `ItemInput`.
+The Holster Weapon action (0 in the sandbox) leaves the hands empty without removing items; selecting a slot,
+cycling or confirming the wheel equips an item again. Holstering clears item input and replicates with the selection.
 Slot actions, cycling and the wheel know no item kinds. `stowedBy` makes the intent inactive; `blockedBy` prevents
 use. `AddFromPrefab()` makes a held instance without its world rigidbodies, colliders or renderers, preserving the
-selection. The sandbox's `give` command uses it. The physics gun and tool gun are sandbox `HeldItem` subclasses on
+selection. `Drop()` releases the selected item with a world model and a dynamic box body; `PickUp()` transfers
+the same entity back, keeping ammunition and cooldowns. Held items are interactable while on the ground, so Use
+collects and equips them before prop carrying is considered. The sandbox binds Drop Weapon to G and Use to E.
+The wheel divides the full circle by the current item count, including inventories larger than eight; an empty
+inventory closes it. The sandbox's `give` command uses `AddFromPrefab()`. The physics gun and tool gun are sandbox `HeldItem` subclasses on
 child entities; their model and icon belong to the item, as firearms' do.
 
 An item describes its `ItemStatus` (name, icon, count, detail, progress and hints) and `ItemPose` (reload, empty and
@@ -165,6 +178,10 @@ pose, so aiming, recoil, switching, sprinting, obstruction and landing keep the 
 uses each weapon's authored `LeftHand`/`RightHand` markers, follows the shotgun pump, and releases to fetch and
 insert ammunition during reloads. The generator uses the humanoid's skin color and models curled fingers and thumbs. Arms share the view
 model's visibility states, layer, shadow policy and cleanup; they never appear on world weapon models.
+The optional `ViewModel.armsMaterialSource` references the body's skin renderer. Each late update, immediately after
+creating any new arms, the view shares that renderer's current material with all forearms and hands. The player
+prefab points it at the body's `Skin` entity, so random appearance, replicated changes, checkpoint loads and developer
+skins stay consistent without relying on the ordering of another component's late update.
 
 `gameplay/weapons/` needs `core`, `inventory`, `health`, `effects` and `camera`. `Firearm` is a held item: its data
 describes cadence, spread, ammunition, aiming and effects. Without a `projectile` prefab it hits along rays, through
@@ -212,7 +229,7 @@ moves with suspension, steering and spin. Per-wheel drive and brake shares, axle
 settings replace the four fixed wheel slots. `Drivetrain` is serialized data on the vehicle. The tire, gearbox and
 suspension simulation preserves the car's math, distributing resting loads across its wheels. Separate
 `VehicleEngineSound` and `VehicleTireSound` use the vehicle's public telemetry. `VehicleElement` shows its gauges
-and controls; `ChaseCamera` follows its pawn. `ImpactDamage` is authored on the car prefab rather than built into the
+and controls; `ChaseCamera` follows its pawn. `brakeLights` switches rear brake lights while braking or holding the handbrake, and entering at night switches `Flashlight` headlights on automatically. `ImpactDamage` is authored on the car prefab rather than built into the
 vehicle simulation.
 
 To make a different car, copy the car prefab, replace its model, arrange its wheels, tune shares, drivetrain and seat,
@@ -294,7 +311,11 @@ damage that reached something is told by `DamageSystem::OnDamageApplied`, as the
   step, so a collision that stops the source still deals damage.
 - **HUD elements**: `HealthElement` (number, icon and a bar easing toward it, in the warning color when low),
   `DamageFlashElement` (the edges of the screen as the pawn is hurt) and `HitMarkerElement` (when the pawn damages
-  something of its `damageTypes`). The death screen belongs to `game/`, which owns its countdown.
+  something of its `damageTypes`). `KillFeedSubject` opts player and NPC pawns into death announcements; vehicles and
+  props have none. `KillFeedElement` captures actor names and the source `HeldItem::icon`, then assigns a configured
+  cause icon or the fallback skull when no item supplies one. Its authored `KillFeedRow` widgets draw 18-pixel names
+  with a black outline over a fitted dark background: blue killers, red victims and amber for the local player.
+  The death screen belongs to `game/`, which owns its countdown.
 
 The sandbox's player has `Health` and `FallDamage`; its movement is a receiver that throws it back from "Explosion"
 damage, its NPCs and explosive barrels are receivers, and the car prefab has `ImpactDamage`. A game changes how
@@ -317,7 +338,7 @@ library lacks play nothing, so a game that takes the effects brings its own libr
 
 ## Environment
 
-`gameplay/environment/` needs `core`, `effects` and `hud`. `DayCycle` turns the sun through the day, which the sky, the
+`gameplay/environment/` needs `core`, `effects`, `hud` and `network`. `DayCycle` turns the sun through the day, which the sky, the
 fog's color and the exposure follow, thickens the fog at dawn and dusk, and lights the effects as the day is; its `RegisterScriptBindings()`, which the sandbox's module calls,
 gives scripts the same API as before. `NightLight` lights its lamp as the daylight fades. `Water` is a `TraceVolume`:
 shots go `shotDepth` under its surface, splashing it, and blasts at or under it throw up its water; it slows bodies in
@@ -337,6 +358,11 @@ vehicle's seat, the carrier and the physics gun let go, the undo list clears and
 their "Spawned" tag. Tests: `persistence_tests.cpp`.
 
 ## HUD
+
+`CrosshairElement::tShape` hides the top arm and defaults to true; `dot` controls both the central dot and its outline
+and defaults to false. The authored interface uses those defaults. `ItemPanelElement` positions the smaller item icon
+12 canvas pixels before the right-aligned counter's measured glyphs. Infinite firearms use U+221E at the same size and
+alignment as magazine counts, with no reserve line.
 
 `gameplay/hud/` needs `core`. The `Hud` of a player shows, each frame, the `HudElement`s below it whose conditions
 hold: all the pawn's states of `showWhen`, none of `hideWhen`, and their own `IsWanted()`, which is asked every frame
@@ -560,7 +586,7 @@ remains server-simulated in this stage.
 
 ### A different car, with any number of wheels
 
-Copy `sandbox/assets/prefabs/spawnables/props/car.prefab` through the editor, keeping a collider and `Rigidbody` on
+Copy `sandbox/assets/prefabs/spawnables/vehicles/car.prefab` through the editor, keeping a collider and `Rigidbody` on
 the `WheeledVehicle` root. The origin is at ground level and forward is -Z. Replace the body model and arrange
 children with `VehicleWheel` at each wheel's resting center. A visual child, referenced by `visual`, moves with
 suspension, steering and spin; the entity with `VehicleWheel` stays at rest.
@@ -673,7 +699,7 @@ framework dependencies serve those responsibilities:
 | `prop_spawner`, `spawnable`, `spawn_menu`, `menu_thumbnails`, `undo_list` | Catalog, placement, previews and editing history; player lookup uses `Players`, placement publishes "Placing" |
 | `sandbox_hud`, `interface_palette`, `sound_bank` | Sandbox prompts, authored UI styling and click sound; generic HUD and menus stay in the framework |
 | `npc`, `npc_spawner` | Sandbox patrols, population and ragdoll damage receiver |
-| `grass_visibility`, `shadow_toggle`, `physics_debug_view` | Level culling and developer switches |
+| `grass_visibility`, `physics_debug_view` | Level culling and developer switches |
 | `sandbox_commands`, `smoke_test`, `main` | Explicit game composition and entry points; commands and the smoke driver resolve player parts through `Players` |
 
 The spawner does not call the carrier, and tools do not read camera tuning. Their coordination uses pawn states,
@@ -720,7 +746,7 @@ All durations in this table are milliseconds; fixed/update are inclusive `Compon
 | Walk 3 | 17.098 | 16.989 | 18.427 | 19.986 | 3.866 | 0.100 | 1.933 | 370.2 |
 
 The median of the three mean frame times is **17.940 ms orbit (-2.2%)** and **16.927 ms walking (+4.9%)** against
-the historical means. Walking's increase repeats across all three captures (16.775–17.098 ms), so this record does
+the historical means. Walking's increase repeats across all three captures (16.775â17.098 ms), so this record does
 not classify it as noise or claim performance acceptance. The walking Interface scope's median is 1.933 ms against
 1.510 ms, and the component fixed-update median is 3.833 ms against 3.627 ms. These are measured differences, not an
 attribution of the slowdown; a contemporaneous baseline comparison and further profiling remain necessary before
@@ -802,7 +828,7 @@ builds or tests. All six captured 1,011 bodies and no dropped profiler samples. 
 The median of final mean frame times is **16.928 ms orbit** and **16.011 ms walking**. The
 Interface scope is **0.671 ms** across these captures, about **65.6% below** the contemporaneous
 pre-optimization walking capture (1.952 ms). This is a CPU-scope improvement; it is not a claim that total frame time
-improved by that percentage. Final walking means span 15.961�16.016 ms and do not repeat the earlier 16.775�17.098 ms
+improved by that percentage. Final walking means span 15.96116.016 ms and do not repeat the earlier 16.77517.098 ms
 results. The historical baseline did not have the final route/render validation, so its comparison still cannot
 isolate the framework's total cost.
 
@@ -838,3 +864,33 @@ The `</>` badge next to a sandbox nickname identifies a developer authenticated 
 `imthegamedev` unlocks the easter egg without granting this badge. Authentication is decided by the
 server, replicated separately from the unlock, retained across character replacement and never saved
 as scene data. A player who used the command can still authenticate with a valid key afterward.
+
+With `WorldModel::poseMount`, the mount's BoneAttachment blends `readyPosition`/`readyPitch` toward
+`aimingPosition`/`aimingPitch` while the pawn is `Aiming`, at exponential `poseRate`. Offsets use the attachment
+bone's space and preserve its scale. Items can override these defaults with `HeldItem::worldPose`; configure them for the replacement rig's arm lengths. `readyAimWeight`
+keeps the carried posture relaxed while full aim follows the view. Grip targets and elbow poles still belong to
+prefab/model data. NPCs set the same aim action while engaging a visible target, including between shots.
+
+The generated humanoid and developer share baked foot-contact locomotion: walking, running, lateral and backward
+steps, and four crouch-walk directions. Authoring solves legs against ground contacts before writing standard
+animation channels; playback uses the public animator and its existing name-based retargeting. A different skeleton
+needs matching bone names or its own clips/controller, plus authored mounts and IK offsets; no runtime behavior
+assumes the generated humanoid's bone indices.
+
+Sprint presentation uses `WorldModel::sprintPosition`, `sprintPitch` and `sprintState`, with the same exponential
+blend as ready/aim. Sprint takes priority over aim and fades torso aiming out while both hands remain on the grips.
+NPCs publish `Running` separately from the player's gameplay `Sprinting` state; their prefabs select it for poses.
+Follow-view ChaseCamera clamps boom elevation independently of aim, retracts immediately at collisions and recovers
+distance smoothly. Camera deactivation or teleporting resets the cache. Eye-ray convergence continues to align
+interactions and shooting with the center reticle, even at short distances.
+
+`ItemWorldPose` authors ready, aiming and sprint stances on each item prefab, in the mount bone's space. Each
+`ItemStance` supplies firing-grip position and pitch/yaw/roll in radians. WorldModel blends rotations with slerp and
+rotates the torso aim axis by the stance yaw; the chest can turn sideways while the barrel still follows the view.
+This advances the support shoulder for long foregrips while keeping receivers in front of the chest and stocks
+outside the neck. `supportOffset` moves a generated child contact under the model's LeftHand marker, preserving
+rig-specific wrist transforms. Switching items with the same model still updates their poses and contacts.
+Without an enabled item profile, the character's existing ready/aim/sprint defaults apply. There is no automatic
+backward shift based on grip spacing. Rifle, shotgun, launcher, physics gun and the player's inline ray gun author
+their own stances. GPU tests equip real item prefabs and capture front/side views in ready and aiming states,
+checking hand reach, receiver clearance and stock positions against the neck and head.

@@ -54,6 +54,7 @@ public:
 
     // Whether its GPU resources were created; when not, drawing does nothing and the reason has been logged.
     bool IsValid() const;
+    GraphicsDevice& GetDevice() const { return m_device; }
 
     void Begin(RenderPass& pass, const Camera2D& camera, Vector2 viewSize);
     void Begin(RenderPass& pass, const Camera3D& camera, Vector2 viewSize);

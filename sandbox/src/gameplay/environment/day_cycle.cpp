@@ -2,6 +2,8 @@
 #include <spot/scene/scripting/script_bindings.h>
 
 #include "gameplay/effects/effect_pool.h"
+#include "gameplay/network/session.h"
+#include <spot/scene/net/network_system.h>
 
 #include <algorithm>
 #include <cmath>
@@ -11,9 +13,51 @@ namespace Gameplay {
 
 SPOT_COMPONENT(DayCycle);
 
+namespace {
+
+struct DayCycleTimeRequest {
+    static constexpr std::string_view NetName = "Gameplay.DayCycleTimeRequest";
+    float time = 0.0f;
+    void Serialize(Spot::Archive& archive) { archive.Field("time", time); }
+};
+
+} // namespace
+
+void DayCycle::Bind() {
+    auto* system = Spot::Network::Get(GetScene());
+    if (system == m_system) {
+        return;
+    }
+    m_system = system;
+    if (system && system->IsServer()) {
+        system->OnObjectMessage<DayCycleTimeRequest>(
+            [](Spot::NetworkObject& object, Spot::NetPeerId from, DayCycleTimeRequest& request) {
+                auto* sys = Spot::Network::Get(object.GetScene());
+                const auto* session = Gameplay::Session::Get(sys ? sys->GetSession() : nullptr);
+                if (!session || !session->IsHost() || !session->IsOperator(from)) {
+                    Spot::Log::Warning("Setting time of day refused: operator permission is required");
+                    return;
+                }
+                if (auto* cycle = object.GetEntity().GetComponent<DayCycle>()) {
+                    cycle->SetTimeOfDay(request.time);
+                }
+            });
+    }
+}
+
 void DayCycle::SetTimeOfDay(float time) {
     if (!std::isfinite(time) || time < 0.0f || time >= 1.0f)
         throw std::invalid_argument("Time of day must be in [0, 1)");
+    if (auto* system = Spot::Network::Get(GetScene()); system && system->IsClient()) {
+        const auto* session = Gameplay::Session::Get(system->GetSession());
+        if (!session || !session->IsOperator()) {
+            return;
+        }
+        if (auto* object = Spot::Network::GetObject(GetEntity())) {
+            system->SendToServer(*object, DayCycleTimeRequest{time});
+        }
+    }
+
     timeOfDay = time;
     UpdateSun();
     UpdateEffectLight();
@@ -35,6 +79,7 @@ void DayCycle::RegisterScriptBindings() {
 }
 
 void DayCycle::OnStart() {
+    Bind();
     UpdateSun();
     UpdateEffectLight();
 }
@@ -44,7 +89,13 @@ void DayCycle::Replicate(Spot::Archive& archive) {
     archive.Field("dayLength", dayLength);
 }
 
+void DayCycle::OnReplicated() {
+    UpdateSun();
+    UpdateEffectLight();
+}
+
 void DayCycle::OnUpdate(float deltaTime) {
+    Bind();
     // Only the server's player fast-forwards everyone's day.
     const bool fast = Spot::Network::HasAuthority(GetEntity()) && Spot::Input::IsActionDown(fastForwardAction);
     const float speed = fast ? fastForward : 1.0f;

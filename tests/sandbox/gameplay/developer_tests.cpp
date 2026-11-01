@@ -78,6 +78,12 @@ TEST_CASE("The developer console easter egg requires cheats and adds only the de
     CHECK(inventory->GetItemCount() == count + 1);
     inventory->Select(*gun);
     CHECK(inventory->GetEquipped() == gun);
+    CHECK(gun->droppable);
+    REQUIRE(inventory->Drop() == gun);
+    CHECK_FALSE(inventory->GetEquipped() == gun);
+    REQUIRE(inventory->PickUp(*gun));
+    inventory->Select(*gun);
+    CHECK(inventory->GetEquipped() == gun);
 
     auto* view = Gameplay::Players::FindComponent<Gameplay::FirstPersonView>(game.scene);
     REQUIRE(view);

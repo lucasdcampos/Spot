@@ -16,6 +16,17 @@ public:
     Spot::ComponentRef<Spot::Animator> animator;
     // An optional existing layer whose weight follows whether an item is shown.
     std::string poseLayer;
+    // Offsets are in the mount bone's space, so another rig can author its own reach and sight line.
+    bool poseMount = false;
+    Spot::Vector3 readyPosition = {0.10f, -0.08f, -0.36f};
+    Spot::Vector3 aimingPosition = {0.02f, 0.16f, -0.43f};
+    Spot::Vector3 sprintPosition = {0.14f, -0.20f, -0.30f};
+    float sprintPitch = -0.65f;
+    std::string sprintState = "Sprinting";
+    float readyPitch = -0.22f;
+    float aimingPitch = 0.0f;
+    float poseRate = 10.0f;
+    float readyAimWeight = 0.35f;
     std::string muzzleNode = "Muzzle";
     // Where the hands hold the item, as nodes of its model; the right one sits at the mount. Without it, the item's
     // origin does, and a hand without its node keeps its animation.
@@ -24,6 +35,7 @@ public:
     // Optional constraints that follow whether an item is shown: one that aims the body where the item points, and
     // ones that reach for its hand nodes.
     Spot::ComponentRef<Spot::AimIK> aim;
+    Spot::Vector3 aimAxis = {0, 0, -1};
     Spot::ComponentRef<Spot::TwoBoneIK> rightHand;
     Spot::ComponentRef<Spot::TwoBoneIK> leftHand;
     std::vector<std::string> hiddenWhen = {"Dead", "Seated"};
@@ -50,8 +62,13 @@ private:
     Spot::EntityId m_instance = Spot::EntityId::Invalid;
     // Where the shown model's right hand node is, from its origin.
     Spot::Vector3 m_grip;
+    Spot::Vector3 m_supportOffset;
+    float m_mountYaw = 0.0f;
+    float m_readyAimWeight = 0.35f;
     Spot::AssetRef<Spot::Model> m_shown;
     int m_layer = -1;
+    float m_aimBlend = 0.0f;
+    float m_sprintBlend = 0.0f;
 };
 
 } // namespace Gameplay

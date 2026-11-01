@@ -9,10 +9,10 @@ namespace Gameplay {
 // What a blast is: how far it reaches, how hard it hits at its center, less farther and behind cover, and what it
 // plays and shakes.
 struct BlastSettings {
-    float radius = 5.0f;
+    float radius = 6.0f;
     // In newton seconds, at the center.
-    float impulse = 400.0f;
-    float damage = 110.0f;
+    float impulse = 600.0f;
+    float damage = 250.0f;
     std::string damageType = "Explosion";
     // The effect of the EffectLibrary it plays in the air; with ".dust" after it, what it raises from the ground close
     // below; ".water" at the surface of a volume such as water, and ".underwater" under it.

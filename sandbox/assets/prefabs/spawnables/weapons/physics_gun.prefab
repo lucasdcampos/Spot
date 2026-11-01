@@ -1,0 +1,457 @@
+{
+  "format": "spot-scene",
+  "version": 2,
+  "entities": [
+    {
+      "id": 1,
+      "name": "Physics Gun",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "NetworkObject",
+          "id": "8088fb848d604f81992f5af70c201ca7",
+          "enabled": true,
+          "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 150.0
+          }
+        },
+        {
+          "type": "NetworkTransform",
+          "id": "c96a980199374887bd7a49ffaa2627e2",
+          "enabled": true,
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          }
+        },
+        {
+          "data": {
+            "displayName": "Physics Gun",
+            "hum": 8,
+            "icon": "93f132404e33e4c27a5b59e5ea7332df",
+            "maxSpeed": 40.0,
+            "minDistance": 1.5,
+            "model": "eb15e057c25f6521cd7ba1c6fc717606",
+            "worldPose": {
+              "enabled": true,
+              "ready": {
+                "position": [
+                  0.05403,
+                  -0.06,
+                  -0.33746
+                ],
+                "angles": [
+                  -0.35,
+                  0.2,
+                  0
+                ]
+              },
+              "aiming": {
+                "position": [
+                  -0.01085,
+                  0.12,
+                  -0.37347
+                ],
+                "angles": [
+                  0,
+                  0.3,
+                  0
+                ]
+              },
+              "sprint": {
+                "position": [
+                  0.16,
+                  -0.1,
+                  -0.24
+                ],
+                "angles": [
+                  -0.55,
+                  0.9,
+                  0
+                ]
+              },
+              "supportOffset": [
+                0,
+                0,
+                0
+              ],
+              "readyAimWeight": 1
+            },
+            "range": 60.0,
+            "scrollStep": 1.0,
+            "worldSize": [
+              0.1040000022,
+              0.1954209059,
+              0.48000001189999997
+            ],
+            "worldCenter": [
+              0.0,
+              -0.025710456049999997,
+              -0.15500000505
+            ]
+          },
+          "enabled": true,
+          "id": "a389ad6db98046258bf11df504906324",
+          "type": "PhysicsGun"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              -0.025710456049999997,
+              -0.15500000505
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              0.1040000022,
+              0.1954209059,
+              0.48000001189999997
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "dee264c224ca462a84216db7bd6adc7c",
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "canSleep": true,
+            "continuous": false,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 2.0,
+            "rotationLocks": {
+              "x": false,
+              "y": false,
+              "z": false
+            }
+          },
+          "enabled": true,
+          "id": "bfb4364c386448cb96455e7ea35dc7a2",
+          "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 2
+          },
+          "enabled": true,
+          "id": "9530bfb5d7404564b74528515e8c656b",
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "id": "aaa741b6173f4b14a689c71b908b9ece",
+          "type": "ImpactSounds"
+        },
+        {
+          "data": {
+            "category": 2,
+            "clearance": 0.153420909,
+            "order": 15
+          },
+          "enabled": true,
+          "id": "2f2f50893bc8454cbe9ac13fee15a63c",
+          "type": "Spawnable"
+        },
+        {
+          "type": "ImpactParticles",
+          "enabled": true,
+          "id": "29f178ac0c814c51a894dc26f89b6dfe",
+          "data": {
+            "minSpeed": 1.5
+          }
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "3b29c635b2e8452a97b17d51ef68cba1",
+          "type": "Persistent"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Visual",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [],
+      "parent": 1
+    },
+    {
+      "id": 3,
+      "name": "Body",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "MeshRenderer",
+          "id": "b5bddb5a918443af98d6fd6a638b6a49",
+          "enabled": true,
+          "data": {
+            "mesh": "74f574339c344560fb3585cce58ffb51",
+            "material": "3fac08269da5893a1b04b9f904cc811c",
+            "submesh": 0,
+            "castsShadows": true
+          }
+        }
+      ],
+      "parent": 2
+    },
+    {
+      "id": 4,
+      "name": "Trim",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "MeshRenderer",
+          "id": "0fa436e1d4f84f9d988ca9e2c4fefb5a",
+          "enabled": true,
+          "data": {
+            "mesh": "ce58d1fdc9b91cd50452e83a228e955c",
+            "material": "490d8a785eca372109785c517e32f459",
+            "submesh": 0,
+            "castsShadows": true
+          }
+        }
+      ],
+      "parent": 2
+    },
+    {
+      "id": 5,
+      "name": "Prongs",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "MeshRenderer",
+          "id": "53ffa76c6a8744d4be4e1d850a6ffa72",
+          "enabled": true,
+          "data": {
+            "mesh": "efb08b9235b18b19eca66e955c8d28cf",
+            "material": "cb362aba3b261436378f964fd084b814",
+            "submesh": 0,
+            "castsShadows": true
+          }
+        }
+      ],
+      "parent": 2
+    },
+    {
+      "id": 6,
+      "name": "Grip",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "MeshRenderer",
+          "id": "12298ab1b0554222b978a080d3b3fbde",
+          "enabled": true,
+          "data": {
+            "mesh": "92d991dd6d3ca9ae0c0fd8be023174ce",
+            "material": "617da04ef4d1868fa9af4d6b31ed55ce",
+            "submesh": 0,
+            "castsShadows": true
+          }
+        }
+      ],
+      "parent": 2
+    },
+    {
+      "id": 7,
+      "name": "Core",
+      "active": true,
+      "layer": 0,
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "tags": [],
+      "components": [
+        {
+          "type": "MeshRenderer",
+          "id": "b0192c9aef1d4ede81f90363d04a2762",
+          "enabled": true,
+          "data": {
+            "mesh": "b6e40b7a8c876b64e633a39c07a3e608",
+            "material": "22d0eeb7c358cd5ef80ad5e704a1e872",
+            "submesh": 0,
+            "castsShadows": true
+          }
+        }
+      ],
+      "parent": 2
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "bus": "Effects",
+            "loop": true,
+            "pitch": 1.0,
+            "playOnStart": false,
+            "sound": "23ffbdc91408f460a849bb6d7277af1e",
+            "spatial": true,
+            "spatialSettings": {
+              "maxDistance": 50.0,
+              "minDistance": 1.0,
+              "rolloff": 0
+            },
+            "volume": 0.25
+          },
+          "enabled": true,
+          "id": "846e304b301048f6bbd9f948627a3156",
+          "type": "AudioSource"
+        }
+      ],
+      "id": 8,
+      "layer": 0,
+      "name": "Physics Gun Hum",
+      "parent": 1,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    }
+  ]
+}

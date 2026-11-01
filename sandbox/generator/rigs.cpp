@@ -55,15 +55,72 @@ AnimationChannel Translation(std::uint32_t bone, float duration, Vector3 start, 
             {{start.x, start.y, start.z, 0}, {middle.x, middle.y, middle.z, 0}, {end.x, end.y, end.z, 0}}};
 }
 
-AnimationChannel Swing(std::uint32_t bone, float duration, Vector3 axis, float amplitude) {
-    AnimationChannel channel{bone, AnimationPath::Rotation, AnimationInterpolation::Linear, {}, {}};
-    constexpr std::array Waves{0.0f, 1.0f, 0.0f, -1.0f, 0.0f};
-    for (std::size_t i = 0; i < Waves.size(); ++i) {
-        channel.times.push_back(duration * static_cast<float>(i) * 0.25f);
-        const auto q = Quaternion::FromAxisAngle(axis, Waves[i] * amplitude);
-        channel.values.push_back({q.x, q.y, q.z, q.w});
+// Author foot contacts in model space, then bake ordinary local bone tracks. The same clips can be
+// retargeted by the animator; the procedural authoring never becomes a gameplay dependency.
+AnimationClip Locomotion(const Skeleton& skeleton, std::string name, float duration, float stride, Vector3 direction,
+                         bool crouching, bool running, bool rootMotion = false) {
+    AnimationClip clip{std::move(name), duration, {}};
+    constexpr int Samples = 32;
+    const std::array Bones{0u, 1u, 2u, 6u, 7u, 10u, 11u, 13u, 14u, 15u, 17u, 18u, 19u};
+    for (const auto bone : Bones) {
+        clip.channels.push_back({bone,
+                                 bone == 0 ? AnimationPath::Translation : AnimationPath::Rotation,
+                                 AnimationInterpolation::Linear,
+                                 {},
+                                 {}});
     }
-    return channel;
+    std::vector<TransformComponents> local(skeleton.bones.size());
+    std::vector<Matrix4> model(skeleton.bones.size());
+    for (int sample = 0; sample <= Samples; ++sample) {
+        const float phase = static_cast<float>(sample) / Samples;
+        const float wave = std::sin(phase * 2 * Pi) * (stride == 0 ? 0.05f : 1.0f);
+        Pose::Bind(skeleton, local);
+        const float bob = (stride == 0 ? 0.002f : running ? 0.035f : 0.018f) * (1 - std::cos(phase * 4 * Pi));
+        local[0].translation = {0, (crouching ? -0.32f : running ? -0.13f : -0.085f) + bob, crouching ? 0.045f : 0.0f};
+        local[1].rotation = Quaternion::FromEuler({crouching ? 0.28f
+                                                   : running ? 0.13f
+                                                             : 0.04f,
+                                                   wave * 0.045f, wave * -0.025f});
+        local[2].rotation = Quaternion::FromAxisAngle({0, 1, 0}, -wave * 0.07f);
+        for (const bool left : {true, false}) {
+            const auto arm = left ? 6u : 10u;
+            const float armWave = left ? -wave : wave;
+            local[arm].rotation =
+                Quaternion::FromEuler({armWave * (running ? 0.65f : 0.28f), 0, left ? -0.08f : 0.08f});
+            local[arm + 1].rotation = Quaternion::FromAxisAngle({1, 0, 0}, running ? 1.05f : 0.22f);
+        }
+        Pose::ToModel(skeleton, local, model);
+        for (const bool left : {true, false}) {
+            const float footPhase = std::fmod(phase + (left ? 0.0f : 0.5f), 1.0f);
+            constexpr float Contact = 0.6f;
+            const bool planted = footPhase < Contact;
+            const float t = planted ? footPhase / Contact : (footPhase - Contact) / (1 - Contact);
+            const float travel = planted ? 0.5f - t : -0.5f + t * t * (3 - 2 * t);
+            const float lift = planted || stride == 0 ? 0.0f
+                                                      : std::sin(t * Pi) * (crouching ? 0.065f
+                                                                            : running ? 0.19f
+                                                                                      : 0.10f);
+            const Vector3 foot = Vector3{left ? -0.105f : 0.105f, -0.87f + lift, 0} +
+                                 direction * (travel * std::min(stride, running ? 0.78f : 0.62f));
+            Pose::SolveTwoBone(skeleton, left ? 15u : 19u,
+                               {.position = foot, .rotation = Quaternion{}, .pole = {0, 0, -1}}, local, model);
+        }
+        if (rootMotion) {
+            local[0].translation = local[0].translation + direction * (stride * phase);
+        }
+        for (std::size_t i = 0; i < Bones.size(); ++i) {
+            auto& channel = clip.channels[i];
+            channel.times.push_back(phase * duration);
+            const auto& bone = local[Bones[i]];
+            const auto q = bone.rotation;
+            const auto v = bone.translation;
+            channel.values.push_back(Bones[i] == 0 ? Vector4{v.x, v.y, v.z, 0} : Vector4{q.x, q.y, q.z, q.w});
+        }
+    }
+    if (stride > 0) {
+        clip.events = {{0, "Footstep", "left"}, {duration * 0.5f, "Footstep", "right"}};
+    }
+    return clip;
 }
 } // namespace
 
@@ -98,8 +155,9 @@ GltfModel Humanoid() {
     model.materials = {{.name = "Shirt", .baseColor = {0.12f, 0.32f, 0.53f, 1}, .roughness = 0.9f},
                        {.name = "Trousers", .baseColor = {0.12f, 0.15f, 0.19f, 1}, .roughness = 0.95f},
                        {.name = "Skin", .baseColor = {0.68f, 0.44f, 0.29f, 1}, .roughness = 0.85f},
-                       {.name = "Details", .baseColor = {0.035f, 0.028f, 0.025f, 1}, .roughness = 0.9f}};
-    model.parts = {{"Shirt", {}, 0}, {"Trousers", {}, 1}, {"Skin", {}, 2}, {"Details", {}, 3}};
+                       {.name = "Details", .baseColor = {0.035f, 0.028f, 0.025f, 1}, .roughness = 0.9f},
+                       {.name = "Hair", .baseColor = {0.035f, 0.028f, 0.025f, 1}, .roughness = 0.9f}};
+    model.parts = {{"Shirt", {}, 0}, {"Trousers", {}, 1}, {"Skin", {}, 2}, {"Details", {}, 3}, {"Hair", {}, 4}};
     auto& shirt = model.parts[0].mesh;
     auto& trousers = model.parts[1].mesh;
     auto& skin = model.parts[2].mesh;
@@ -110,7 +168,7 @@ GltfModel Humanoid() {
     Box(skin, {0.10f, 0.15f, 0.105f}, {0, 0.035f, 0}, 3, bind);
     Box(skin, {0.18f, 0.235f, 0.19f}, {0, 0.105f, 0}, 4, bind);
     Box(skin, {0.038f, 0.045f, 0.035f}, {0, 0.085f, -0.102f}, 4, bind);
-    Box(details, {0.19f, 0.065f, 0.20f}, {0, 0.21f, 0.006f}, 4, bind);
+    Box(model.parts[4].mesh, {0.19f, 0.065f, 0.20f}, {0, 0.21f, 0.006f}, 4, bind);
     for (const float side : {-1.0f, 1.0f}) {
         Box(details, {0.023f, 0.013f, 0.009f}, {side * 0.042f, 0.125f, -0.095f}, 4, bind);
         Box(skin, {0.025f, 0.065f, 0.045f}, {side * 0.095f, 0.105f, 0}, 4, bind);
@@ -147,29 +205,8 @@ GltfModel Humanoid() {
                              {{1, 1, 1, 0}, {1, 1.008f, 1, 0}, {1, 1, 1, 0}}});
     model.animations.push_back(std::move(idle));
     for (const bool run : {false, true}) {
-        const float duration = run ? 0.6f : 1.0f, distance = run ? 1.6f : 0.85f;
-        AnimationClip clip{run ? "Run" : "Walk",
-                           duration,
-                           {Translation(0, duration, {}, {0, 0, -distance * 0.5f}, {0, 0, -distance})},
-                           {{duration * 0.25f, "Footstep", "left"}, {duration * 0.75f, "Footstep", "right"}}};
-        const float legs = run ? 0.9f : 0.55f, arms = run ? 0.6f : 0.35f;
-        clip.channels.push_back(Swing(13, duration, {1, 0, 0}, legs));
-        clip.channels.push_back(Swing(17, duration, {1, 0, 0}, -legs));
-        clip.channels.push_back(Swing(6, duration, {1, 0, 0}, -arms));
-        clip.channels.push_back(Swing(10, duration, {1, 0, 0}, arms));
-        for (const auto bone : {14u, 18u, 7u, 11u}) {
-            auto bend = Swing(bone, duration, {1, 0, 0}, 1);
-            for (std::size_t i = 0; i < bend.values.size(); ++i) {
-                const float wave = std::sin(static_cast<float>(i) * Pi * 0.5f + (bone == 18 ? Pi : 0));
-                const bool leg = bone == 14 || bone == 18;
-                const float angle = leg ? -std::max(wave, 0.0f) * (run ? 1.1f : 0.65f) : 0.15f;
-                const auto q = Quaternion::FromAxisAngle({1, 0, 0}, angle);
-                bend.values[i] = {q.x, q.y, q.z, q.w};
-            }
-            clip.channels.push_back(std::move(bend));
-        }
-        clip.channels.push_back(Swing(1, duration, {0, 1, 0}, 0.06f));
-        model.animations.push_back(std::move(clip));
+        model.animations.push_back(Locomotion(model.skeleton, run ? "Run" : "Walk", run ? 0.6f : 1.0f,
+                                              run ? 1.6f : 0.85f, {0, 0, -1}, false, run, true));
     }
     AnimationClip hold{"HoldPistol", 1, {}};
     for (const auto bone : {10u, 11u, 12u}) {
@@ -189,7 +226,7 @@ GltfModel Humanoid() {
         for (auto& channel : clip.channels) {
             if (channel.bone == 0 && channel.path == AnimationPath::Translation) {
                 for (auto& value : channel.values) {
-                    value = {};
+                    value.x = value.z = 0;
                 }
             }
         }
@@ -217,18 +254,7 @@ GltfModel Humanoid() {
         rotate(seated, bone, -Pi * 0.5f);
     }
     model.animations.push_back(std::move(seated));
-    AnimationClip crouch{"Crouch", 1, {Translation(0, 1, {0, -0.36f, 0}, {0, -0.36f, 0}, {0, -0.36f, 0})}};
-    rotate(crouch, 1, 0.3f);
-    for (const auto bone : {13u, 17u}) {
-        rotate(crouch, bone, 1.3f);
-    }
-    for (const auto bone : {14u, 18u}) {
-        rotate(crouch, bone, -1.9f);
-    }
-    for (const auto bone : {15u, 19u}) {
-        rotate(crouch, bone, 0.6f);
-    }
-    model.animations.push_back(std::move(crouch));
+    model.animations.push_back(Locomotion(model.skeleton, "Crouch", 1, 0, {0, 0, -1}, true, false));
     AnimationClip compact{"SeatedCompact", 1, {}};
     for (const auto bone : {13u, 17u}) {
         rotate(compact, bone, 2.2f);
@@ -240,6 +266,36 @@ GltfModel Humanoid() {
         rotate(compact, bone, -1.2f);
     }
     model.animations.push_back(std::move(compact));
+    for (const bool run : {false, true}) {
+        for (const auto& [suffix, direction] :
+             std::array{std::pair{"Backward", Vector3{0, 0, 1}}, std::pair{"Left", Vector3{-1, 0, 0}},
+                        std::pair{"Right", Vector3{1, 0, 0}}}) {
+            model.animations.push_back(Locomotion(model.skeleton, std::string(run ? "Run" : "Walk") + suffix,
+                                                  run ? 0.6f : 1.0f, run ? 0.65f : 0.45f, direction, false, run));
+        }
+    }
+    for (const auto& [suffix, direction] :
+         std::array{std::pair{"Forward", Vector3{0, 0, -1}}, std::pair{"Backward", Vector3{0, 0, 1}},
+                    std::pair{"Left", Vector3{-1, 0, 0}}, std::pair{"Right", Vector3{1, 0, 0}}}) {
+        model.animations.push_back(
+            Locomotion(model.skeleton, std::string("CrouchWalk") + suffix, 0.9f, 0.32f, direction, true, false));
+    }
+    for (const bool falling : {false, true}) {
+        AnimationClip jump{falling ? "JumpFall" : "JumpRise", 1, {}};
+        rotate(jump, 1, falling ? -0.06f : 0.12f);
+        for (const bool left : {true, false}) {
+            const auto leg = left ? 13u : 17u;
+            const float hip = falling ? 0.30f : left ? 0.65f : 0.35f;
+            const float knee = falling ? -0.6f : left ? -1.05f : -0.7f;
+            rotate(jump, leg, hip);
+            rotate(jump, leg + 1, knee);
+            rotate(jump, leg + 2, -(hip + knee));
+            rotate(jump, left ? 6u : 10u, falling ? -0.20f : 0.35f);
+            rotate(jump, left ? 7u : 11u, 0.55f);
+        }
+        // The pose is sustained while physics decides how long the ascent or fall lasts.
+        model.animations.push_back(std::move(jump));
+    }
     return model;
 }
 

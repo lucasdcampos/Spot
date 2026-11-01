@@ -3,6 +3,7 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <generator.h>
+#include <rigs.h>
 #include <spot.h>
 #include <trees.h>
 
@@ -54,7 +55,7 @@ TEST_CASE("The generated humanoid has articulated limbs, valid skin and animatio
                 CHECK(vertex.joints[0] < skeleton.joints.size());
             }
         }
-        CHECK(data->animations.size() == 9);
+        CHECK(data->animations.size() == 21);
         for (const auto& clip : data->animations) {
             REQUIRE(clip.IsValid());
             Spot::Pose::Sample(skeleton, clip, clip.duration * 0.5f, false, local);
@@ -109,6 +110,72 @@ TEST_CASE("Pine branches and needles have valid independent joints", "[animation
             CHECK(point.x == Catch::Approx(1).margin(0.0001f));
             CHECK(point.y == Catch::Approx(2).margin(0.0001f));
             CHECK(point.z == Catch::Approx(3).margin(0.0001f));
+        }
+    }
+}
+
+TEST_CASE("Humanoid locomotion loops keep planted feet grounded and crouching knees bent",
+          "[animation][generator][locomotion]") {
+    const auto rig = Generator::Rigs::Humanoid();
+    const auto& skeleton = rig.skeleton;
+    std::vector<Spot::TransformComponents> local(skeleton.bones.size());
+    std::vector<Spot::Matrix4> model(skeleton.bones.size());
+    for (const auto& clip : rig.animations) {
+        if (clip.name == "Idle" || clip.name == "HoldPistol" || clip.name.starts_with("Seated") ||
+            clip.name.starts_with("Jump")) {
+            continue;
+        }
+        CAPTURE(clip.name);
+        REQUIRE(clip.IsValid());
+        for (int sample = 0; sample < 32; ++sample) {
+            const float phase = static_cast<float>(sample) / 32;
+            Spot::Pose::Sample(skeleton, clip, phase * clip.duration, false, local);
+            if (clip.name == "Walk" || clip.name == "Run") {
+                local[0].translation.z = 0;
+            }
+            Spot::Pose::ToModel(skeleton, local, model);
+            for (const bool left : {true, false}) {
+                const auto foot = *skeleton.FindBone(left ? "LeftFoot" : "RightFoot");
+                const auto point = model[foot] * Spot::Vector4{0, 0, 0, 1};
+                const float footPhase = std::fmod(phase + (left ? 0.0f : 0.5f), 1.0f);
+                CHECK(point.y >= -0.871f);
+                if (footPhase < 0.6f || clip.name == "Crouch") {
+                    CHECK(point.y == Catch::Approx(-0.87f).margin(0.002f));
+                }
+                if (clip.name.starts_with("Crouch")) {
+                    CHECK(local[0].translation.y < -0.27f);
+                    const auto knee = *skeleton.FindBone(left ? "LeftLowerLeg" : "RightLowerLeg");
+                    CHECK(std::abs(local[knee].rotation.x) > 0.4f);
+                }
+            }
+        }
+        std::vector<Spot::TransformComponents> end(local.size());
+        Spot::Pose::Sample(skeleton, clip, 0, false, local);
+        Spot::Pose::Sample(skeleton, clip, clip.duration, false, end);
+        for (std::size_t bone = 1; bone < local.size(); ++bone) {
+            CHECK(Spot::Length(local[bone].rotation * Spot::Vector3{0, -1, 0} -
+                               end[bone].rotation * Spot::Vector3{0, -1, 0}) < 0.001f);
+        }
+    }
+}
+
+TEST_CASE("Jump poses keep bent legs off the ground without driving physics", "[animation][generator][jump]") {
+    const auto rig = Generator::Rigs::Humanoid();
+    std::vector<Spot::TransformComponents> local(rig.skeleton.bones.size());
+    std::vector<Spot::Matrix4> model(local.size());
+    for (const auto& clip : rig.animations) {
+        if (!clip.name.starts_with("Jump")) {
+            continue;
+        }
+        CAPTURE(clip.name);
+        REQUIRE(clip.IsValid());
+        CHECK(clip.events.empty());
+        Spot::Pose::Sample(rig.skeleton, clip, 0.25f, false, local);
+        Spot::Pose::ToModel(rig.skeleton, local, model);
+        CHECK(Spot::Length(Spot::GetRootMotionDelta(rig.skeleton, clip, 0, 0, 1, false).translation) < 0.0001f);
+        for (const auto* name : {"LeftFoot", "RightFoot"}) {
+            const auto bone = *rig.skeleton.FindBone(name);
+            CHECK((model[bone] * Spot::Vector4{0, 0, 0, 1}).y > -0.85f);
         }
     }
 }

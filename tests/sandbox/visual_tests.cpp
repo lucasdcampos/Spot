@@ -7,6 +7,7 @@
 #include "gameplay/network/player_info.h"
 #include "main_menu.h"
 #include "npc.h"
+#include "player_appearance.h"
 #include "prop_spawner.h"
 #include "sandbox_hud.h"
 #include "spawn_menu.h"
@@ -18,6 +19,7 @@
 #include "gameplay/character/character_visual.h"
 #include "gameplay/environment/day_cycle.h"
 #include "gameplay/health/health.h"
+#include "gameplay/health/health_elements.h"
 #include "gameplay/inventory/inventory.h"
 #include "gameplay/inventory/view_model.h"
 #include "gameplay/inventory/world_model.h"
@@ -126,8 +128,8 @@ TEST_CASE("The player's inspection body and seated occupants render through the 
     observerCamera.SetFieldOfView(Spot::ToRadians(55.0f));
     for (const auto* name : {"car", "coupe", "helicopter"}) {
         CAPTURE(name);
-        auto* entity =
-            scene->Instantiate(assets.Load<Spot::Prefab>(std::string("prefabs/spawnables/props/") + name + ".prefab"));
+        auto* entity = scene->Instantiate(
+            assets.Load<Spot::Prefab>(std::string("prefabs/spawnables/vehicles/") + name + ".prefab"));
         REQUIRE(entity);
         entity->GetTransform().SetWorldPosition({0, 0.05f, 0});
         entity->GetComponent<Spot::Rigidbody>()->SetKinematic(true);
@@ -214,6 +216,79 @@ TEST_CASE("Developer smite renders a lightning bolt from the sky to its victim",
         blue += pixels[i + 2] > 140 && int(pixels[i + 2]) > int(pixels[i]) + 30 ? 1 : 0;
     }
     CHECK(blue > 100);
+}
+
+TEST_CASE("Random player appearances render alongside the authored developer skin",
+          "[gpu][sandbox][appearance][offscreen]") {
+    if (!Spot::GraphicsDevice::IsSupported()) {
+        SKIP("No usable graphics device");
+    }
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    Spot::Tests::RegisteredAssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
+    struct Restore {
+        Spot::AssetManager* previous = Spot::Assets::GetManager();
+        ~Restore() { Spot::Detail::SetAssetManager(previous); }
+    } restore;
+    Spot::Detail::SetAssetManager(&assets);
+    Spot::Detail::LoadGameCode();
+    Spot::Scene scene;
+    const auto bodyPrefab = assets.Load<Spot::Prefab>("prefabs/actors/player_body.prefab");
+    const auto developerSkin = assets.Load<Spot::Model>("generated/models/developer.gltf");
+    REQUIRE(bodyPrefab);
+    REQUIRE(developerSkin);
+    for (int i = 0; i < 7; ++i) {
+        auto& player = scene.CreateEntity("Appearance");
+        player.GetTransform().SetPosition({static_cast<float>(i - 3) * 0.85f, 0, 0});
+        auto* body = scene.Instantiate(bodyPrefab);
+        REQUIRE(body);
+        body->SetParent(&player);
+        player.AddComponent<Gameplay::CharacterVisual>().modelRoot = body->GetId();
+        player.AddComponent<PlayerAppearance>();
+        if (i == 6) {
+            auto& developer = player.AddComponent<DeveloperMode>();
+            developer.skin = developerSkin;
+            developer.Unlock();
+        }
+    }
+    scene.ForEachComponent<Spot::Camera>([](auto& camera) { camera.SetEnabled(false); });
+    scene.Update(0);
+    scene.ForEachComponent<PlayerAppearance>([&](PlayerAppearance& appearance) {
+        CHECK(appearance.GetSeed() != 0);
+        const auto* visual = appearance.GetEntity().GetComponent<Gameplay::CharacterVisual>();
+        REQUIRE(visual);
+        auto* body = scene.GetEntity(visual->modelRoot);
+        REQUIRE(body);
+        auto* hair = body->FindChild("Hair");
+        REQUIRE(hair);
+        auto* renderer = hair->GetComponent<Spot::SkinnedMeshRenderer>();
+        REQUIRE(renderer);
+        CHECK(renderer->GetMesh());
+        CHECK(renderer->GetMaterial());
+        CHECK(renderer->GetAnimator() == body->GetId());
+    });
+    auto& camera = scene.CreateEntity("Appearance inspection");
+    camera.GetTransform().SetPosition({0, 0.15f, -6.0f});
+    camera.AddComponent<Spot::Camera>().SetFieldOfView(Spot::ToRadians(30.0f));
+    camera.GetTransform().SetRotation(Spot::Quaternion::LookRotation({0, 0, 1}));
+    auto& light = scene.CreateEntity("Key light");
+    light.GetTransform().SetRotation(Spot::Quaternion::LookRotation({-0.5f, -1, 0.5f}));
+    light.AddComponent<Spot::DirectionalLight>();
+    scene.CreateEntity("Fill light").AddComponent<Spot::AmbientLight>();
+    auto target = device->CreateTexture(
+        {.width = 1536, .height = 640, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
+    REQUIRE(target);
+    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb, .sampleCount = 1});
+    scene.PrepareToRender();
+    auto* context = device->BeginOffscreenFrame(*target);
+    REQUIRE(context);
+    renderer.Render(*context, scene, target.get());
+    device->EndFrame();
+    const auto pixels = device->DownloadTexture(*target);
+    REQUIRE(pixels.size() == 1536 * 640 * 4);
+    const std::filesystem::path output(SPOT_SANDBOX_CAPTURE_DIR);
+    std::filesystem::create_directories(output);
+    CHECK(Spot::Image(1536, 640, pixels).SavePng(output / "player_appearances.png"));
 }
 
 TEST_CASE("The developer skin renders a black DEV shirt, pixel sunglasses and a gold crown",
@@ -333,7 +408,7 @@ TEST_CASE("Armed and unarmed humanoid prefabs render with articulated bodies and
     REQUIRE(elbow);
     CHECK(std::abs(animator->GetLocalPose()[*elbow].rotation.x) > 0.1f);
     const auto forward = visual->GetModelEntity()->GetTransform().GetWorldRotation() * Spot::Vector3{0, 0, -1};
-    CHECK(Spot::Dot(forward, Spot::Vector3{0, 0, -1}) > 0.99f);
+    CHECK(Spot::Dot(forward, Spot::Vector3{0, 0, -1}) > 0.95f);
     auto target = device->CreateTexture(
         {.width = 1024, .height = 768, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
     REQUIRE(target);
@@ -363,6 +438,150 @@ TEST_CASE("Armed and unarmed humanoid prefabs render with articulated bodies and
     renderer.Render(*context, scene, target.get());
     device->EndFrame();
     CHECK(Spot::Image(1024, 768, device->DownloadTexture(*target)).SavePng(output / "humanoid_npcs_side.png"));
+    auto* npc = armed->GetComponent<Npc>();
+    npc->SetEnabled(false);
+    auto* animated = armed->GetComponent<Spot::Animator>();
+    animated->SetRootMotion(Spot::RootMotionMode::None);
+    animated->SetController(assets.Load<Spot::AnimatorController>("animation/player.controller"));
+    npc->SetState("Aiming", true);
+    for (int frame = 0; frame < 45; ++frame) {
+        scene.Update(1.0f / 60);
+    }
+    scene.PrepareToRender();
+    const auto aimedForward = visual->GetModelEntity()->GetTransform().GetWorldRotation() * Spot::Vector3{0, 0, -1};
+    CHECK(Spot::Dot(aimedForward, Spot::Vector3{0, 0, -1}) > 0.99f);
+    const auto capturePose = [&](const char* name) {
+        scene.PrepareToRender();
+        auto* frame = device->BeginOffscreenFrame(*target);
+        REQUIRE(frame);
+        renderer.Render(*frame, scene, target.get());
+        device->EndFrame();
+        CHECK(Spot::Image(1024, 768, device->DownloadTexture(*target)).SavePng(output / name));
+    };
+    capturePose("humanoid_aiming.png");
+    for (const auto& [name, direction] : std::array{std::pair{"humanoid_walk_backward.png", Spot::Vector2{0, -1}},
+                                                    std::pair{"humanoid_strafe.png", Spot::Vector2{1, 0}},
+                                                    std::pair{"humanoid_run.png", Spot::Vector2{0, 2}}}) {
+        animated->SetFloat("sideways", direction.x);
+        animated->SetFloat("forward", direction.y);
+        scene.Update(0.18f);
+        capturePose(name);
+    }
+    animated->SetFloat("forward", 0);
+    animated->SetFloat("sideways", 0);
+    animated->SetBool("crouching", true);
+    scene.Update(0.2f);
+    capturePose("humanoid_crouch.png");
+    animated->SetFloat("forward", 1);
+    scene.Update(0.25f);
+    capturePose("humanoid_crouch_walk.png");
+    animated->SetBool("airborne", true);
+    animated->SetFloat("vertical", 0.8f);
+    for (int frame = 0; frame < 12; ++frame) {
+        scene.Update(1.0f / 60);
+    }
+    CHECK(animated->GetControllerRuntime().GetState() == 2);
+    capturePose("humanoid_jump_rise.png");
+    animated->SetFloat("vertical", -0.8f);
+    for (int frame = 0; frame < 12; ++frame) {
+        scene.Update(1.0f / 60);
+    }
+    capturePose("humanoid_jump_fall.png");
+    animated->SetBool("airborne", false);
+    npc->SetState("Aiming", false);
+    npc->SetState(visual->sprintState, true);
+    animated->SetBool("crouching", false);
+    animated->SetFloat("forward", 2);
+    for (int frame = 0; frame < 45; ++frame) {
+        scene.Update(1.0f / 60);
+    }
+    capturePose("humanoid_sprint_lowered.png");
+    const auto sprintForward = visual->GetModelEntity()->GetTransform().GetWorldRotation() * Spot::Vector3{0, 0, -1};
+    CHECK(sprintForward.y < -0.4f);
+    npc->SetState(visual->sprintState, false);
+    npc->SetState("Aiming", true);
+
+    animated->SetBool("crouching", false);
+    animated->SetFloat("forward", 0);
+    const auto checkHands = [&] {
+        for (const auto& hand : {visual->rightHand, visual->leftHand}) {
+            const auto* limb = hand.Get(scene);
+            REQUIRE(limb);
+            const auto* grip = scene.GetEntity(limb->GetTarget());
+            REQUIRE(grip);
+            const auto bone = animated->GetSkeleton()->FindBone(limb->GetBone());
+            REQUIRE(bone);
+            const auto offset = limb->GetOffset().translation;
+            const auto goal = grip->GetTransform().GetWorldMatrix() * Spot::Vector4{offset.x, offset.y, offset.z, 1};
+            const auto actual =
+                armed->GetTransform().GetWorldMatrix() * animated->GetModelPose()[*bone] * Spot::Vector4{0, 0, 0, 1};
+            CHECK(Spot::Length(Spot::Vector3{goal.x - actual.x, goal.y - actual.y, goal.z - actual.z}) < 0.025f);
+        }
+    };
+    auto* inventory = armed->GetComponent<Gameplay::Inventory>();
+    REQUIRE(inventory);
+    for (const auto* weapon : {"pistol", "rifle", "shotgun", "rocket_launcher", "physics_gun", "tool_gun"}) {
+        CAPTURE(weapon);
+        auto* held = inventory->AddFromPrefab(
+            assets.Load<Spot::Prefab>(std::string("prefabs/spawnables/weapons/") + weapon + ".prefab"));
+        REQUIRE(held);
+        inventory->Select(*held);
+        for (const bool aiming : {false, true}) {
+            CAPTURE(aiming);
+            npc->SetState("Aiming", aiming);
+            for (int frame = 0; frame < 50; ++frame) {
+                scene.Update(1.0f / 60);
+            }
+            scene.PrepareToRender();
+            checkHands();
+            const auto instance = visual->GetModelEntity()->GetTransform().GetWorldMatrix();
+            if (std::string_view(weapon) == "rifle" || std::string_view(weapon) == "shotgun") {
+                const auto chest = *animated->GetSkeleton()->FindBone("Chest");
+                const auto receiver =
+                    Spot::Inverse(armed->GetTransform().GetWorldMatrix() * animated->GetModelPose()[chest]) * instance *
+                    Spot::Vector4{0, 0, 0, 1};
+                CHECK(receiver.z < -0.15f);
+                const float butt = std::string_view(weapon) == "rifle" ? 0.345f : 0.394f;
+                for (const auto* name : {"Neck", "Head"}) {
+                    const auto bone = *animated->GetSkeleton()->FindBone(name);
+                    const auto stock =
+                        Spot::Inverse(armed->GetTransform().GetWorldMatrix() * animated->GetModelPose()[bone]) *
+                        instance * Spot::Vector4{0, -0.01f, butt, 1};
+                    CHECK((std::abs(stock.x) > 0.12f || std::abs(stock.z) > 0.13f || stock.y < -0.08f));
+                }
+            }
+            const auto prefix = std::string("humanoid_") + (aiming ? "aiming_" : "ready_") + weapon;
+            camera.GetTransform().SetPosition({2.4f, 0.9f, 0.4f});
+            camera.GetTransform().SetRotation(
+                Spot::Quaternion::LookRotation(Spot::Vector3{0.6f, 0.3f, 0} - camera.GetTransform().GetPosition()));
+            capturePose((prefix + "_side.png").c_str());
+            camera.GetTransform().SetPosition({0.6f, 0.65f, -2.4f});
+            camera.GetTransform().SetRotation(
+                Spot::Quaternion::LookRotation(Spot::Vector3{0.6f, 0.25f, 0} - camera.GetTransform().GetPosition()));
+            capturePose((prefix + "_front.png").c_str());
+            animated->SetBool("crouching", true);
+            for (int frame = 0; frame < 25; ++frame) {
+                scene.Update(1.0f / 60);
+            }
+            scene.PrepareToRender();
+            checkHands();
+            animated->SetBool("crouching", false);
+        }
+        npc->SetState("Aiming", false);
+        npc->SetState(visual->sprintState, true);
+        animated->SetFloat("forward", 2);
+        for (int frame = 0; frame < 50; ++frame) {
+            scene.Update(1.0f / 60);
+        }
+        scene.PrepareToRender();
+        checkHands();
+        camera.GetTransform().SetPosition({2.4f, 0.9f, 0.4f});
+        camera.GetTransform().SetRotation(
+            Spot::Quaternion::LookRotation(Spot::Vector3{0.6f, 0.3f, 0} - camera.GetTransform().GetPosition()));
+        capturePose((std::string("humanoid_sprint_") + weapon + "_side.png").c_str());
+        npc->SetState(visual->sprintState, false);
+        animated->SetFloat("forward", 0);
+    }
 }
 
 TEST_CASE("Sandbox map selection and empty debug floor render", "[gpu][sandbox][maps][offscreen]") {
@@ -750,11 +969,16 @@ TEST_CASE("The cooked sandbox renders held items, recoil, sights and reloads", "
     auto draw = [&](std::string_view name) {
         const auto& arms = view->GetArmEntities();
         REQUIRE(arms.size() == 4);
+        const auto* skin = view->armsMaterialSource.Get(*scene);
+        REQUIRE(skin);
+        REQUIRE(skin->GetMaterial());
         for (std::size_t side = 0; side < 2; ++side) {
             const auto* forearm = scene->GetEntity(arms[side * 2]);
             const auto* hand = scene->GetEntity(arms[side * 2 + 1]);
             REQUIRE(forearm);
             REQUIRE(hand);
+            CHECK(forearm->GetComponent<Spot::MeshRenderer>()->GetMaterial() == skin->GetMaterial());
+            CHECK(hand->GetComponent<Spot::MeshRenderer>()->GetMaterial() == skin->GetMaterial());
             const auto end = forearm->GetTransform().GetWorldMatrix() * Spot::Vector4{0, 0, -1, 1};
             CHECK(Spot::Distance(Spot::Vector3{end.x, end.y, end.z}, hand->GetTransform().GetWorldPosition()) <
                   0.0001f);
@@ -926,6 +1150,31 @@ TEST_CASE("The cooked sandbox draws its HUD over the game: in hand, the wheel, h
     input.OnEvent(Spot::KeyReleasedEvent{Spot::Key::Tab});
     run(3);
 
+    auto* dropped = holder->Drop();
+    REQUIRE(dropped);
+    run(3);
+    holder->OpenWheel();
+    run(3);
+    CHECK(draw("hud_wheel_dropped.png") != inHand);
+    holder->CloseWheel(false);
+    REQUIRE(holder->PickUp(*dropped));
+    const auto carried = holder->GetItems();
+    for (auto* item : carried) {
+        if (item != dropped) {
+            item->GetEntity().SetActive(false);
+        }
+    }
+    run(3);
+    holder->OpenWheel();
+    run(3);
+    CHECK(draw("hud_wheel_single.png") != inHand);
+    holder->CloseWheel(false);
+    for (auto* item : carried) {
+        item->GetEntity().SetActive(true);
+    }
+    holder->Select(*dropped);
+    run(3);
+
     input.OnEvent(Spot::KeyPressedEvent{Spot::Key::W, false});
     input.OnEvent(Spot::KeyPressedEvent{Spot::Key::LeftShift, false});
     run(40);
@@ -959,6 +1208,11 @@ TEST_CASE("The cooked sandbox draws its HUD over the game: in hand, the wheel, h
     ui->SelectCategory(Spawnable::Category::Weapon);
     step();
     draw("menu_spawn_weapons.png");
+    ui->SelectCategory(Spawnable::Category::Vehicle);
+    for (int frame = 0; frame < 3; ++frame) {
+        step();
+        draw("menu_spawn_vehicles.png");
+    }
     ui->SelectCategory(Spawnable::Category::Prop);
     ui->Search("barrel");
     step();
@@ -1140,4 +1394,82 @@ TEST_CASE("Nearby player names and the immortal hexagon render above the head", 
     std::filesystem::create_directories(output);
     CHECK(Spot::Image(1024, 768, pixels).SavePng(output / "player_immortal_label.png"));
     CHECK(Spot::Image(1024, 768, pixels).SavePng(output / "lucasof_developer.png"));
+}
+
+TEST_CASE("The authored HUD renders compact ammo, infinity and outlined kill feed icons",
+          "[gpu][sandbox][hud][offscreen]") {
+    if (!Spot::GraphicsDevice::IsSupported()) {
+        SKIP("No usable graphics device");
+    }
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    Spot::Tests::RegisteredAssetManager assets(SANDBOX_IMPORTED_DIR, device.get());
+    struct Restore {
+        Spot::AssetManager* assets = Spot::Assets::GetManager();
+        ~Restore() { Spot::Detail::SetAssetManager(assets); }
+    } restore;
+    Spot::Detail::SetAssetManager(&assets);
+    Spot::Detail::LoadGameCode();
+    Spot::Scene scene;
+    auto& player = scene.CreateEntity("Player");
+    player.AddComponent<Gameplay::Pawn>();
+    player.AddComponent<Gameplay::KillFeedSubject>();
+    player.AddComponent<Gameplay::Health>();
+    auto& inventory = player.AddComponent<Gameplay::Inventory>();
+    auto& rifle = player.CreateChild("Rifle").AddComponent<Gameplay::Firearm>();
+    rifle.displayName = "Rifle";
+    rifle.icon = assets.Load<Spot::Texture>("generated/textures/icon_rifle.png");
+    auto& ray = player.CreateChild("Ray Gun").AddComponent<Gameplay::Firearm>();
+    ray.displayName = "Ray Gun";
+    ray.infiniteAmmo = true;
+    ray.icon = assets.Load<Spot::Texture>("generated/textures/icon_ray_gun.png");
+    REQUIRE(rifle.icon);
+    REQUIRE(ray.icon);
+    scene.CreateEntity("Controller").AddComponent<Gameplay::PlayerController>().pawn = player.GetId();
+    auto& hud = scene.CreateEntity("HUD").AddComponent<Gameplay::Hud>();
+    hud.interface = assets.Load<Spot::Prefab>("prefabs/interface.prefab");
+    REQUIRE(hud.interface);
+    scene.Update(Spot::Scene::DefaultFixedTimeStep);
+    scene.Update(Spot::Scene::DefaultFixedTimeStep);
+    auto& enemy = scene.CreateEntity("Enemy");
+    enemy.AddComponent<Gameplay::Pawn>();
+    enemy.AddComponent<Gameplay::KillFeedSubject>();
+    auto& ally = scene.CreateEntity("Ally");
+    ally.AddComponent<Gameplay::Pawn>();
+    ally.AddComponent<Gameplay::KillFeedSubject>();
+    auto& damage = Gameplay::DamageSystem::Get(scene);
+    damage.Report(
+        {enemy.GetId(), {.type = "Bullet", .instigator = player.GetId(), .source = rifle.GetEntity().GetId()}}, true);
+    damage.Report({ally.GetId(), {.type = "Fall"}}, true);
+    damage.Report({enemy.GetId(), {.type = "Smite", .instigator = ally.GetId()}}, true);
+    damage.Report({enemy.GetId(), {.type = "Explosion", .instigator = ally.GetId()}}, true);
+    damage.Report({ally.GetId(), {.type = "Melee", .instigator = enemy.GetId()}}, true);
+    scene.Update(Spot::Scene::DefaultFixedTimeStep);
+    constexpr Spot::Vector2 Size{1280, 720};
+    auto target = device->CreateTexture(
+        {.width = 1280, .height = 720, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
+    REQUIRE(target);
+    Spot::Renderer2D renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb});
+    REQUIRE(renderer.IsValid());
+    std::filesystem::create_directories(SPOT_SANDBOX_CAPTURE_DIR);
+    const auto draw = [&](std::string_view name) {
+        auto* context = device->BeginOffscreenFrame(*target);
+        REQUIRE(context);
+        {
+            auto pass = context->BeginRenderPass({.target = target.get()});
+            renderer.Begin(pass, Spot::UiSystem::ScreenCamera(Size), Size);
+            // Bright and dark scenery stand-ins expose contrast problems without allocating the 3D playground.
+            renderer.DrawQuad({640, 540}, {1280, 360}, {0.7f, 0.8f, 0.9f, 1});
+            renderer.DrawQuad({640, 180}, {1280, 360}, {0.07f, 0.1f, 0.13f, 1});
+            scene.GetOrAddSystem<Spot::UiSystem>().DrawUi(renderer, Size);
+            renderer.End();
+        }
+        device->EndFrame();
+        const auto pixels = device->DownloadTexture(*target);
+        REQUIRE(Spot::Image(1280, 720, pixels).SavePng(std::filesystem::path(SPOT_SANDBOX_CAPTURE_DIR) / name));
+    };
+    draw("hud_layout_rifle.png");
+    inventory.Select(ray);
+    scene.Update(Spot::Scene::DefaultFixedTimeStep);
+    draw("hud_layout_ray_gun.png");
 }

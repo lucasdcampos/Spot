@@ -1,6 +1,9 @@
 #include "gameplay/vehicles/wheeled_vehicle.h"
 #include <spot/scene/physics/physics_world.h>
 
+#include "gameplay/character/flashlight.h"
+#include "gameplay/core/controller.h"
+#include "gameplay/environment/day_cycle.h"
 #include "gameplay/vehicles/vehicle_wheel.h"
 
 #include <algorithm>
@@ -87,6 +90,8 @@ void WheeledVehicle::Reset() {
     m_gear = m_nextGear = 1;
     m_shiftLeft = 0.0f;
     m_rpm = HasDriver() ? drivetrain.idleRpm : 0.0f;
+    m_braking = false;
+    UpdateBrakeLights();
     if (auto* body = GetEntity().GetComponent<Spot::Rigidbody>()) {
         body->WakeUp();
     }
@@ -96,12 +101,32 @@ void WheeledVehicle::OnPossess(Controller& controller) {
     Vehicle::OnPossess(controller);
     Reset();
     m_rpm = drivetrain.idleRpm;
+    if (controller.IsPlayer()) {
+        const auto* day = GetScene().FindComponent<DayCycle>();
+        if (day && day->IsNight()) {
+            auto* flashlight = GetEntity().GetComponent<Flashlight>();
+            if (!flashlight) {
+                flashlight = GetEntity().GetComponentInChildren<Flashlight>();
+            }
+            if (flashlight) {
+                flashlight->SetOn(true);
+            }
+        }
+    }
 }
 
 void WheeledVehicle::OnUnpossess() {
     Vehicle::OnUnpossess();
     Reset();
     m_rpm = 0.0f;
+    m_braking = false;
+    UpdateBrakeLights();
+}
+
+void WheeledVehicle::OnDisable() {
+    Vehicle::OnDisable();
+    m_braking = false;
+    UpdateBrakeLights();
 }
 
 Spot::Vector3 WheeledVehicle::GetRest(const VehicleWheel& wheel) const {
@@ -187,6 +212,17 @@ void WheeledVehicle::OnStart() {
     for (VehicleWheel* wheel : GetWheels()) {
         wheel->m_left = GetRest(*wheel).x < 0.0f;
     }
+    m_braking = IsBraking();
+    UpdateBrakeLights();
+}
+
+void WheeledVehicle::OnUpdate(float deltaTime) {
+    Vehicle::OnUpdate(deltaTime);
+    const Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
+    if (!object || object->HasAuthority()) {
+        m_braking = ComputeBraking();
+    }
+    UpdateBrakeLights();
 }
 
 void WheeledVehicle::UpdateSteering(float deltaTime, const std::vector<VehicleWheel*>& wheels) {
@@ -294,6 +330,11 @@ void WheeledVehicle::OnFixedUpdate(float deltaTime) {
     UpdateSteering(deltaTime, wheels);
     float brake = 0.0f;
     UpdateGearbox(deltaTime, brake, wheels);
+    const Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
+    if (!object || object->HasAuthority()) {
+        m_braking = ComputeBraking();
+    }
+    UpdateBrakeLights();
 
     const std::size_t count = wheels.size();
     const std::vector<float> shares = GetRestShares(wheels);
@@ -495,6 +536,57 @@ void WheeledVehicle::Serialize(Spot::Archive& archive) {
     archive.Field("antiLock", antiLock);
     archive.Field("dragCoefficient", dragCoefficient,
                   {.min = 0.0f, .max = 10.0f, .speed = 0.005f, .tooltip = "Half the air's density times Cd A"});
+    archive.Field("brakeLights", brakeLights, {.tooltip = "The light(s) turned on while braking"});
+}
+
+void WheeledVehicle::Replicate(Spot::Archive& archive) {
+    Vehicle::Replicate(archive);
+    bool braking = m_braking;
+    archive.Field("braking", braking);
+    if (archive.IsLoading()) {
+        const Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
+        if (!(object && object->IsOwnedLocally())) {
+            m_braking = braking;
+            UpdateBrakeLights();
+        }
+    }
+}
+
+bool WheeledVehicle::IsBraking() const {
+    const Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
+    if (!object || object->HasAuthority()) {
+        return ComputeBraking();
+    }
+    return m_braking;
+}
+
+bool WheeledVehicle::ComputeBraking() const {
+    if (!HasDriver() || !IsOperational()) {
+        return false;
+    }
+    const bool reverse = (m_shiftLeft > 0.0f ? m_nextGear : m_gear) < 0;
+    const float pedals = std::clamp(GetInput().drive, -1.0f, 1.0f);
+    const float pedalBrake = std::max(reverse ? pedals : -pedals, 0.0f);
+    return pedalBrake > 0.05f || GetInput().handbrake;
+}
+
+void WheeledVehicle::UpdateBrakeLights() {
+    Spot::Entity* entity = GetScene().GetEntity(brakeLights);
+    if (!entity) {
+        entity = GetEntity().FindChild("Brake Lights");
+    }
+    if (!entity) {
+        return;
+    }
+    const auto visit = [&](const auto& self, Spot::Entity& node) -> void {
+        if (auto* light = node.GetComponent<Spot::Light>()) {
+            if (light->IsEnabled() != m_braking) {
+                light->SetEnabled(m_braking);
+            }
+        }
+        node.ForEachChild([&](Spot::Entity& child) { self(self, child); });
+    };
+    visit(visit, *entity);
 }
 
 } // namespace Gameplay

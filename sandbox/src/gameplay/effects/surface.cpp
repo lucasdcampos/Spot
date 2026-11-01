@@ -145,15 +145,16 @@ void ImpactSounds::Play(float speed, Spot::Vector3 where) {
         return;
     }
     const SurfaceDefinition* surface = SurfaceLibrary::Of(GetScene(), &GetEntity());
-    if (!surface || !surface->impact) {
+    const auto& sound = impactSound ? impactSound : (surface ? surface->impact : impactSound);
+    if (!sound) {
         return;
     }
-    m_quiet = Invoke(0.08f, [] {});
+    m_quiet = Invoke(std::max(cooldown, 0.0f), [] {});
     // A little higher or lower each time, so the same prop does not repeat itself exactly.
     m_random = m_random * 1664525u + 1013904223u;
     const float detune = static_cast<float>(m_random >> 8) / 16777216.0f * 0.16f - 0.08f;
     const float volume = std::clamp((speed - minSpeed) / std::max(fullSpeed - minSpeed, 0.01f), 0.1f, 1.0f);
-    EffectLibrary::PlaySound(GetScene(), surface->impact, where,
+    EffectLibrary::PlaySound(GetScene(), sound, where,
                              {.volume = volume,
                               .pitch = 1.0f + detune,
                               .bus = "Effects",
@@ -162,6 +163,8 @@ void ImpactSounds::Play(float speed, Spot::Vector3 where) {
 }
 
 void ImpactSounds::Serialize(Spot::Archive& archive) {
+    archive.Field("impactSound", impactSound);
+    archive.Field("cooldown", cooldown, {.min = 0.0f, .max = 2.0f, .speed = 0.01f});
     archive.Field("minSpeed", minSpeed, {.min = 0.0f, .max = 100.0f, .speed = 0.05f});
     archive.Field("fullSpeed", fullSpeed, {.min = 0.0f, .max = 100.0f, .speed = 0.05f});
 }

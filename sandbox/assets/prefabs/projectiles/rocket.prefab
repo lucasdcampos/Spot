@@ -64,11 +64,11 @@
         },
         {
           "data": {
-            "damage": 110.0,
+            "damage": 260.0,
             "damageType": "Explosion",
             "effect": "explosion",
-            "impulse": 500.0,
-            "radius": 5.0,
+            "impulse": 650.0,
+            "radius": 6.5,
             "shake": 0.05
           },
           "enabled": true,

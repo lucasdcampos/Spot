@@ -43,6 +43,7 @@ void SpawnMenu::Initialize() {
     ConnectButton(lampsTab, [this] { SelectCategory(Spawnable::Category::Lamp); });
     ConnectButton(weaponsTab, [this] { SelectCategory(Spawnable::Category::Weapon); });
     ConnectButton(npcsTab, [this] { SelectCategory(Spawnable::Category::Npc); });
+    ConnectButton(vehiclesTab, [this] { SelectCategory(Spawnable::Category::Vehicle); });
     ConnectButton(gridView, [this] { SetCompactView(false); });
     ConnectButton(compactView, [this] { SetCompactView(true); });
     if (auto* field = Get<Spot::UiInputField>(search)) {
@@ -79,6 +80,7 @@ void SpawnMenu::Initialize() {
 }
 
 void SpawnMenu::OnOpen() {
+    Build();
     // Back in the menu, the prop being placed is put away; the menu still marks it.
     if (auto* spawner = Gameplay::Players::FindComponent<PropSpawner>(
             GetScene(), static_cast<std::size_t>(std::max(playerIndex, 0)))) {
@@ -95,6 +97,9 @@ void SpawnMenu::OnDestroy() {
 }
 
 void SpawnMenu::Build() {
+    if (!m_spawnButtons.empty()) {
+        return;
+    }
     auto* spawner =
         Gameplay::Players::FindComponent<PropSpawner>(GetScene(), static_cast<std::size_t>(std::max(playerIndex, 0)));
     Spot::Entity* templateEntity = GetScene().GetEntity(itemTemplate);
@@ -193,7 +198,7 @@ void SpawnMenu::SetCompactView(bool compact) {
 
 void SpawnMenu::ApplyFilter() {
     // What matches the search in each category, which the tabs count, and of those the ones of the category shown.
-    std::array<std::size_t, 4> found{};
+    std::array<std::size_t, 5> found{};
     std::size_t shown = 0;
     for (std::size_t index = 0; index < m_spawnButtons.size(); ++index) {
         const bool match = m_search.empty() || m_searchNames[index].find(m_search) != std::string::npos;
@@ -240,6 +245,10 @@ void SpawnMenu::ApplyFilter() {
 }
 
 void SpawnMenu::AnimateControls(float blend) {
+    // A client's character can arrive after its menus, including while this one is open.
+    if (IsOpen()) {
+        Build();
+    }
     for (std::size_t index = 0; index < m_spawnButtons.size(); ++index) {
         StyleControl(m_spawnButtons[index], m_chosen == index, style.text, blend);
     }
@@ -278,6 +287,7 @@ void SpawnMenu::Serialize(Spot::Archive& archive) {
     archive.Field("lampsTab", lampsTab);
     archive.Field("weaponsTab", weaponsTab);
     archive.Field("npcsTab", npcsTab);
+    archive.Field("vehiclesTab", vehiclesTab);
     archive.Field("closeButton", closeButton);
     archive.Field("cleanupButton", cleanupButton);
     archive.Field("undoButton", undoButton);

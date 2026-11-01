@@ -4,6 +4,7 @@
 #include "gameplay/core/player_controller.h"
 #include "gameplay/inventory/held_item.h"
 #include "gameplay/menus/menu.h"
+#include <spot/scene/physics/physics_world.h>
 
 #include <algorithm>
 #include <cmath>
@@ -17,6 +18,12 @@ namespace {
 
 // Takes away what makes an entity and those below it a body in the world, so it can be held.
 void MakeHeld(Spot::Entity& entity) {
+    if (auto* item = entity.GetComponent<HeldItem>()) {
+        if (const auto* collider = entity.GetComponent<Spot::BoxCollider>()) {
+            item->worldSize = collider->GetSize();
+            item->worldCenter = collider->GetCenter();
+        }
+    }
     while (entity.RemoveComponent<Spot::Rigidbody>()) {
     }
     while (entity.RemoveComponent<Spot::Collider>()) {
@@ -45,6 +52,9 @@ int Inventory::GetItemCount() const {
 }
 
 HeldItem* Inventory::GetEquipped() const {
+    if (m_holstered) {
+        return nullptr;
+    }
     const std::vector<HeldItem*> items = GetItems();
     return m_selected >= 0 && m_selected < static_cast<int>(items.size()) ? items[static_cast<std::size_t>(m_selected)]
                                                                           : nullptr;
@@ -56,9 +66,23 @@ void Inventory::Select(int slot) {
         return;
     }
     const int selected = ((slot % count) + count) % count;
-    if (selected != m_selected) {
+    if (selected != m_selected || m_holstered) {
+        m_holstered = false;
         m_selected = selected;
         PlayClick();
+    }
+    Equip();
+}
+
+void Inventory::Holster() {
+    CloseWheel(false);
+    m_intent = {};
+    if (HeldItem* item = GetEquipped()) {
+        item->OnUse({});
+        m_holstered = true;
+        PlayClick();
+    } else {
+        m_holstered = true;
     }
     Equip();
 }
@@ -101,6 +125,62 @@ HeldItem* Inventory::AddFromPrefab(const Spot::AssetRef<Spot::Prefab>& prefab) {
     return item;
 }
 
+bool Inventory::PickUp(HeldItem& item) {
+    if (!Spot::Network::IsServer(GetScene()) || &item.GetScene() != &GetScene() || item.GetInventory() ||
+        !item.IsActiveAndEnabled() || !CanUseItem()) {
+        return false;
+    }
+    auto& entity = item.GetEntity();
+    if (auto* visual = GetScene().GetEntity(item.m_droppedModel)) {
+        visual->Destroy();
+    }
+    item.m_droppedModel = Spot::EntityId::Invalid;
+    MakeHeld(entity);
+    entity.SetParent(&GetEntity());
+    entity.GetTransform().SetPosition({});
+    entity.GetTransform().SetRotation({});
+    entity.GetTransform().SetScale({1, 1, 1});
+    Select(item);
+    return true;
+}
+
+HeldItem* Inventory::Drop() {
+    HeldItem* item = GetEquipped();
+    if (!Spot::Network::IsServer(GetScene()) || !CanUseItem() || !item || !item->droppable) {
+        return nullptr;
+    }
+    const auto* pawn = Pawn::Of(GetEntity());
+    const ViewPoint view = pawn ? pawn->GetViewPoint() : ViewPoint{GetEntity().GetTransform().GetWorldPosition()};
+    auto& entity = item->GetEntity();
+    item->OnUse({});
+    item->m_equipped = false;
+    item->m_input.Deactivate();
+    item->OnUnequip();
+    m_equipped = Spot::EntityId::Invalid;
+    entity.SetParent(nullptr);
+    entity.SetLayer(0);
+    entity.GetTransform().SetScale({1, 1, 1});
+    entity.GetTransform().SetWorldRotation(view.rotation);
+    const float clearance = std::abs(item->worldCenter.z) + item->worldSize.z * 0.5f + 0.025f;
+    const auto hit = GetScene().GetOrAddSystem<Spot::PhysicsWorld>().Raycast(
+        view.position, view.direction, 0.65f + clearance, {.ignore = GetEntity().GetId()});
+    const float distance = hit ? std::max(0.05f, hit->distance - clearance) : 0.65f;
+    entity.GetTransform().SetWorldPosition(view.position + view.direction * distance);
+    if (item->model) {
+        auto& visual = GetScene().Instantiate(*item->model, "Dropped Model");
+        visual.SetParent(&entity);
+        visual.GetTransform().SetPosition({});
+        visual.GetTransform().SetRotation({});
+        item->m_droppedModel = visual.GetId();
+    }
+    entity.AddComponent<Spot::BoxCollider>(item->worldSize).SetCenter(item->worldCenter);
+    entity.AddComponent<Spot::Rigidbody>().SetLinearVelocity(view.direction * 2.0f);
+    m_selected = std::clamp(m_selected, 0, std::max(GetItemCount() - 1, 0));
+    m_wheelSlot = m_selected;
+    Equip();
+    return item;
+}
+
 bool Inventory::IsStowed() const {
     const Pawn* pawn = Pawn::Of(GetEntity());
     return pawn && pawn->HasAnyState(stowedBy);
@@ -119,7 +199,7 @@ void Inventory::PlayClick() const {
 }
 
 void Inventory::OpenWheel() {
-    if (m_wheelOpen) {
+    if (m_wheelOpen || GetItemCount() == 0 || IsStowed()) {
         return;
     }
     m_wheelOpen = true;
@@ -170,6 +250,7 @@ void Inventory::UpdateWheel() {
     if (length > 1.0f) {
         m_wheelPointer = m_wheelPointer / length;
     }
+    const int wheelSlots = GetItemCount();
     if (length < 0.4f || wheelSlots <= 0) {
         return;
     }
@@ -208,6 +289,8 @@ void Inventory::OnPlayerInput(PlayerController& player) {
     std::vector<std::string> actions = selectActions;
     actions.push_back(cycleAction);
     actions.push_back(wheelAction);
+    actions.push_back(dropAction);
+    actions.push_back(holsterAction);
     if (m_input.GetDesc().actions != actions) {
         m_input.SetActions(std::move(actions));
     }
@@ -237,6 +320,14 @@ void Inventory::OnPlayerInput(PlayerController& player) {
     if (m_input.IsPressed(cycleAction)) {
         Select(m_selected + (m_input.GetValue(cycleAction) > 0.0f ? 1 : -1));
     }
+    if (inGame && m_input.IsPressed(dropAction) && CanUseItem()) {
+        if (auto* pawn = Pawn::Of(GetEntity())) {
+            pawn->Request("Gameplay.DropWeapon");
+        }
+    }
+    if (inGame && m_input.IsPressed(holsterAction)) {
+        Holster();
+    }
     Equip();
 
     HeldItem* item = GetEquipped();
@@ -254,12 +345,17 @@ void Inventory::OnPlayerInput(PlayerController& player) {
 
 void Inventory::SerializeIntent(Spot::Archive& archive) {
     int selected = m_selected;
+    bool holstered = m_holstered;
     ItemInput intent = m_intent;
     archive.Field("selected", selected);
+    archive.Field("holstered", holstered);
     archive.Field("intent", intent);
     if (archive.IsLoading()) {
-        if (selected != m_selected) {
+        if (selected != m_selected || (!holstered && m_holstered)) {
             Select(selected);
+        }
+        if (holstered) {
+            Holster();
         }
         Use(intent);
     }
@@ -286,7 +382,19 @@ void Inventory::Use(const ItemInput& input) {
 }
 
 void Inventory::OnUpdate(float /*deltaTime*/) {
+    const int count = GetItemCount();
+    m_selected = std::clamp(m_selected, 0, std::max(count - 1, 0));
+    m_wheelSlot = std::clamp(m_wheelSlot, 0, std::max(count - 1, 0));
+    if (count == 0) {
+        CloseWheel(false);
+    }
     Equip();
+}
+
+void Inventory::OnPlayerRequest(std::string_view request) {
+    if (request == "Gameplay.DropWeapon") {
+        Drop();
+    }
 }
 
 void Inventory::OnPlayerUnpossess() {
@@ -315,24 +423,29 @@ void Inventory::OnDisable() {
 
 void Inventory::Replicate(Spot::Archive& archive) {
     int selected = m_selected;
+    bool holstered = m_holstered;
     archive.Field("selected", selected);
+    archive.Field("holstered", holstered);
     // Its own player's machine chooses as the player does, ahead of the server.
     const Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
-    if (archive.IsLoading() && !(object && object->IsOwnedLocally()) && selected != m_selected && selected >= 0 &&
-        selected < GetItemCount()) {
+    if (archive.IsLoading() && !(object && object->IsOwnedLocally()) &&
+        (selected != m_selected || holstered != m_holstered) && selected >= 0 && selected < GetItemCount()) {
         m_selected = selected;
+        m_holstered = holstered;
         Equip();
     }
 }
 
 void Inventory::Serialize(Spot::Archive& archive) {
     archive.Field("selected", m_selected, {.min = 0.0f, .max = 64.0f, .tooltip = "The place of the item in hand"});
-    archive.Field("wheelSlots", wheelSlots, {.min = 1.0f, .max = 16.0f});
+    archive.Field("holstered", m_holstered, {.tooltip = "Keeps the hands empty without dropping items"});
     archive.Field("wheelTimeScale", wheelTimeScale,
                   {.min = 0.0f, .max = 1.0f, .speed = 0.01f, .tooltip = "How much the open wheel slows time"});
     archive.Field("selectActions", selectActions, {.tooltip = "Each takes the item of its place"});
     archive.Field("cycleAction", cycleAction, {.tooltip = "Goes to the next item or the previous one"});
     archive.Field("wheelAction", wheelAction, {.tooltip = "Held, opens the wheel"});
+    archive.Field("dropAction", dropAction, {.tooltip = "Drops the item in hand"});
+    archive.Field("holsterAction", holsterAction, {.tooltip = "Leaves the hands empty"});
     archive.Field("lookAction", lookAction, {.tooltip = "Points the open wheel"});
     archive.Field("stowedBy", stowedBy, {.tooltip = "Pawn states during which the item in hand reads nothing"});
     archive.Field("blockedBy", blockedBy, {.tooltip = "Pawn states during which the item in hand is not used"});

@@ -60,6 +60,14 @@ SoundInstance AudioDevice::Play(std::shared_ptr<const Sound> sound, const PlayPa
     return m_mixer->Play(std::move(sound), params);
 }
 
+SoundInstance AudioDevice::Play(std::shared_ptr<LiveAudio> live, const PlayParams& params) {
+    SPOT_PROFILE_SCOPE("AudioDevice::Play");
+    if (!m_output && !m_manualMix) {
+        return {};
+    }
+    return m_mixer->Play(std::move(live), params);
+}
+
 void AudioDevice::Stop(SoundInstance instance, float fadeOut) {
     SPOT_PROFILE_SCOPE("AudioDevice::Stop");
     m_mixer->Stop(instance, fadeOut);

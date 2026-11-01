@@ -18,12 +18,21 @@ Spot::Image ToolGun();
 Spot::Image Sun();
 Spot::Image Moon();
 Spot::Image Health();
+// Kill feed causes when no held-item icon is available.
+Spot::Image Death();
+Spot::Image Bullet();
+Spot::Image Explosion();
+Spot::Image Fall();
+Spot::Image Impact();
+Spot::Image Melee();
+Spot::Image Smite();
 // The spawn menu's: a magnifier for its search, its two views, a large grid and a compact one, and its categories, a
-// box for props, a bulb for lamps, a reticle for weapons and a bust for NPCs.
+// box for props, a bulb for lamps, a reticle for weapons and a bust for NPCs and a car for vehicles.
 Spot::Image Search();
 Spot::Image ViewGrid();
 Spot::Image ViewCompact();
 Spot::Image CategoryProps();
+Spot::Image CategoryVehicles();
 Spot::Image CategoryLamps();
 Spot::Image CategoryWeapons();
 Spot::Image CategoryNpcs();

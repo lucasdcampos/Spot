@@ -47,6 +47,10 @@ it. Built into the executable, `main()` adds it with `CreateGameModule()`; built
 macro exports the function that makes it, and the editor starts it when it loads the library as a `GameLibrary` (see
 [Editor](editor.md)).
 
+The engine's lifecycle helpers include only `module.h`: the concrete `GameCodeModule` and its hidden registration
+function belong to the game binary. Including them in the helpers can let compiler devirtualization introduce
+a reference to game-only registration code into the shared engine library.
+
 ## Startup
 
 The constructor only keeps the configuration; `Run()` does the work, as a sequence read top to bottom, each step

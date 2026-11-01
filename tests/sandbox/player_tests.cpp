@@ -1,8 +1,11 @@
+#include "gameplay/core/interactor.h"
 #include "gameplay/core/players.h"
 #include "gameplay/game/game_mode.h"
 #include "interface_lookup.h"
 #include "playground_fixture.h"
+#include "prop_spawner.h"
 #include "tool_gun.h"
+#include "undo_list.h"
 
 #include "gameplay/camera/first_person_view.h"
 #include "gameplay/character/character.h"
@@ -14,8 +17,10 @@
 #include "gameplay/weapons/explosive.h"
 #include "gameplay/weapons/firearm.h"
 
+#include <algorithm>
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 
 using SandboxTests::Playground;
 
@@ -107,6 +112,53 @@ TEST_CASE("Running forward lowers what is in hand, which cannot fire until the r
     CHECK(pistol->GetAmmo() == rounds - 1);
 }
 
+TEST_CASE("Zero holsters the held item until a number or weapon wheel equips it again",
+          "[sandbox][player][inventory]") {
+    Playground game;
+    Player player{game};
+    player.Tap(Spot::Key::Digit2);
+    auto* pistol = SandboxTests::GetFirearm(player.holder);
+    REQUIRE(pistol);
+    const int count = player.holder.GetItemCount();
+    const int rounds = pistol->GetAmmo();
+    player.Tap(Spot::Key::Digit0);
+    game.Run(5);
+    CHECK_FALSE(player.holder.GetEquipped());
+    CHECK_FALSE(pistol->IsEquipped());
+    CHECK_FALSE(player.view.GetShownModel());
+    CHECK(player.holder.GetSelected() == -1);
+    CHECK(player.holder.GetItemCount() == count);
+    game.input.OnEvent(Spot::MouseButtonPressedEvent{Spot::MouseButton::Left});
+    game.Step();
+    game.input.OnEvent(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Left});
+    game.Step();
+    CHECK(pistol->GetAmmo() == rounds);
+
+    player.Tap(Spot::Key::Digit2);
+    CHECK(player.holder.GetEquipped() == pistol);
+    CHECK(pistol->IsEquipped());
+    player.Tap(Spot::Key::Digit0);
+    player.Tap(Spot::Key::Digit3);
+    CHECK(player.holder.GetSelected() == 2);
+    REQUIRE(player.holder.GetEquipped());
+
+    player.Tap(Spot::Key::Digit0);
+    player.Press(Spot::Key::Tab);
+    game.Step();
+    REQUIRE(player.holder.IsWheelOpen());
+    player.Release(Spot::Key::Tab);
+    game.Step();
+    CHECK(player.holder.GetSelected() == 2);
+    REQUIRE(player.holder.GetEquipped());
+
+    for (const float direction : {-1.0f, 1.0f}) {
+        player.Tap(Spot::Key::Digit0);
+        game.input.OnEvent(Spot::MouseScrolledEvent{.delta = {0.0f, direction}});
+        game.Step();
+        CHECK(player.holder.GetEquipped());
+    }
+}
+
 TEST_CASE("Holding Tab opens the weapon wheel: the mouse points at a slot and letting go takes it",
           "[sandbox][player][ui]") {
     Playground game;
@@ -127,6 +179,7 @@ TEST_CASE("Holding Tab opens the weapon wheel: the mouse points at a slot and le
     auto* wheel = Find(game, ui.weaponWheel)->GetComponent<Gameplay::WeaponWheel>();
     REQUIRE(wheel);
     CHECK(wheel->slots.size() == 6);
+    CHECK(wheel->sectors == 6);
     // Headless, textures do not load, but every slot names its icon.
     for (const Gameplay::WeaponWheel::Slot& slot : wheel->slots) {
         CHECK(slot.icon.GetId().IsValid());
@@ -139,12 +192,12 @@ TEST_CASE("Holding Tab opens the weapon wheel: the mouse points at a slot and le
     CHECK(player.controller.GetYaw() == Catch::Approx(yaw));
     game.Step();
     CHECK(wheel->highlighted == 2);
-    // Down and to the left, as the screen counts down: the sixth.
-    game.input.OnEvent(Spot::MouseMovedEvent{{600, 400}, {-160, 160}});
+    // Down, as the screen counts down: the fourth of six sectors.
+    game.input.OnEvent(Spot::MouseMovedEvent{{600, 400}, {-80, 80}});
     game.Step();
-    CHECK(player.holder.GetWheelSlot() == 5);
-    // Left, the seventh sector is empty, and keeps what was pointed at.
-    game.input.OnEvent(Spot::MouseMovedEvent{{600, 400}, {-100, -80}});
+    CHECK(player.holder.GetWheelSlot() == 3);
+    // Upper left points at the sixth sector; the wheel has no empty sectors.
+    game.input.OnEvent(Spot::MouseMovedEvent{{600, 400}, {-78, -125}});
     game.Step();
     CHECK(player.holder.GetWheelSlot() == 5);
 
@@ -297,4 +350,58 @@ TEST_CASE("First-person hands follow every held item and disappear with the view
     player.view.SetEnabled(false);
     game.Step();
     CHECK(player.view.GetArmEntities().empty());
+}
+
+TEST_CASE("The sandbox drops with V and collects a physical weapon with Use", "[sandbox][player][inventory]") {
+    Playground game;
+    Player player{game};
+    player.Tap(Spot::Key::Digit2);
+    auto* pistol = SandboxTests::GetFirearm(player.holder);
+    REQUIRE(pistol);
+    SandboxTests::Fire(player.holder);
+    const int rounds = pistol->GetAmmo();
+    const int count = player.holder.GetItemCount();
+    player.Tap(Spot::Key::V);
+    REQUIRE(player.holder.GetItemCount() == count - 1);
+    CHECK_FALSE(pistol->GetInventory());
+    REQUIRE(pistol->GetEntity().GetComponent<Spot::Rigidbody>());
+    CHECK(pistol->worldSize.z < 0.3f);
+    const auto view = Gameplay::Pawn::Of(player.holder.GetEntity())->GetViewPoint();
+    pistol->GetEntity().GetComponent<Spot::Rigidbody>()->SetLinearVelocity({});
+    pistol->GetEntity().GetTransform().SetWorldPosition(view.position + view.direction);
+    game.Step();
+    auto* interactor = player.holder.GetEntity().GetComponent<Gameplay::Interactor>();
+    REQUIRE(interactor);
+    REQUIRE(interactor->HasFocus());
+    CHECK(interactor->GetPrompt() == "Pick up Pistol");
+    player.Tap(Spot::Key::E);
+    CHECK(player.holder.GetItemCount() == count);
+    CHECK(player.holder.GetEquipped() == pistol);
+    CHECK(pistol->GetAmmo() == rounds);
+    CHECK_FALSE(pistol->GetEntity().HasComponent<Spot::Rigidbody>());
+    CHECK_FALSE(pistol->GetEntity().HasComponent<Spot::Collider>());
+}
+
+TEST_CASE("Spawn cleanup and undo preserve collected weapons", "[sandbox][player][inventory]") {
+    const auto* name = GENERATE("Pistol", "Physics Gun", "Tool Gun");
+    Playground game;
+    Player player{game};
+    auto* spawner = player.holder.GetEntity().GetComponent<PropSpawner>();
+    REQUIRE(spawner);
+    const auto catalog = spawner->GetSpawnables();
+    const auto found = std::ranges::find(catalog, name, &SpawnableItem::name);
+    REQUIRE(found != catalog.end());
+    auto* entity = spawner->Spawn(static_cast<std::size_t>(found - catalog.begin()));
+    REQUIRE(entity);
+    game.Step();
+    auto* item = entity->GetComponent<Gameplay::HeldItem>();
+    REQUIRE(item);
+    REQUIRE(player.holder.PickUp(*item));
+    CHECK(spawner->GetSpawnedCount() == 0);
+    CHECK_FALSE(player.holder.GetEntity().GetComponent<UndoList>()->Undo());
+    const auto id = entity->GetId();
+    spawner->Cleanup();
+    game.Step();
+    CHECK(game.scene.GetEntity(id) == entity);
+    CHECK(player.holder.GetEquipped() == item);
 }

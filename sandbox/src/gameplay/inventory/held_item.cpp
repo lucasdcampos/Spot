@@ -1,5 +1,6 @@
 #include "gameplay/inventory/held_item.h"
 
+#include "gameplay/core/interactor.h"
 #include "gameplay/core/pawn.h"
 #include "gameplay/inventory/inventory.h"
 
@@ -84,10 +85,45 @@ ItemStatus HeldItem::DescribeStatus() const {
     return {.name = displayName, .icon = icon};
 }
 
+bool HeldItem::CanInteract(const Interactor& interactor) const {
+    const auto* pawn = interactor.GetPawn();
+    const auto* inventory = pawn ? pawn->GetEntity().GetComponent<Inventory>() : nullptr;
+    return !GetInventory() && inventory && inventory->CanUseItem();
+}
+
+std::string HeldItem::GetPrompt(const Interactor& /*interactor*/) const {
+    return "Pick up " + displayName;
+}
+
+void HeldItem::Interact(Interactor& interactor) {
+    if (CanInteract(interactor)) {
+        interactor.GetPawn()->GetEntity().GetComponent<Inventory>()->PickUp(*this);
+    }
+}
+
+void ItemStance::Serialize(Spot::Archive& archive) {
+    archive.Field("position", position);
+    archive.Field("angles", angles, {.angle = true});
+}
+
+void ItemWorldPose::Serialize(Spot::Archive& archive) {
+    archive.Field("enabled", enabled);
+    archive.Field("ready", ready);
+    archive.Field("aiming", aiming);
+    archive.Field("sprint", sprint);
+    archive.Field("supportOffset", supportOffset);
+    archive.Field("readyAimWeight", readyAimWeight, {.min = 0.0f, .max = 1.0f});
+}
+
 void HeldItem::Serialize(Spot::Archive& archive) {
     archive.Field("displayName", displayName);
     archive.Field("icon", icon, {.tooltip = "What the HUD and the weapon wheel show for it"});
+    archive.Field("worldPose", worldPose);
     archive.Field("model", model, {.tooltip = "What is held while it is in hand"});
+    archive.Field("droppable", droppable);
+    archive.Field("worldSize", worldSize);
+    archive.Field("worldCenter", worldCenter);
+    archive.Field("droppedModel", m_droppedModel);
 }
 
 } // namespace Gameplay

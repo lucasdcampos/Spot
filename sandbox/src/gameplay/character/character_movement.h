@@ -79,6 +79,7 @@ public:
     void SetIntent(const CharacterIntent& intent);
     const CharacterIntent& GetIntent() const { return m_intent; }
 
+    bool IsGrounded() const { return m_wasGrounded; }
     bool IsCrouching() const { return m_crouching; }
     // Running forward, on the ground or in a jump that began running.
     bool IsSprinting() const { return m_sprinting; }

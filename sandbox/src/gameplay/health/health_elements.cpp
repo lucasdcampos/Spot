@@ -3,6 +3,7 @@
 #include "gameplay/core/pawn.h"
 #include "gameplay/health/damage.h"
 #include "gameplay/health/health.h"
+#include "gameplay/inventory/held_item.h"
 #include "gameplay/network/player_info.h"
 
 #include <algorithm>
@@ -16,6 +17,8 @@ SPOT_COMPONENT(HealthElement);
 SPOT_COMPONENT(DamageFlashElement);
 SPOT_COMPONENT(HitMarkerElement);
 SPOT_COMPONENT(KillFeedElement);
+SPOT_COMPONENT(KillFeedSubject);
+SPOT_COMPONENT(KillFeedRow);
 
 namespace {
 
@@ -123,7 +126,12 @@ void HitMarkerElement::Serialize(Spot::Archive& archive) {
     archive.Field("fadeSpeed", fadeSpeed, {.min = 0.0f, .max = 100.0f, .speed = 0.1f});
 }
 
-std::string KillFeedElement::Describe(Spot::Scene& scene, const DamageApplied& death) {
+KillFeedElement::Entry KillFeedElement::Describe(Spot::Scene& scene, const DamageApplied& death) {
+    const auto* target = scene.GetEntity(death.target);
+    const auto* pawn = target ? Pawn::Of(*target) : nullptr;
+    if (!pawn || !pawn->GetEntity().HasComponent<KillFeedSubject>()) {
+        return {};
+    }
     // Whose pawn did it and what with: the weapon, or the kind of damage when it came straight from them.
     const auto nameOf = [&scene](Spot::EntityId id) -> std::string {
         const Spot::Entity* entity = scene.GetEntity(id);
@@ -140,27 +148,105 @@ std::string KillFeedElement::Describe(Spot::Scene& scene, const DamageApplied& d
         return pawn ? pawn->GetEntity().GetName() : entity->GetName();
     };
     const std::string victim = nameOf(death.target);
-    const std::string killer = nameOf(death.damage.instigator);
-    const Spot::Entity* source = scene.GetEntity(death.damage.source);
-    const bool weapon = source && death.damage.source != death.damage.instigator && !source->GetName().empty();
-    const std::string how = weapon ? source->GetName() : death.damage.type.empty() ? "Killed" : death.damage.type;
-    if (killer.empty() || killer == victim) {
-        return std::format("{}  [{}]", victim, how);
+    const auto* by = scene.GetEntity(death.damage.instigator);
+    const Pawn* killerPawn = by ? Pawn::Of(*by) : nullptr;
+    if (killerPawn && killerPawn->GetOccupant()) {
+        killerPawn = killerPawn->GetOccupant();
     }
-    return std::format("{}  [{}]  {}", killer, how, victim);
+    const std::string killer = killerPawn && killerPawn->GetEntity().HasComponent<KillFeedSubject>()
+                                   ? nameOf(killerPawn->GetEntity().GetId())
+                                   : std::string{};
+    const Spot::Entity* source = scene.GetEntity(death.damage.source);
+    const auto* item = source ? source->GetComponent<HeldItem>() : nullptr;
+    const auto icon = item ? item->icon : Spot::AssetRef<Spot::Texture>{};
+    return {killerPawn == pawn ? std::string{} : killer, victim, icon};
+}
+
+void KillFeedRow::DrawWidget(Spot::Renderer2D& renderer, const Spot::UiLayoutEntry& entry) {
+    if (!font || victim.empty() || opacity <= 0.0f) {
+        return;
+    }
+    const float pixel = entry.scale;
+    const float factor = fontSize / font->GetPixelSize() * pixel;
+    // Keep a long nickname from covering the game or pushing the other name off screen.
+    const auto shorten = [&](std::string text, float width) {
+        while (!text.empty() && font->MeasureText(text).x * factor > width) {
+            // Remove an entire UTF-8 code point, not just its last byte.
+            std::size_t last = text.size() - 1;
+            while (last > 0 && (static_cast<unsigned char>(text[last]) & 0xc0) == 0x80) {
+                --last;
+            }
+            text.resize(last);
+        }
+        return text;
+    };
+    const float iconWidth = 48.0f * pixel;
+    const float padding = 12.0f * pixel;
+    const float nameWidth = std::max(0.0f, (entry.bounds.GetSize().x - iconWidth - padding * 4) * 0.5f);
+    const auto killerText = shorten(killer, nameWidth);
+    const auto victimText = shorten(victim, nameWidth);
+    const auto killerSize = font->MeasureText(killerText) * factor;
+    const auto victimSize = font->MeasureText(victimText) * factor;
+    const float width = killerSize.x + victimSize.x + iconWidth + padding * (killerText.empty() ? 3 : 4);
+    const float height = entry.bounds.GetSize().y;
+    const auto right = entry.bounds.max;
+    const Spot::Vector2 center{right.x - width * 0.5f, right.y - height * 0.5f};
+    renderer.DrawQuad(center, {width, height}, {0.008f, 0.012f, 0.022f, opacity * 0.88f});
+    renderer.DrawQuad({right.x - width + pixel, center.y}, {2 * pixel, height},
+                      {killerColor.r, killerColor.g, killerColor.b, opacity});
+    const auto drawName = [&](std::string_view text, Spot::Vector2 size, float x, Spot::Color color) {
+        const Spot::Vector2 position{std::round(x), std::round(center.y + size.y * 0.5f)};
+        for (const auto offset :
+             {Spot::Vector2{-pixel, 0}, Spot::Vector2{pixel, 0}, Spot::Vector2{0, -pixel}, Spot::Vector2{0, pixel}}) {
+            renderer.DrawString(*font, text, position + offset, {0, 0, 0, opacity}, factor);
+        }
+        color.a *= opacity;
+        renderer.DrawString(*font, text, position, color, factor);
+    };
+    float x = right.x - width + padding;
+    if (!killerText.empty()) {
+        drawName(killerText, killerSize, x, killerColor);
+        x += killerSize.x + padding;
+    }
+    if (icon) {
+        const float aspect = static_cast<float>(icon->GetWidth()) / static_cast<float>(std::max(icon->GetHeight(), 1u));
+        Spot::Vector2 size{iconWidth, iconWidth / aspect};
+        const float fit = std::min(1.0f, (height - 12 * pixel) / size.y);
+        size = size * fit;
+        renderer.DrawQuad({x + iconWidth * 0.5f, center.y}, size, *icon, {1, 1, 1, opacity});
+    }
+    drawName(victimText, victimSize, x + iconWidth + padding, victimColor);
+}
+
+void KillFeedRow::Serialize(Spot::Archive& archive) {
+    SerializeWidget(archive);
+    archive.Field("font", font);
+    archive.Field("fontSize", fontSize, {.min = 1, .max = 200});
+}
+
+void KillFeedElement::CauseIcon::Serialize(Spot::Archive& archive) {
+    archive.Field("type", type);
+    archive.Field("icon", icon);
 }
 
 bool KillFeedElement::IsWanted(const HudContext& context) {
     if (!m_killed.IsConnected()) {
         m_killed = DamageSystem::Get(GetScene()).OnKilled.Connect([this](const DamageApplied& death) {
+            Entry entry = Describe(GetScene(), death);
+            if (entry.victim.empty()) {
+                return;
+            }
+            if (!entry.icon.GetId().IsValid()) {
+                const auto cause = std::ranges::find(causeIcons, death.damage.type, &CauseIcon::type);
+                entry.icon = cause != causeIcons.end() ? cause->icon : fallbackIcon;
+            }
             const auto involved = [&](Spot::EntityId id) {
                 return id != Spot::EntityId::Invalid && (id == m_pawn || id == m_occupant);
             };
             const Spot::Entity* by = GetScene().GetEntity(death.damage.instigator);
             const Pawn* killer = by ? Pawn::Of(*by) : nullptr;
-            m_lines.insert(m_lines.begin(),
-                           {Describe(GetScene(), death), 0.0f,
-                            involved(death.target) || (killer && involved(killer->GetEntity().GetId()))});
+            m_lines.insert(m_lines.begin(), {std::move(entry), 0.0f, killer && involved(killer->GetEntity().GetId()),
+                                             involved(death.target)});
             if (m_lines.size() > rows.size()) {
                 m_lines.resize(rows.size());
             }
@@ -177,27 +263,36 @@ bool KillFeedElement::IsWanted(const HudContext& context) {
 
 void KillFeedElement::Refresh(const HudContext& /*context*/) {
     for (std::size_t index = 0; index < rows.size(); ++index) {
-        auto* text = Get<Spot::UiText>(rows[index]);
-        if (!text) {
+        auto* row = Get<KillFeedRow>(rows[index]);
+        if (!row) {
             continue;
         }
         if (index >= m_lines.size()) {
-            text->text.clear();
+            row->killer.clear();
+            row->victim.clear();
+            row->icon = {};
+            row->opacity = 0;
             continue;
         }
         const Line& line = m_lines[index];
-        text->text = line.text;
-        text->color = line.mine ? accent : color;
-        text->color.a *= std::clamp(lifetime - line.age, 0.0f, 1.0f);
+        row->killer = line.entry.killer;
+        row->victim = line.entry.victim;
+        row->icon = line.entry.icon;
+        row->killerColor = line.myKill ? accent : color;
+        row->victimColor = line.myDeath ? accent : victimColor;
+        row->opacity = std::clamp(lifetime - line.age, 0.0f, 1.0f);
     }
 }
 
 void KillFeedElement::Serialize(Spot::Archive& archive) {
     HudElement::Serialize(archive);
-    archive.Field("rows", rows, {.tooltip = "The UiTexts of its lines, newest at the first"});
+    archive.Field("rows", rows, {.tooltip = "The KillFeedRows of its lines, newest at the first"});
     archive.Field("lifetime", lifetime, {.min = 0.5f, .max = 60.0f, .speed = 0.1f, .tooltip = "Seconds a line stays"});
     archive.Field("color", color);
-    archive.Field("accent", accent, {.tooltip = "For lines the player took part in"});
+    archive.Field("victimColor", victimColor);
+    archive.Field("accent", accent, {.tooltip = "For the local player's name"});
+    archive.Field("causeIcons", causeIcons, {.tooltip = "Icons for damage without a held item source"});
+    archive.Field("fallbackIcon", fallbackIcon);
 }
 
 } // namespace Gameplay

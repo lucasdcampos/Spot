@@ -59,6 +59,9 @@ public:
     // Meters per second along the contact's normal: quieter impacts make no sound, and faster ones play at full volume.
     float minSpeed = 1.0f;
     float fullSpeed = 8.0f;
+    // An object-specific impact, such as a vehicle crash; otherwise use its surface.
+    Spot::AssetRef<Spot::Sound> impactSound;
+    float cooldown = 0.08f;
 
     // Sounds an impact at that speed there, unless one just did.
     void Play(float speed, Spot::Vector3 where);

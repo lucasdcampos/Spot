@@ -75,18 +75,49 @@ private:
     Spot::SignalConnection m_applied;
 };
 
-// Who killed whom and with what, a line each in the UiTexts of rows, newest first, for every death in the scene. Each
-// line stays for lifetime seconds, fading out over its last one; a line the HUD's player took part in is in the
-// accent color.
+// Opts a living actor into the kill feed. Props and vehicles do not carry this component.
+class KillFeedSubject : public Spot::Component {};
+
+// A kill feed line with outlined names, a cause icon and a background fitted to its contents.
+class KillFeedRow : public Spot::UiWidget {
+public:
+    Spot::AssetRef<Spot::Font> font;
+    float fontSize = 18.0f;
+    std::string killer;
+    std::string victim;
+    Spot::AssetRef<Spot::Texture> icon;
+    Spot::Color killerColor = Spot::Color::White;
+    Spot::Color victimColor = Spot::Color::White;
+    float opacity = 0.0f;
+
+protected:
+    void DrawWidget(Spot::Renderer2D& renderer, const Spot::UiLayoutEntry& entry) override;
+    void Serialize(Spot::Archive& archive) override;
+};
+
+// Who killed whom and with what, newest first. Actor deaths stay for lifetime seconds and fade over the last one.
 class KillFeedElement : public HudElement {
 public:
     std::vector<Spot::EntityId> rows;
     float lifetime = 6.0f;
-    Spot::Color color = {0.8070f, 0.8228f, 0.8469f, 1.0f};
-    Spot::Color accent = {0.807f, 0.3663f, 0.0467f, 1.0f};
+    Spot::Color color = {0.35f, 0.75f, 1.0f, 1.0f};
+    Spot::Color victimColor = {1.0f, 0.4f, 0.3f, 1.0f};
+    Spot::Color accent = {1.0f, 0.72f, 0.2f, 1.0f};
+    struct CauseIcon {
+        std::string type;
+        Spot::AssetRef<Spot::Texture> icon;
+        void Serialize(Spot::Archive& archive);
+    };
+    std::vector<CauseIcon> causeIcons;
+    Spot::AssetRef<Spot::Texture> fallbackIcon;
 
-    // The line of a death, as "Player  [Rifle]  Enemy", or "Player  [Fall]" for one that killed itself.
-    static std::string Describe(Spot::Scene& scene, const DamageApplied& death);
+    struct Entry {
+        std::string killer;
+        std::string victim;
+        Spot::AssetRef<Spot::Texture> icon;
+    };
+    // Captures names and the source item's icon while the source still exists; empty for non-actor victims.
+    static Entry Describe(Spot::Scene& scene, const DamageApplied& death);
 
 protected:
     bool IsWanted(const HudContext& context) override;
@@ -95,9 +126,10 @@ protected:
 
 private:
     struct Line {
-        std::string text;
+        Entry entry;
         float age = 0.0f;
-        bool mine = false;
+        bool myKill = false;
+        bool myDeath = false;
     };
     // Newest first.
     std::vector<Line> m_lines;

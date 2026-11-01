@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstring>
 
 #ifdef _MSC_VER
 #pragma warning(push, 0)

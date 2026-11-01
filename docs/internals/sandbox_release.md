@@ -31,6 +31,16 @@ MSVC redistributable libraries or GCC runtime libraries are copied beside the ga
 macOS uses `@loader_path` to locate its engine after relocation. Players need a compatible OS and GPU/audio
 drivers; they need no development tools or separately installed compiler runtime.
 
+Linux packages must be built against a glibc version no newer than the destination system. Bundling GCC runtime
+libraries does not bundle glibc: a build made on a newer rolling distribution can fail before startup on Fedora.
+For Fedora/Ultramarine 44, build the executable and shared engine in a Fedora 44 environment, and check the relocated
+package there with `ldd` and `--smoke-test`. Keep one canonical set of imported assets across platform packages when
+playing the sandbox together; independently generated or imported assets can differ and fail its content check.
+
+Local validation on 2026-10-31 rebuilt the engine and game with Fedora 44's GCC 16.2.1. Both require at most
+`GLIBC_2.43`, and the relocated package passes `--smoke-test` in a clean `fedora:44` container with its bundled
+compiler runtimes. This checks startup and headless gameplay; native desktop rendering remains a player-machine test.
+
 ## Relocation and smoke test
 
 Copy or move the whole exported directory to another location, change into it and run `Sandbox` (`Sandbox.exe`
@@ -38,7 +48,8 @@ on Windows). Verify the [play-test checklist](sandbox.md#play-test-checklist) fr
 settings persistence, weapons, tools, physics, sound, animation, particles, saving and the console.
 
 `Sandbox --smoke-test` runs a bounded headless integration sequence against the imported startup scene beside
-the executable. It checks the permanent level, camera/aim agreement, inventory and prefab catalog, authored
+the executable. It checks the permanent level, camera/aim agreement within one degree (allowing the view's
+cosmetic movement pitch), inventory and prefab catalog, authored
 spawn menu, firing and recoil, checkpoint load during pause, cleanup and npc ragdoll. It uses temporary user
 data, exits successfully only when every check passes, and cleans up afterward. Headless GPU assets log that
 they need a graphics device; visible rendering is covered separately by the sandbox's offscreen GPU cases.

@@ -67,7 +67,8 @@ std::string ValidateSessionHello(const SessionSettings& settings, std::uint64_t 
 // which case only they may. Each client is told whether it may cheat, and its console permits cheats only then.
 class Session final : public Spot::Module {
 public:
-    static Session* Get();
+    static Session* Get(const Spot::NetworkSession* session = nullptr);
+    void Bind(Spot::NetworkSession& session);
     bool Host(SessionSettings settings);
     bool Join(std::string_view address, std::string playerName = "Player", std::string password = {});
     // Joins again the last room Join() was asked for, with the same name and password.
@@ -91,14 +92,18 @@ public:
     // The connected players whose name it is.
     std::vector<Spot::NetPeerId> FindPlayers(std::string_view name) const;
 
-    // On the host: whether the player is an operator; Invalid is the host's own, which always is.
-    bool IsOperator(Spot::NetPeerId peer) const;
+    // On the host: whether the player is an operator; Invalid is the host's own, which always is. On a client, with
+    // Invalid, whether this player is an operator on the server.
+    bool IsOperator(Spot::NetPeerId peer = Spot::NetPeerId::Invalid) const;
     void SetOperator(Spot::NetPeerId peer, bool op);
     // Whether the player may use cheats: the server's console permits them, or it is an operator. On a client, with
     // Invalid, whether this one may, as the server said.
     bool MayCheat(Spot::NetPeerId peer = Spot::NetPeerId::Invalid) const;
 
     Spot::Signal<SessionState> OnStateChanged;
+
+    Session();
+    ~Session() override;
 
 protected:
     void OnStart() override;
@@ -107,7 +112,6 @@ protected:
 
 private:
     struct Welcome;
-    void Bind(Spot::NetworkSession& session);
     void SetState(SessionState state);
     bool Fail(std::string reason, SessionError kind = SessionError::Request, bool returnToStartup = false);
     // Answers those looking for rooms on the local network.
@@ -135,7 +139,9 @@ private:
     std::unordered_set<Spot::NetPeerId> m_operators;
     // On the host, what each client was last told; on a client, what it was told.
     std::unordered_map<Spot::NetPeerId, bool> m_toldCheats;
+    std::unordered_map<Spot::NetPeerId, bool> m_toldOperators;
     bool m_mayCheat = false;
+    bool m_isOperator = false;
     std::unique_ptr<Spot::NetDiscoveryResponder> m_responder;
     // What the room is called where it is listed.
     std::string m_mapName;

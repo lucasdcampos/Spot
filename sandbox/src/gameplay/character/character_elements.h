@@ -16,6 +16,8 @@ class CrosshairElement : public HudElement {
 public:
     std::vector<std::string> hiddenBy = {"Aiming", "Sprinting", "Dead", "Choosing"};
     std::vector<std::string> shownBy = {"Placing"};
+    bool tShape = true;
+    bool dot = false;
 
     CrosshairElement() { hideWhen = {"InVehicle"}; }
 

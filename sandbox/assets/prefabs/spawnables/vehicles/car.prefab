@@ -10,7 +10,7 @@
             "relevanceRadius": 0.0
           },
           "enabled": true,
-          "id": "aad07e19359697ef917467fba70e4095",
+          "id": "d5d2087e40dfe11003d6abdb96ee056e",
           "type": "NetworkObject"
         },
         {
@@ -21,7 +21,7 @@
             "maxExtrapolation": 0.25
           },
           "enabled": true,
-          "id": "254a3cde96aec1f98cb63133b64bba79",
+          "id": "a73370e941cd6ca3d8392f4ed5afbb22",
           "type": "NetworkTransform"
         },
         {
@@ -33,37 +33,13 @@
             "burnedMaterial": "75489f82e7075e24d441dc3a6b5abe15"
           },
           "enabled": true,
-          "id": "81b711f4ba744ef0b6677ec473b5ae0f",
+          "id": "9230afe9bed84e9aaf1ed691f207a7ec",
           "type": "VehicleHealth"
         },
         {
           "data": {
-            "viewCamera": 17,
-            "antiRoll": 14500.0,
-            "rollCenterHeight": 0.3,
-            "grip": 1.38,
-            "steerFalloffSpeed": 18.0,
-            "brakeTorque": 7500.0,
-            "dragCoefficient": 0.36,
-            "drivetrain": {
-              "peakTorque": 320.0,
-              "idleRpm": 850.0,
-              "peakTorqueRpm": 4600.0,
-              "redlineRpm": 7200.0,
-              "engineBraking": 65.0,
-              "engineInertia": 0.22,
-              "gears": [
-                3.6,
-                2.2,
-                1.55,
-                1.18,
-                0.95,
-                0.78
-              ],
-              "reverseGear": 3.4,
-              "finalDrive": 3.7,
-              "shiftTime": 0.18
-            }
+            "brakeLights": 34,
+            "viewCamera": 17
           },
           "enabled": true,
           "id": "70d210d762ef79a9d1cf412fb9193e96",
@@ -103,16 +79,16 @@
         {
           "data": {
             "center": [
-              0,
-              0.6,
-              0
+              0.0,
+              0.62,
+              0.0
             ],
             "friction": 0.4,
             "restitution": 0.1,
             "size": [
-              1.84,
+              1.76,
               0.6,
-              4.48
+              4.2
             ],
             "trigger": false
           },
@@ -123,16 +99,16 @@
         {
           "data": {
             "center": [
-              0,
-              1.11,
-              0.35
+              0.0,
+              1.2,
+              0.56
             ],
             "friction": 0.4,
             "restitution": 0.1,
             "size": [
               1.48,
-              0.42,
-              1.8
+              0.48,
+              2.6
             ],
             "trigger": false
           },
@@ -158,7 +134,7 @@
               0.0,
               0.0
             ],
-            "mass": 1180.0,
+            "mass": 1250.0,
             "rotationLocks": {
               "x": false,
               "y": false,
@@ -179,6 +155,8 @@
         },
         {
           "data": {
+            "impactSound": "5aff7d2b46abc65e421a7112111e7b80",
+            "cooldown": 0.35,
             "fullSpeed": 10.0,
             "minSpeed": 1.5
           },
@@ -196,9 +174,9 @@
         },
         {
           "data": {
-            "category": 0,
+            "category": 4,
             "clearance": 0.05,
-            "order": 16
+            "order": 15
           },
           "enabled": true,
           "id": "dc6e5396d86aaedeb8c74d1a6bf69e03",
@@ -216,13 +194,13 @@
             "light": 29
           },
           "enabled": true,
-          "id": "11d36c59afc4151c30048ede8fd55fc8",
+          "id": "82574b321b271d92b82bc7a858a823c2",
           "type": "Flashlight"
         }
       ],
       "id": 1,
       "layer": 0,
-      "name": "Coupe",
+      "name": "Car",
       "position": [
         0,
         0,
@@ -272,8 +250,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "2623653afcbdfb6f88916d431d853668",
-            "mesh": "b3154f2aa3f16ad91b58bde35498d43e",
+            "material": "b61e9e9a84a7f2248b36d4d6a9190d79",
+            "mesh": "2cbd13047fb7f8ee2c48c7fe78d89175",
             "submesh": 0
           },
           "enabled": true,
@@ -309,8 +287,8 @@
         {
           "data": {
             "castsShadows": false,
-            "material": "4d52fefb864fe85d4e5702faa1485f9b",
-            "mesh": "3a9fde2b1cde897d9eaf3ae9fcabb12c",
+            "material": "7f056ec3fb42452b47a221d6ce8d1cbb",
+            "mesh": "7623323c6475b49462813f2d21745e02",
             "submesh": 0
           },
           "enabled": true,
@@ -346,8 +324,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "5337a3077e3e21f615620c754d157701",
-            "mesh": "d50167aefd76322d51baf0a7206bc56b",
+            "material": "8ad63e03bae98c4f43e547b1bd2c7ab2",
+            "mesh": "114214939a459fd6034eaed30740fbec",
             "submesh": 0
           },
           "enabled": true,
@@ -383,8 +361,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "6d5ae2fc1b054a7159331780e342ed47",
-            "mesh": "a4d7cd9a028bb6d3a507327de357446f",
+            "material": "1d49d9a52c31ed54e96d7e08558ab3a0",
+            "mesh": "548df9d01e9d41913aa820a0e609c7ba",
             "submesh": 0
           },
           "enabled": true,
@@ -420,8 +398,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "e7d6932ad1c64ba4e1da1dff8067f308",
-            "mesh": "00d7602501ce89af36b76f27f6c408cf",
+            "material": "f1af9bf6247b4e8c73d9eb6fc9508215",
+            "mesh": "1680b9ac75987db25cfc83cf017440ee",
             "submesh": 0
           },
           "enabled": true,
@@ -457,8 +435,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "9fb1bcf3f9ff8bf5abc058ec4e64a5dc",
-            "mesh": "e88c6030f3ffab25b6291c243d0af3ac",
+            "material": "6406c1fee5ab0c08071498afbdcdaf2b",
+            "mesh": "9a72a29dcba725a2d594d484b804d5c4",
             "submesh": 0
           },
           "enabled": true,
@@ -497,14 +475,8 @@
             "brakeShare": 0.325,
             "driveShare": 0.0,
             "handbrake": false,
-            "maxSteer": 0.5585053606381855,
-            "visual": 20,
-            "radius": 0.33,
-            "width": 0.22,
-            "springRate": 34000.0,
-            "damping": 3000.0,
-            "bumpTravel": 0.1,
-            "droopTravel": 0.14
+            "maxSteer": 0.5934119456780721,
+            "visual": 20
           },
           "enabled": true,
           "id": "167b48f7492be9192252802db3c5e60d",
@@ -515,7 +487,7 @@
       "layer": 0,
       "name": "Wheel Front Left",
       "position": [
-        -0.83,
+        -0.78,
         0.33,
         -1.3
       ],
@@ -539,8 +511,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "abc34b6a42e42fa750156ee8874cbd11",
-            "mesh": "290a04cf65304858e640a1a6733a40b9",
+            "material": "4f12f9e5e20d7a5235c46b6b6adc1e37",
+            "mesh": "7ab3e71cfb90c4c6086ff04b5a421b94",
             "submesh": 0
           },
           "enabled": true,
@@ -576,8 +548,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "6d6fb19b5ff5d790620d656b92fe93b4",
-            "mesh": "d9b4bfd619cffde593122ffeeb0e7175",
+            "material": "2f7a978e23c88f2bc2f6b6815619c2d6",
+            "mesh": "c8543c30c9132e26edb05b053d0bcd10",
             "submesh": 0
           },
           "enabled": true,
@@ -616,14 +588,8 @@
             "brakeShare": 0.325,
             "driveShare": 0.0,
             "handbrake": false,
-            "maxSteer": 0.5585053606381855,
-            "visual": 21,
-            "radius": 0.33,
-            "width": 0.22,
-            "springRate": 34000.0,
-            "damping": 3000.0,
-            "bumpTravel": 0.1,
-            "droopTravel": 0.14
+            "maxSteer": 0.5934119456780721,
+            "visual": 21
           },
           "enabled": true,
           "id": "63abe70fe25ffc1d26fc7b96cce2614c",
@@ -634,7 +600,7 @@
       "layer": 0,
       "name": "Wheel Front Right",
       "position": [
-        0.83,
+        0.78,
         0.33,
         -1.3
       ],
@@ -658,8 +624,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "abc34b6a42e42fa750156ee8874cbd11",
-            "mesh": "290a04cf65304858e640a1a6733a40b9",
+            "material": "4f12f9e5e20d7a5235c46b6b6adc1e37",
+            "mesh": "7ab3e71cfb90c4c6086ff04b5a421b94",
             "submesh": 0
           },
           "enabled": true,
@@ -695,8 +661,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "6d6fb19b5ff5d790620d656b92fe93b4",
-            "mesh": "d9b4bfd619cffde593122ffeeb0e7175",
+            "material": "2f7a978e23c88f2bc2f6b6815619c2d6",
+            "mesh": "c8543c30c9132e26edb05b053d0bcd10",
             "submesh": 0
           },
           "enabled": true,
@@ -736,13 +702,7 @@
             "driveShare": 0.5,
             "handbrake": true,
             "maxSteer": 0.0,
-            "visual": 22,
-            "radius": 0.33,
-            "width": 0.22,
-            "springRate": 34000.0,
-            "damping": 3000.0,
-            "bumpTravel": 0.1,
-            "droopTravel": 0.14
+            "visual": 22
           },
           "enabled": true,
           "id": "92e31f40fe445e28fd506a70dcb9ace9",
@@ -753,7 +713,7 @@
       "layer": 0,
       "name": "Wheel Rear Left",
       "position": [
-        -0.83,
+        -0.78,
         0.33,
         1.3
       ],
@@ -777,8 +737,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "abc34b6a42e42fa750156ee8874cbd11",
-            "mesh": "290a04cf65304858e640a1a6733a40b9",
+            "material": "4f12f9e5e20d7a5235c46b6b6adc1e37",
+            "mesh": "7ab3e71cfb90c4c6086ff04b5a421b94",
             "submesh": 0
           },
           "enabled": true,
@@ -814,8 +774,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "6d6fb19b5ff5d790620d656b92fe93b4",
-            "mesh": "d9b4bfd619cffde593122ffeeb0e7175",
+            "material": "2f7a978e23c88f2bc2f6b6815619c2d6",
+            "mesh": "c8543c30c9132e26edb05b053d0bcd10",
             "submesh": 0
           },
           "enabled": true,
@@ -855,13 +815,7 @@
             "driveShare": 0.5,
             "handbrake": true,
             "maxSteer": 0.0,
-            "visual": 23,
-            "radius": 0.33,
-            "width": 0.22,
-            "springRate": 34000.0,
-            "damping": 3000.0,
-            "bumpTravel": 0.1,
-            "droopTravel": 0.14
+            "visual": 23
           },
           "enabled": true,
           "id": "8c69e1bcb282596ff6f7e439228d16ee",
@@ -872,7 +826,7 @@
       "layer": 0,
       "name": "Wheel Rear Right",
       "position": [
-        0.83,
+        0.78,
         0.33,
         1.3
       ],
@@ -896,8 +850,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "abc34b6a42e42fa750156ee8874cbd11",
-            "mesh": "290a04cf65304858e640a1a6733a40b9",
+            "material": "4f12f9e5e20d7a5235c46b6b6adc1e37",
+            "mesh": "7ab3e71cfb90c4c6086ff04b5a421b94",
             "submesh": 0
           },
           "enabled": true,
@@ -933,8 +887,8 @@
         {
           "data": {
             "castsShadows": true,
-            "material": "6d6fb19b5ff5d790620d656b92fe93b4",
-            "mesh": "d9b4bfd619cffde593122ffeeb0e7175",
+            "material": "2f7a978e23c88f2bc2f6b6815619c2d6",
+            "mesh": "c8543c30c9132e26edb05b053d0bcd10",
             "submesh": 0
           },
           "enabled": true,
@@ -972,8 +926,8 @@
       "name": "Seat",
       "position": [
         -0.38,
-        0.35,
-        0.15
+        0.5,
+        0.2
       ],
       "rotation": [
         0.0,
@@ -996,9 +950,9 @@
       "layer": 0,
       "name": "Exit Left",
       "position": [
-        -1.5,
-        0,
-        0.15
+        -1.43,
+        0.0,
+        0.2
       ],
       "rotation": [
         0.0,
@@ -1021,9 +975,9 @@
       "layer": 0,
       "name": "Exit Right",
       "position": [
-        1.5,
-        0,
-        0.15
+        1.43,
+        0.0,
+        0.2
       ],
       "rotation": [
         0.0,
@@ -1046,9 +1000,9 @@
       "layer": 0,
       "name": "Exit Back",
       "position": [
-        0,
-        0,
-        2.9
+        0.0,
+        0.0,
+        2.8
       ],
       "rotation": [
         0.0,
@@ -1071,9 +1025,9 @@
       "layer": 0,
       "name": "Exit Front",
       "position": [
-        0,
-        0,
-        -2.9
+        0.0,
+        0.0,
+        -2.8
       ],
       "rotation": [
         0.0,
@@ -1295,7 +1249,7 @@
             "range": 45.0
           },
           "enabled": false,
-          "id": "967157eb87f634f9d7e8915a48f99637",
+          "id": "367c78b08b551ed5b8ee56546790773a",
           "type": "SpotLight"
         }
       ],
@@ -1303,9 +1257,9 @@
       "layer": 0,
       "name": "Beam Left",
       "position": [
-        -0.62,
-        0.66,
-        -2.25
+        -0.6,
+        0.8,
+        -2.15
       ],
       "rotation": [
         -0.0349,
@@ -1339,7 +1293,7 @@
             "range": 45.0
           },
           "enabled": false,
-          "id": "ac4e3b51597558bffd78d6395c054f6c",
+          "id": "df72309d6e1d3d1492503e99897145a8",
           "type": "SpotLight"
         }
       ],
@@ -1347,9 +1301,9 @@
       "layer": 0,
       "name": "Beam Right",
       "position": [
-        0.62,
-        0.66,
-        -2.25
+        0.6,
+        0.8,
+        -2.15
       ],
       "rotation": [
         -0.0349,
@@ -1372,7 +1326,7 @@
           "data": {
             "bus": "Effects",
             "loop": true,
-            "pitch": 1.12,
+            "pitch": 1.0,
             "playOnStart": false,
             "sound": "cbd433eff33c1b8bbd9499ce990c3e37",
             "spatial": true,
@@ -1384,13 +1338,13 @@
             "volume": 0.7
           },
           "enabled": true,
-          "id": "aa7773b002f40b8ddf3eb77dd5206efc",
+          "id": "29852581121ec7c948cb27ff007c8dfe",
           "type": "AudioSource"
         },
         {
           "data": {},
           "enabled": true,
-          "id": "29e2dbf9eb7306749d1ffacb5608bc6e",
+          "id": "7bbcc8c279eeea6d7eaec8cfb2b336f3",
           "type": "VehicleHornSound"
         }
       ],
@@ -1437,7 +1391,7 @@
             "driver": false
           },
           "enabled": true,
-          "id": "646e7020165e4a1698d15ea719a13177",
+          "id": "87c7803d24e643779b64c2695ab81f79",
           "type": "VehicleSeat"
         }
       ],
@@ -1446,8 +1400,8 @@
       "name": "Passenger Seat",
       "position": [
         0.38,
-        0.35,
-        0.15
+        0.5,
+        0.2
       ],
       "rotation": [
         0.0,
@@ -1462,6 +1416,119 @@
       ],
       "tags": [],
       "parent": 1
+    },
+    {
+      "active": true,
+      "components": [],
+      "id": 34,
+      "layer": 0,
+      "name": "Brake Lights",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 1
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": false,
+            "color": [
+              1.0,
+              0.05,
+              0.02,
+              1.0
+            ],
+            "innerConeAngle": 0.4,
+            "intensity": 80.0,
+            "outerConeAngle": 0.8,
+            "range": 15.0
+          },
+          "enabled": false,
+          "id": "e6a2107b38d94e24ab49c12345678901",
+          "type": "SpotLight"
+        }
+      ],
+      "id": 35,
+      "layer": 0,
+      "name": "Brake Left",
+      "position": [
+        -0.64,
+        0.86,
+        2.15
+      ],
+      "rotation": [
+        0,
+        1,
+        0,
+        0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 34
+    },
+    {
+      "active": true,
+      "components": [
+        {
+          "data": {
+            "castsShadows": false,
+            "color": [
+              1.0,
+              0.05,
+              0.02,
+              1.0
+            ],
+            "innerConeAngle": 0.4,
+            "intensity": 80.0,
+            "outerConeAngle": 0.8,
+            "range": 15.0
+          },
+          "enabled": false,
+          "id": "f7b3218c49e05f35bc50d23456789012",
+          "type": "SpotLight"
+        }
+      ],
+      "id": 36,
+      "layer": 0,
+      "name": "Brake Right",
+      "position": [
+        0.64,
+        0.86,
+        2.15
+      ],
+      "rotation": [
+        0,
+        1,
+        0,
+        0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": [],
+      "parent": 34
     }
   ],
   "format": "spot-scene",

@@ -114,6 +114,76 @@ float Outline(float distance) {
 
 } // namespace
 
+Spot::Image Death() {
+    return Paint(GlyphSize, GlyphSize, [](Point p) {
+        const float skull = Union({Circle(p, {32, 25}, 19), Box(p, {20, 32}, {44, 51}, 4)});
+        const float holes =
+            Union({Circle(p, {24, 25}, 5), Circle(p, {40, 25}, 5), Polygon(p, {{32, 33}, {28, 39}, {36, 39}}),
+                   Box(p, {26, 45}, {29, 54}), Box(p, {35, 45}, {38, 54})});
+        return Subtract(skull, holes);
+    });
+}
+
+Spot::Image Bullet() {
+    return Paint(GlyphSize, GlyphSize, [](Point p) {
+        return Union({Box(p, {23, 27}, {41, 53}, 2), Box(p, {20, 51}, {44, 56}, 1),
+                      Polygon(p, {{23, 24}, {25, 15}, {32, 6}, {39, 15}, {41, 24}}, 1)});
+    });
+}
+
+Spot::Image Explosion() {
+    return Paint(GlyphSize, GlyphSize, [](Point p) {
+        const float burst = Polygon(p,
+                                    {{32, 4},
+                                     {38, 20},
+                                     {53, 10},
+                                     {46, 27},
+                                     {61, 32},
+                                     {46, 38},
+                                     {55, 55},
+                                     {38, 46},
+                                     {32, 61},
+                                     {26, 46},
+                                     {9, 55},
+                                     {18, 38},
+                                     {3, 32},
+                                     {18, 26},
+                                     {10, 10},
+                                     {26, 19}},
+                                    0.5f);
+        return Subtract(burst, Circle(p, {32, 32}, 9));
+    });
+}
+
+Spot::Image Fall() {
+    return Paint(GlyphSize, GlyphSize, [](Point p) {
+        return Union({Capsule(p, {32, 7}, {32, 39}, Stroke), Capsule(p, {19, 28}, {32, 41}, Stroke),
+                      Capsule(p, {32, 41}, {45, 28}, Stroke), Box(p, {10, 50}, {54, 55}, 1)});
+    });
+}
+
+Spot::Image Impact() {
+    return Paint(GlyphSize, GlyphSize, [](Point p) {
+        return Union({Box(p, {39, 8}, {46, 56}, 1), Capsule(p, {6, 32}, {31, 32}, Stroke),
+                      Capsule(p, {21, 21}, {32, 32}, Stroke), Capsule(p, {21, 43}, {32, 32}, Stroke),
+                      Capsule(p, {51, 20}, {58, 14}, Stroke), Capsule(p, {51, 44}, {58, 50}, Stroke)});
+    });
+}
+
+Spot::Image Melee() {
+    return Paint(GlyphSize, GlyphSize, [](Point p) {
+        return Union({Box(p, {12, 16}, {23, 36}, 4), Box(p, {22, 11}, {33, 36}, 4), Box(p, {32, 13}, {43, 36}, 4),
+                      Box(p, {42, 18}, {52, 38}, 4), Box(p, {15, 29}, {48, 48}, 5), Box(p, {23, 43}, {43, 57}, 2),
+                      Capsule(p, {12, 34}, {26, 40}, 5)});
+    });
+}
+
+Spot::Image Smite() {
+    return Paint(GlyphSize, GlyphSize, [](Point p) {
+        return Polygon(p, {{31, 5}, {49, 5}, {37, 26}, {51, 26}, {20, 60}, {27, 36}, {14, 36}}, 0.5f);
+    });
+}
+
 Spot::Image PhysicsGun() {
     return Paint(ItemWidth, ItemHeight, [](Point p) {
         const float body = Union({
@@ -279,6 +349,15 @@ Spot::Image CategoryProps() {
         const float outline = Outline(Polygon(p, {top, right, {54, 45}, {32, 56}, {10, 45}, left}));
         return Union({outline, Capsule(p, left, middle, Stroke), Capsule(p, right, middle, Stroke),
                       Capsule(p, middle, {32, 56}, Stroke)});
+    });
+}
+
+Spot::Image CategoryVehicles() {
+    return Paint(GlyphSize, GlyphSize, [](Point p) {
+        return Union(
+            {Outline(Polygon(p, {{8, 34}, {15, 30}, {22, 18}, {43, 18}, {50, 30}, {56, 34}, {56, 46}, {8, 46}})),
+             Capsule(p, {15, 30}, {50, 30}, Stroke), Outline(Circle(p, {19, 46}, 6.0f)),
+             Outline(Circle(p, {46, 46}, 6.0f))});
     });
 }
 

@@ -9,12 +9,10 @@ SPOT_COMPONENT(WeaponWheel);
 
 namespace {
 
-// How the generator paints the sector, in its pixels: the ring's outer and inner radii, and how far above the wheel's
-// center the middle of the image is.
+// Ring radii in the cached sector mask's pixels.
 constexpr float SectorOuter = 252.0f;
 constexpr float SectorInner = 118.0f;
-constexpr float SectorImageCenter = 132.0f;
-constexpr float SectorImageSize = 256.0f;
+constexpr unsigned SectorImageSize = 512;
 
 } // namespace
 
@@ -39,6 +37,25 @@ void WeaponWheel::DrawWidget(Spot::Renderer2D& renderer, const Spot::UiLayoutEnt
     }
     const float pixel = radius / SectorOuter;
     const int count = static_cast<int>(slots.size());
+    sectors = count;
+    if (count > 0 && (m_sectorCount != count || !m_sectorTexture)) {
+        std::vector<std::uint8_t> pixels(SectorImageSize * SectorImageSize * 4, 255);
+        const float halfAngle = Spot::Pi / static_cast<float>(count);
+        for (unsigned y = 0; y < SectorImageSize; ++y) {
+            for (unsigned x = 0; x < SectorImageSize; ++x) {
+                const float dx = static_cast<float>(x) + 0.5f - SectorImageSize * 0.5f;
+                const float dy = SectorImageSize * 0.5f - static_cast<float>(y) - 0.5f;
+                const float distance = std::sqrt(dx * dx + dy * dy);
+                const float edge = count == 1 ? 1.0f : (halfAngle - std::abs(std::atan2(dx, dy))) * distance - 2.0f;
+                const float coverage =
+                    std::clamp(std::min({SectorOuter - distance, distance - SectorInner, edge}), 0.0f, 1.0f);
+                pixels[(y * SectorImageSize + x) * 4 + 3] = static_cast<std::uint8_t>(coverage * 255.0f);
+            }
+        }
+        m_sectorTexture =
+            renderer.GetDevice().CreateTexture(Spot::Image(SectorImageSize, SectorImageSize, std::move(pixels)));
+        m_sectorCount = count;
+    }
     const Spot::Color dark = sectorColor;
     const Spot::AssetRef<Spot::Font>& numbers = monoFont ? monoFont : font;
     for (int index = 0; index < sectors; ++index) {
@@ -47,14 +64,14 @@ void WeaponWheel::DrawWidget(Spot::Renderer2D& renderer, const Spot::UiLayoutEnt
         const Spot::Vector2 out{std::sin(angle), std::cos(angle)};
         const bool used = index < count;
         const bool lit = used && index == highlighted;
-        if (sector) {
+        if (m_sectorTexture) {
             const Spot::Color tint = lit     ? accent
                                      : !used ? Spot::Color{dark.r, dark.g, dark.b, 0.3f}
                                      : index == selected
                                          ? Spot::Color{selectedColor.r, selectedColor.g, selectedColor.b, 0.9f}
                                          : Spot::Color{dark.r, dark.g, dark.b, 0.74f};
-            renderer.DrawRotatedQuad(center + out * (SectorImageCenter * pixel),
-                                     {SectorImageSize * pixel, SectorImageSize * pixel}, -angle, *sector, tint);
+            renderer.DrawRotatedQuad(center, {SectorImageSize * pixel, SectorImageSize * pixel}, -angle,
+                                     *m_sectorTexture, tint);
         }
         if (!used) {
             continue;
@@ -64,7 +81,10 @@ void WeaponWheel::DrawWidget(Spot::Renderer2D& renderer, const Spot::UiLayoutEnt
         const Spot::Vector2 middle = center + out * ((SectorOuter + SectorInner) * 0.5f * pixel);
         if (slot.icon) {
             // As wide as the sector allows at its middle, keeping the icon's proportions.
-            const float width = 112.0f * pixel * (lit ? 1.08f : 1.0f);
+            const float available =
+                count <= 2 ? 112.0f
+                           : std::min(112.0f, 2.0f * 185.0f * std::sin(Spot::Pi / static_cast<float>(count)) - 12.0f);
+            const float width = std::max(available, 8.0f) * pixel * (lit ? 1.08f : 1.0f);
             const float height = width * static_cast<float>(slot.icon->GetHeight()) /
                                  static_cast<float>(std::max(slot.icon->GetWidth(), 1u));
             renderer.DrawQuad(middle, {width, height}, *slot.icon, ink);
@@ -90,7 +110,6 @@ void WeaponWheel::Serialize(Spot::Archive& archive) {
     SerializeWidget(archive);
     archive.Field("font", font);
     archive.Field("monoFont", monoFont, {.tooltip = "For the number keys and the rounds"});
-    archive.Field("sector", sector, {.tooltip = "One sector of the ring pointing up, as ui_wheel_sector"});
     archive.Field("disc", disc, {.tooltip = "The round middle"});
     archive.Field("accent", accent);
     archive.Field("sectorColor", sectorColor);
@@ -98,7 +117,6 @@ void WeaponWheel::Serialize(Spot::Archive& archive) {
     archive.Field("inkColor", inkColor, {.tooltip = "Text on the accent"});
     archive.Field("textColor", textColor);
     archive.Field("secondaryColor", secondaryColor);
-    archive.Field("sectors", sectors, {.min = 1.0f, .max = 16.0f});
 }
 
 } // namespace Gameplay

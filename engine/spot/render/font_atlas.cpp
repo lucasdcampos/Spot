@@ -24,8 +24,8 @@ struct CodePointRange {
     char32_t last;
 };
 
-// Printable ASCII and Latin-1, which hold the letters of most Western European languages.
-constexpr std::array<CodePointRange, 2> Ranges{{{0x20, 0x7E}, {0xA0, 0xFF}}};
+// Printable ASCII, Latin-1 and the infinity symbol used by ammunition counters.
+constexpr std::array<CodePointRange, 3> Ranges{{{0x20, 0x7E}, {0xA0, 0xFF}, {0x221E, 0x221E}}};
 
 constexpr int SdfPadding = 6;
 constexpr unsigned char SdfEdge = 128;

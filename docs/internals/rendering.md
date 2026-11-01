@@ -735,3 +735,9 @@ exactly, with the near plane at the surface to clip geometry behind it. `Camera3
 this projection through the public rendering interface. The reflected camera sees `reflectionMask`, independent
 of the main camera, so a player's hidden body can appear. Scene entities remain identified by their components;
 only GPU targets and matrices are retained between frames. Captures refresh each visible frame, including animation.
+
+`Renderer2D::GetDevice()` exposes the renderer's graphics device for widgets that cache generated textures.
+The sandbox weapon wheel caches a ring-sector mask for its current number of carried items.
+
+`FontAtlas` includes printable ASCII, Latin-1 and U+221E (infinity), so UI counters can render unlimited ammunition
+with the same font, size and alignment as numeric counts. Other unsupported code points retain the question-mark fallback.

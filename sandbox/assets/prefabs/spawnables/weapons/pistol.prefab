@@ -4,12 +4,35 @@
       "active": true,
       "components": [
         {
+          "type": "NetworkObject",
+          "id": "c31bfe1c9df14547b5e0e3652bbf6dda",
+          "enabled": true,
+          "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 150.0
+          }
+        },
+        {
+          "type": "NetworkTransform",
+          "id": "8ebeea6b747b4782a55345664efde015",
+          "enabled": true,
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          }
+        },
+        {
           "data": {
             "automatic": false,
             "damage": 25.0,
             "displayName": "Pistol",
+            "worldSize": [0.032100001350045204, 0.17250407859683037, 0.22494499757885933],
+            "worldCenter": [4.9999915063381195e-05, -0.03225203789770603, -0.06452750228345394],
             "fireInterval": 0.2,
-            "fireSound": "10830339b43ce45f3a140985b7601e5b",
+            "fireSound": "66c558db7fa3a18961c6f5d70a133f9e",
             "impulse": 40.0,
             "magazineSize": 12,
             "muzzleFlash": 0.8,
@@ -17,7 +40,7 @@
             "pellets": 1,
             "projectileSpeed": 0.0,
             "range": 150.0,
-            "reloadSound": "0c7379df4ea628e65c4ab48d8973707e",
+            "reloadSound": "261475ebeb7da5e67837dd486e25712c",
             "reloadTime": 1.2,
             "reserveAmmo": 120,
             "spread": 0.005,

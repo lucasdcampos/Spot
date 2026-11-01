@@ -131,15 +131,18 @@ void CharacterMovement::SerializeIntent(Spot::Archive& archive) {
 }
 
 void CharacterMovement::Replicate(Spot::Archive& archive) {
+    bool grounded = m_wasGrounded;
     bool crouching = m_crouching;
     bool sprinting = m_sprinting;
     bool flying = m_flying;
+    archive.Field("grounded", grounded);
     archive.Field("crouching", crouching);
     archive.Field("sprinting", sprinting);
     archive.Field("flying", flying);
     if (!archive.IsLoading()) {
         return;
     }
+    m_wasGrounded = grounded;
     m_crouching = crouching;
     if (sprinting != m_sprinting) {
         SetSprinting(sprinting);

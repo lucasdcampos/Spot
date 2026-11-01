@@ -3943,12 +3943,6 @@
           "type": "DayCycle"
         },
         {
-          "data": {},
-          "enabled": true,
-          "id": "b704e321771b85245a7f6a9b947bc6a0",
-          "type": "ShadowToggle"
-        },
-        {
           "data": {
             "visible": false
           },
@@ -4327,7 +4321,7 @@
               "minDistance": 1.0,
               "rolloff": 0
             },
-            "volume": 0.5
+            "volume": 0.25
           },
           "enabled": true,
           "id": "6fb03c6366c3d8adfbf8e5a4e0a9533e",

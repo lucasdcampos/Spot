@@ -514,6 +514,27 @@ TEST_CASE("The spawn menu searches, counts each category and switches to a compa
     CHECK(game.scene.GetEntity(ui.spawnCount)->GetComponent<Spot::UiText>()->text ==
           std::to_string(props) + " OBJECTS");
 
+    const auto propNames = shown();
+    CHECK(std::ranges::find(propNames, "Car") == propNames.end());
+    CHECK(std::ranges::find(propNames, "Coupe") == propNames.end());
+    CHECK(std::ranges::find(propNames, "Helicopter") == propNames.end());
+    CHECK(count(ui.spawn.vehiclesTab) == "3");
+    CHECK(count(ui.weaponsTab) == "6");
+    auto* vehiclesTab = game.scene.GetEntity(ui.spawn.vehiclesTab);
+    REQUIRE(vehiclesTab);
+    REQUIRE(vehiclesTab->GetComponent<Spot::UiButton>());
+    vehiclesTab->GetComponent<Spot::UiButton>()->Click();
+    CHECK(ui.spawn.GetCategory() == Spawnable::Category::Vehicle);
+    auto vehicleNames = shown();
+    std::ranges::sort(vehicleNames);
+    CHECK(vehicleNames == std::vector<std::string>{"Car", "Coupe", "Helicopter"});
+    ui.spawn.Search("helicopter");
+    CHECK(shown() == std::vector<std::string>{"Helicopter"});
+    CHECK(count(ui.spawn.vehiclesTab) == "1");
+    CHECK(count(ui.propsTab) == "0");
+    ui.spawn.Search("");
+    ui.spawn.SelectCategory(Spawnable::Category::Prop);
+
     // Typed into the field, Q searches rather than closing the menu.
     auto& input = game.scene.GetOrAddSystem<Spot::UiInputSystem>();
     REQUIRE(input.Focus(ui.spawnSearch));

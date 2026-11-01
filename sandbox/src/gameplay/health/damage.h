@@ -74,6 +74,8 @@ private:
 
 namespace Damage {
 
+// Returns whether the hit point is in the head region of the character entity.
+bool IsHeadshot(const Spot::Entity& target, Spot::Vector3 hitPoint);
 // Gives the damage to the receivers of the target or of its nearest ancestor that has some, or of the ragdoll whose
 // body it is, and pushes the target's body, unless it is a ragdoll's, which its receivers push. Returns whether
 // anything took it.

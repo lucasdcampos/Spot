@@ -1,7 +1,9 @@
 #include "gameplay/health/damage.h"
+#include <spot/scene/physics/character_controller.h>
 #include <spot/scene/physics/physics_world.h>
 
 #include "gameplay/core/body_authority.h"
+#include "gameplay/core/pawn.h"
 
 #include <algorithm>
 #include <vector>
@@ -142,26 +144,64 @@ void DamageSystem::OnUpdate(float /*deltaTime*/) {
 
 namespace Damage {
 
+bool IsHeadshot(const Spot::Entity& target, Spot::Vector3 hitPoint) {
+    if (Spot::LengthSquared(hitPoint) < 1e-4f) {
+        return false;
+    }
+    for (const Spot::Entity* at = &target; at; at = at->GetParent()) {
+        if (const auto* pawn = at->GetComponent<Pawn>()) {
+            if (pawn->eye != Spot::EntityId::Invalid) {
+                const Spot::Vector3 eye = pawn->GetViewPoint().position;
+                const float dx = hitPoint.x - eye.x;
+                const float dz = hitPoint.z - eye.z;
+                const float horizontalDistSq = dx * dx + dz * dz;
+                const float dy = hitPoint.y - eye.y;
+                if (horizontalDistSq <= 0.35f * 0.35f && dy >= -0.22f && dy <= 0.30f) {
+                    return true;
+                }
+            }
+        }
+        if (const auto* controller = at->GetComponent<Spot::CharacterController>()) {
+            const Spot::Vector3 center = at->GetTransform().GetWorldPosition() + controller->GetCenter();
+            const float top = center.y + controller->GetHeight() * 0.5f;
+            const float dx = hitPoint.x - center.x;
+            const float dz = hitPoint.z - center.z;
+            const float horizontalDistSq = dx * dx + dz * dz;
+            const float maxRadius = controller->GetRadius() + 0.15f;
+            if (horizontalDistSq <= maxRadius * maxRadius && hitPoint.y >= top - 0.35f && hitPoint.y <= top + 0.15f) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 bool Apply(Spot::Scene& scene, Spot::EntityId target, const DamageInfo& damage) {
     Spot::Entity* entity = scene.GetEntity(target);
     if (!entity) {
         return false;
     }
     const Owner owner = FindOwner(scene, *entity);
-    bool took = owner.entity && Give(*owner.entity, damage);
+    DamageInfo appliedDamage = damage;
+    if (owner.entity && damage.type == "Bullet" &&
+        (IsHeadshot(*owner.entity, damage.point) || IsHeadshot(*entity, damage.point))) {
+        appliedDamage.amount *= 2.5f;
+    }
+    bool took = owner.entity && Give(*owner.entity, appliedDamage);
     // The entity may be gone now, as a receiver may destroy what it is on.
     entity = scene.GetEntity(target);
-    auto* body = entity && !owner.ragdoll && damage.pushesBody ? entity->GetComponent<Spot::Rigidbody>() : nullptr;
+    auto* body =
+        entity && !owner.ragdoll && appliedDamage.pushesBody ? entity->GetComponent<Spot::Rigidbody>() : nullptr;
     // A body a player's machine simulates comes back here to be pushed.
     if (body && body->IsKinematic() && BodyAuthority::GetHolder(*entity) != Spot::NetPeerId::Invalid) {
         BodyAuthority::TakeBack(*entity);
     }
-    if (body && !body->IsKinematic() && Spot::LengthSquared(damage.impulse) > 0.0f) {
-        body->AddImpulseAtPosition(damage.impulse, damage.point);
+    if (body && !body->IsKinematic() && Spot::LengthSquared(appliedDamage.impulse) > 0.0f) {
+        body->AddImpulseAtPosition(appliedDamage.impulse, appliedDamage.point);
         took = true;
     }
     if (took) {
-        DamageSystem::Get(scene).Report({target, damage}, false);
+        DamageSystem::Get(scene).Report({target, appliedDamage}, false);
     }
     return took;
 }

@@ -11,14 +11,14 @@
 set(GAMEPLAY_NEEDS
     "camera=core"
     "character=camera,core,effects,health,hud,persistence"
-    "environment=core,effects,hud"
+    "environment=core,effects,hud,network"
     "game=core,health,hud,menus,persistence"
-    "health=core,hud"
+    "health=core,hud,inventory,network"
     "hud=core"
     "inventory=core,hud,menus"
     "menus=core,hud"
     "network=core,game,persistence"
-    "vehicles=core,environment,health,hud,persistence,weapons"
+    "vehicles=character,core,environment,health,hud,persistence,weapons"
     "weapons=camera,core,effects,health,inventory"
 )
 

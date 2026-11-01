@@ -26,6 +26,8 @@
 
 namespace Spot {
 
+class Joint;
+
 // Simulates the colliders and rigidbodies of a scene. It is the scene's system for physics, created the first time
 // Scene::GetOrAddSystem<PhysicsWorld>() is called, as colliders and rigidbodies do. It steps on each of the scene's
 // fixed steps, so it behaves the same at any frame rate.

@@ -1,4 +1,4 @@
-#include "spot/runtime/game_module.h"
+#include "spot/runtime/module.h"
 
 namespace Spot {
 

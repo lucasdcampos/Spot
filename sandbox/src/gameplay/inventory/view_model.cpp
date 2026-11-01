@@ -388,6 +388,20 @@ void ViewModel::UpdateArms(const Matrix4& hand) {
     }
 }
 
+void ViewModel::UpdateArmsMaterial() {
+    const auto* source = armsMaterialSource.Get(GetScene());
+    if (!source || !source->GetMaterial()) {
+        return;
+    }
+    for (const auto id : m_arms) {
+        auto* arm = GetScene().GetEntity(id);
+        auto* renderer = arm ? arm->GetComponent<Spot::MeshRenderer>() : nullptr;
+        if (renderer && renderer->GetMaterial() != source->GetMaterial()) {
+            renderer->SetMaterial(source->GetMaterial());
+        }
+    }
+}
+
 void ViewModel::OnLateUpdate(float deltaTime) {
     const Spot::AssetRef<Spot::Model> held = GetHeldModel();
     if (held.Get() != m_shown.Get()) {
@@ -400,6 +414,7 @@ void ViewModel::OnLateUpdate(float deltaTime) {
                                               std::max(switchTime, 0.01f), 0.0f, 1.0f,
                                               [this](float value) { m_raise = value; }, Spot::Ease::CubicOut));
     }
+    UpdateArmsMaterial();
     const Pawn* pawn = GetPawn();
     if (!pawn || deltaTime <= 0.0f) {
         return;
@@ -477,6 +492,7 @@ void ViewModel::OnDisable() {
 void ViewModel::Serialize(Spot::Archive& archive) {
     archive.Field("renderLayer", renderLayer, {.min = -1.0f, .max = 31.0f});
     archive.Field("armsModel", armsModel);
+    archive.Field("armsMaterialSource", armsMaterialSource);
     archive.Field("swayAmount", swayAmount, {.min = 0, .max = .1f, .speed = .001f});
     archive.Field("maxSway", maxSway, {.min = 0, .max = .1f, .speed = .001f});
     archive.Field("bobAmount", bobAmount, {.min = 0, .max = .1f, .speed = .001f});

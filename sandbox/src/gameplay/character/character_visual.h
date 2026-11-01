@@ -22,6 +22,11 @@ public:
     Spot::EntityId modelRoot = Spot::EntityId::Invalid;
     Spot::ComponentRef<Spot::Animator> animator;
     std::string speedParameter = "speed";
+    std::string forwardParameter = "forward";
+    std::string sidewaysParameter = "sideways";
+    std::string crouchParameter = "crouching";
+    std::string airborneParameter = "airborne";
+    std::string verticalParameter = "vertical";
     std::string seatedLayer;
     std::string crouchLayer;
     std::string seatedState = "Seated";
