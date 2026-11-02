@@ -137,13 +137,13 @@ keeping selection and undo history. See [Prefabs](prefabs.md) for Apply, Revert,
 Only prefabs with a `Spawnable` component on their root enter the catalog. Set its category (Prop, Lamp, Weapon, Npc or
 Vehicle), order and placement clearance, then author the object's renderers, physics and gameplay components.
 Entries sort by order, name and asset id. The first eight preserve the existing F1–F8 shortcuts; the Spawn
-action cycles through the entire catalog, including ramps, stairs, lamps, firearms, the Physics Gun and the Tool Gun. There is no source
+action cycles through the entire catalog, including ramps, stairs, lamps, firearms, the Magic Remote. There is no source
 directory scan at runtime, so discovery works in exported games too.
 
 Free-mode spawning does not require cheats or operator permission. The spawn menu retries catalog construction
 when opened and while open until the local player's replicated pawn arrives, since clients initialize their UI
 before possessing a character. Completed catalogs are reused, so reopening never duplicates cards. The Ray Gun
-stays outside this catalog and cannot be dropped for another player to collect.
+card is shown only to developers; server spawning enforces the same per-player restriction.
 
 To add an entry, make an entity tree in the editor, add `Spawnable` to its root and drag the root into a folder
 under `prefabs/spawnables`. Save or cook the project and restart Play to rebuild the catalog. A marked variant
@@ -170,11 +170,11 @@ controls are:
 | Shift, Ctrl, Alt | Run forward, crouch, toggle noclip |
 | Space | Jump |
 | 2–5 | Select a firearm |
-| 1, 6 | Select the physics gun or tool gun |
+| 1 | Select the magic remote |
 | 0 | Holster the held item; select a number or use the weapon wheel to equip again |
 | Hold Tab, mouse | Weapon wheel: point at a slot, release to take it |
 | Left mouse, right mouse | Fire/use the tool, aim or turn a held prop |
-| R | Reload; cycle the tool gun's mode |
+| R | Reload; cycle the magic remote's mode |
 | E | Carry or drop a nearby light prop; get into the car looked at, or out of it |
 | F | Toggle the flashlight, or a car's headlights while driving |
 | N | Sound a car's horn while driving |
@@ -426,7 +426,7 @@ loads do not leave stale entity pointers.
 | `spawn <prop>` | Spawn a catalog item where the player aims; no arguments lists names |
 | `give <weapon>` | Equip/refill an owned firearm or add a missing one to the player's inventory |
 | `stress <count>` | Spawn 1..2000 crates in a pile in front of the player |
-| `imthegamedev` | Unlock the developer skin and Ray Gun for the local player (requires cheats or operator permission) |
+| `imthegamedev` | Unlock the developer skin and Ray Gun spawn option for the local player (requires cheats or operator permission) |
 | `smite <player>` | Kill the player with that exact nickname with a visible lightning strike and thunderclap (requires cheats or operator permission) |
 | `yeet <player>` | Launch the player with that exact nickname far away and upward, out of the map (requires cheats or operator permission) |
 | `backrooms <player\|all> <duration>` | Send a player (or `all` living players) to the Backrooms maze for `<duration>` seconds, or `0` until death (requires cheats or operator permission) |
@@ -436,7 +436,7 @@ The developer skin and Ray Gun also unlock automatically when the local machine 
 in `Spot/developer.key` under the user data directory (`%APPDATA%/Spot/developer.key` on Windows), verified on the
 server against `DeveloperMode::DefaultPublicKey` by challenge-response. `DeveloperMode` belongs to the player prefab:
 the server replicates the unlock, and `PlayerInfo::developer` retains it for that player across respawns. Unlocking
-developer mode grants only the skin and Ray Gun, not console cheats or operator powers.
+developer mode grants only the skin and Ray Gun spawn option, not console cheats or operator powers.
 
 In a network room, `imthegamedev` requires operator permission on the server even when Free mode enables cheats.
 The authenticated developer-key path remains available. `smite`, `yeet`, `backrooms` and `messagebox` require cheats or operator permission on both the console and the server, including
@@ -459,11 +459,10 @@ Invalid saved names fall back to `Player`; room names and passwords may still co
 
 The skin is `generated/models/developer.gltf`, generated alongside the humanoid with the same skeleton. It replaces
 the shirt with black, adds white DEV lettering, pixel sunglasses and a gold crown, and uses the body's Animator and
-render layer, including in first person, vehicles and ragdolls. The Ray Gun is an inactive held-item child already
-present on every machine, so its replicated component order never changes when unlocked. Inventories omit inactive
-or disabled items. Unlocking activates the seventh weapon-wheel item: an original retro science-fiction model,
-icon, synthesized sound and green muzzle/tracer effects, using the regular Firearm with exactly 1337 damage per hit.
-Repeated activation neither duplicates the item nor refills its ammunition. The server remains responsible for damage.
+render layer, including in first person, vehicles and ragdolls. Unlocking enables the Ray Gun card in the
+spawn menu. It is a world pickup, with an original retro science-fiction model, icon, synthesized sound
+and green muzzle/tracer effects, using the regular Firearm with exactly 1337 damage per hit. Unlocking
+does not grant or refill a weapon. The server remains responsible for spawning permissions and damage.
 
 Item names are case-insensitive; spaces, underscores and hyphens are interchangeable. Multiword names work with
 or without quotes, for example `give "Rocket Launcher"`. Giving a weapon removes its world rendering/colliders
@@ -847,3 +846,23 @@ Developer nickname labels leave extra clearance above the crown on the developer
 
 The authenticated developer badge is a blue shield with a bright rim, shaded face and geometric code mark.
 It is drawn with public renderer quads and follows nickname visibility and fading.
+
+
+The Magic Remote replaces the two starting construction weapons with one item in slot 1.
+Reload cycles Levitate, Weld, Rope, Remover, Color, Material and Lamp. Levitate retains
+hold-to-grab, wheel distance, Use + Look rotation, Aim freeze and Unfreeze all.
+Changing modes releases the prop and clears any pending joint selection. The remote uses
+the existing physics drive and authority transfer, and replicates its mode and options.
+A two-pixel cyan silhouette outlines every mesh part of the held prop; no beam or beam
+particles are emitted. Its mask is rendered through the public graphics API in a scene
+render hook, independently for each view. The ToolGun alias and legacy prefab identities
+are retained for existing C++ integrations and asset references.
+
+
+Players start with just the Magic Remote and pistol, including authenticated developers.
+Other firearms are world pickups spawned from the menu. Developer unlock enables the
+Ray Gun's catalog card without granting an inventory item. Spawnable::developerOnly
+marks restricted entries; the catalog keeps the same indices for all peers, the menu
+filters availability for its player, and PropSpawner checks that player's DeveloperMode
+again when placing or processing a server spawn request. The menu updates when the
+player authenticates while it is open.

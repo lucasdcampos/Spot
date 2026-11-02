@@ -29,7 +29,7 @@ public:
     // Where the held item's origin, its grip, is from the eyes, along the view's right, up and back axes: in front is
     // -Z.
     Spot::Vector3 offset = {0.15f, -0.15f, -0.33f};
-    // Optional forearms and hands, posed at the model's RightHand and LeftHand markers.
+    // Optional forearms and hands, posed at the model's grip markers. Without LeftHand, only the right arm is shown.
     Spot::AssetRef<Spot::Model> armsModel;
     // Optional body skin material, shared by all first-person forearms and hands.
     Spot::ComponentRef<Spot::SkinnedMeshRenderer> armsMaterialSource;
@@ -102,6 +102,8 @@ private:
     std::vector<Part> m_armInfo;
     Spot::Vector3 m_rightGrip;
     Spot::Vector3 m_leftGrip;
+    bool m_hasLeftGrip = false;
+    bool m_palmGrip = false;
     Spot::Vector3 m_muzzle;
     Spot::Vector3 m_eye;
     Spot::Vector3 m_hip;

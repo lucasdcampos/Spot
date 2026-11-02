@@ -281,14 +281,13 @@ Spot::Image RocketLauncher() {
 
 Spot::Image ToolGun() {
     return Paint(ItemWidth, ItemHeight, [](Point p) {
-        const float body = Subtract(Box(p, {38, 38}, {178, 80}, 5.0f), Box(p, {56, 46}, {116, 70}, 3.0f));
-        const float screen = Box(p, {61, 51}, {111, 65}, 1.5f);
-        const float nozzle = Union({Box(p, {176, 50}, {214, 68}, 2.0f), Box(p, {212, 45}, {226, 73}, 2.0f),
-                                    Box(p, {226, 54}, {238, 64}, 1.5f)});
-        const float fin = Box(p, {128, 30}, {164, 40}, 2.0f);
-        const float grip = Polygon(p, {{70, 78}, {96, 78}, {88, 114}, {62, 111}}, 3.0f);
-        const float dial = Circle(p, {146, 59}, 7.0f);
-        return Union({Subtract(body, dial), Circle(p, {146, 59}, 3.5f), screen, nozzle, fin, grip});
+        float shape = Box(p, {66, 28}, {192, 100}, 12.0f);
+        for (int row = 0; row < 3; ++row) {
+            for (int column = 0; column < 5; ++column) {
+                shape = Subtract(shape, Circle(p, {88.0f + column * 20.0f, 44.0f + row * 20.0f}, 4.0f));
+            }
+        }
+        return shape;
     });
 }
 

@@ -35,10 +35,11 @@ struct GltfPart {
     std::size_t material = 0;
 };
 
-// A named point of the model without a mesh, such as where a weapon's muzzle is, which games find among its nodes.
+// A named attachment of the model without a mesh, with its position and orientation among the model nodes.
 struct GltfMarker {
     std::string name;
     Spot::Vector3 position;
+    Spot::Quaternion rotation;
 };
 
 struct GltfModel {

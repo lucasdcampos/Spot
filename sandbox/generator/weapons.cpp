@@ -366,7 +366,9 @@ public:
     // Points the game finds by name: "Muzzle", where shots leave, "Eye", where the eye is when aiming down the
     // sights, in line with them, as far behind them as the item is held from the face, and "Hip", the point held where
     // items are held from the hip, the grip at the origin when there is none.
-    void Marker(std::string name, Vector3 position) { m_model.markers.push_back({std::move(name), position}); }
+    void Marker(std::string name, Vector3 position, Quaternion rotation = {}) {
+        m_model.markers.push_back({std::move(name), position, rotation});
+    }
 
     // Without tangents, which the importer makes.
     GltfModel Build() { return std::move(m_model); }
@@ -811,48 +813,21 @@ GltfModel RocketLauncher() {
 
 GltfModel ToolGun() {
     Builder builder;
-    const std::size_t body =
-        builder.AddMaterial(SurfaceMaterial("Body", Surface::PaintedMetal, {0.85f, 0.85f, 0.88f, 1.0f}));
-    const std::size_t trim =
-        builder.AddMaterial(SurfaceMaterial("Trim", Surface::Gunmetal, {0.15f, 0.17f, 0.2f, 1.0f}));
-    const std::size_t grip = builder.AddMaterial(SurfaceMaterial("Grip", Surface::Polymer));
-    const std::size_t glow = builder.AddMaterial(GlowMaterial("Glow", {0.1f, 0.6f, 0.8f}, {0.3f, 2.4f, 3.2f}));
-    const std::size_t screen = builder.AddMaterial(GlowMaterial("Screen", {0.05f, 0.08f, 0.1f}, {0.15f, 1.0f, 1.3f}));
-
-    // A body tapering to its nose, a spine along its top and vents along its sides, and an emitter in front.
-    builder.Profile(
-        body,
-        {{-0.18f, -0.012f}, {0.04f, -0.0225f}, {0.04f, 0.045f}, {0.032f, 0.0525f}, {-0.14f, 0.0525f}, {-0.18f, 0.03f}},
-        0.055f, 0.01f, {});
-    builder.Block(trim, {0.012f, 0.03f, 0.14f}, 0.004f, {0.0f, 0.06f, -0.08f});
-    for (const float side : {-1.0f, 1.0f}) {
-        builder.Box(glow, {0.002f, 0.008f, 0.15f}, {side * 0.0281f, 0.02f, -0.08f});
-        for (int i = 0; i < 4; ++i) {
-            builder.Block(trim, {0.002f, 0.004f, 0.026f}, 0.0006f,
-                          {side * 0.0279f, 0.036f - 0.007f * static_cast<float>(i), -0.01f});
+    const auto body = builder.AddMaterial(SurfaceMaterial("Body", Surface::Polymer, {0.08f, 0.085f, 0.09f, 1}));
+    const auto rubber = builder.AddMaterial(SurfaceMaterial("Trim", Surface::Polymer, {0.22f, 0.23f, 0.24f, 1}));
+    const auto power = builder.AddMaterial(SurfaceMaterial("Grip", Surface::Polymer, {0.65f, 0.07f, 0.05f, 1}));
+    builder.Block(body, {0.055f, 0.022f, 0.20f}, 0.008f, {0, 0, -0.06f});
+    builder.Block(power, {0.010f, 0.004f, 0.010f}, 0.003f, {-0.015f, 0.013f, -0.135f});
+    for (int row = 0; row < 5; ++row) {
+        for (int column = 0; column < 3; ++column) {
+            builder.Block(rubber, {0.010f, 0.004f, 0.010f}, 0.003f,
+                          {(column - 1) * 0.016f, 0.013f, -0.105f + row * 0.024f});
         }
     }
-    builder.Turned(trim, {{0.0f, 0.006f}, {0.024f, 0.006f}, {0.026f, 0.004f}, {0.026f, -0.006f}, {0.0f, -0.006f}},
-                   {0.0f, 0.015f, -0.186f});
-    builder.Turned(trim,
-                   {{0.0f, 0.03f},
-                    {0.02f, 0.03f},
-                    {0.02f, 0.0f},
-                    {0.022f, -0.004f},
-                    {0.022f, -0.012f},
-                    {0.02f, -0.016f},
-                    {0.02f, -0.025f},
-                    {0.017f, -0.03f},
-                    {0.0f, -0.03f}},
-                   {0.0f, 0.015f, -0.21f});
-    builder.Tube(glow, 0.012f, 0.03f, {0.0f, 0.015f, -0.25f});
-    builder.Box(screen, {0.04f, 0.045f, 0.003f}, {0.0f, 0.02f, 0.0405f});
-    Grip(builder, grip, 0.034f, 0.1f, {0.0f, -0.07f, 0.0f}, -15.0f, false);
-
-    builder.Marker("Muzzle", {0.0f, 0.015f, -0.266f});
-    builder.Marker("Eye", {0.0f, 0.08f, 0.3f});
-    builder.Marker("RightHand", {0.035f, -0.10f, 0.015f});
-    builder.Marker("LeftHand", {-0.045f, -0.10f, 0.0f});
+    builder.Marker("Muzzle", {0, 0, -0.16f});
+    builder.Marker("Eye", {0, 0.07f, 0.22f});
+    builder.Marker("RightHand", {0.035f, -0.072f, -0.02f}, Quaternion::FromAxisAngle({1, 0, 0}, Spot::Pi * 0.5f));
+    builder.Marker("RightPalm", {0, -0.023f, 0.05f});
     return builder.Build();
 }
 
@@ -1006,6 +981,17 @@ GltfModel MakeFirstPersonArms() {
         }
         builder.Block(hand, {0.020f, 0.045f, 0.026f}, 0.007f, {-sign * 0.021f, 0.057f, 0.016f}, -25);
     }
+    const auto palm =
+        builder.AddMaterial({.name = "Right Palm Hand", .baseColor = {0.68f, 0.44f, 0.29f}, .roughness = 0.85f});
+    builder.Block(palm, {0.060f, 0.024f, 0.080f}, 0.009f, {0, 0, -0.030f});
+    // Fingers support the underside and curl up the left edge; the thumb rests on the right face.
+    for (int i = 0; i < 4; ++i) {
+        const float z = -0.060f + static_cast<float>(i) * 0.016f;
+        builder.Block(palm, {0.042f, 0.012f, 0.013f}, 0.004f, {-0.008f, 0.007f, z});
+        builder.Block(palm, {0.012f, 0.018f, 0.013f}, 0.004f, {-0.029f, 0.021f, z});
+    }
+    builder.Block(palm, {0.019f, 0.023f, 0.038f}, 0.006f, {0.031f, 0.019f, -0.035f});
+    builder.Block(palm, {0.016f, 0.014f, 0.030f}, 0.005f, {0.024f, 0.034f, -0.052f});
     return builder.Build();
 }
 

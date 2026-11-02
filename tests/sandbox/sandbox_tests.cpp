@@ -778,6 +778,7 @@ TEST_CASE("World checkpoints retain edited props, joints, lamps and cleanup owne
     playground.Run(1.5f);
     auto& spawner = *playground.player->GetComponent<PropSpawner>();
     auto& tool = *playground.player->GetComponentInChildren<ToolGun>();
+    tool.mode = ToolGun::Mode::Weld;
     auto* prop = spawner.Spawn(0);
     REQUIRE(prop);
     prop->SetName("Saved prop");
@@ -1185,6 +1186,7 @@ void FireSlot(Playground& playground, Key slot) {
 
 TEST_CASE("Hitscan weapons push what they hit, and run out of rounds until reloaded", "[sandbox]") {
     Playground playground;
+    SandboxTests::AddTestWeapons(*playground.player->GetComponent<Gameplay::Inventory>(), playground.assets);
     playground.Run(1.5f);
     auto& holder = *playground.player->GetComponent<Gameplay::Inventory>();
     REQUIRE(GetFirearms(holder).size() == 4);
@@ -1232,6 +1234,7 @@ TEST_CASE("Hitscan weapons push what they hit, and run out of rounds until reloa
 
 TEST_CASE("Rockets and explosive barrels blow props away", "[sandbox]") {
     Playground playground;
+    SandboxTests::AddTestWeapons(*playground.player->GetComponent<Gameplay::Inventory>(), playground.assets);
     playground.Run(1.5f);
     // A crate on the ground some way ahead, and a rocket fired at the ground beside it.
     Entity& crate = playground.PlaceCrate(8.0f, 5.0f);
@@ -1487,10 +1490,11 @@ TEST_CASE("The tool gun welds, ropes and removes props, and Z takes it all back"
     Playground playground;
     playground.Run(1.5f);
     auto& tool = *playground.player->GetComponentInChildren<ToolGun>();
+    tool.mode = ToolGun::Mode::Weld;
     auto& undo = *playground.player->GetComponent<UndoList>();
-    playground.Press(Key::Digit6);
+    playground.Press(Key::Digit1);
     playground.Run(0.05f);
-    playground.Release(Key::Digit6);
+    playground.Release(Key::Digit1);
     REQUIRE(SandboxTests::IsEquipped<ToolGun>(playground.Hands()));
 
     // A crate welded in the air to a frozen one stays there.
@@ -1605,6 +1609,7 @@ TEST_CASE("The whole game plays with a gamepad", "[sandbox][gamepad]") {
 
 TEST_CASE("Aiming down the sights zooms in while held, with the right button or the left trigger", "[sandbox]") {
     Playground playground;
+    SandboxTests::AddTestWeapons(*playground.player->GetComponent<Gameplay::Inventory>(), playground.assets);
     playground.Run(1.5f);
     auto& holder = *playground.player->GetComponent<Gameplay::Inventory>();
     const Entity* head = playground.scene.GetEntity(playground.Player().head);
@@ -1801,9 +1806,9 @@ TEST_CASE("The player holds the model of what is in hand, in front of the eyes",
     REQUIRE(GetFirearm(holder) != nullptr);
     REQUIRE(GetFirearm(holder)->model);
     CHECK(view.GetShownModel().Get() == GetFirearm(holder)->model.Get());
-    playground.Press(Key::Digit6);
+    playground.Press(Key::Digit1);
     playground.Run(0.05f);
-    playground.Release(Key::Digit6);
+    playground.Release(Key::Digit1);
     REQUIRE(SandboxTests::IsEquipped<ToolGun>(holder));
     CHECK(view.GetShownModel().Get() == holder.GetEquipped()->model.Get());
 }
@@ -1812,9 +1817,10 @@ TEST_CASE("The tool gun paints props and gives them materials, and Z takes it ba
     Playground playground;
     playground.Run(1.5f);
     auto& tool = *playground.player->GetComponentInChildren<ToolGun>();
-    playground.Press(Key::Digit6);
+    tool.mode = ToolGun::Mode::Weld;
+    playground.Press(Key::Digit1);
     playground.Run(0.05f);
-    playground.Release(Key::Digit6);
+    playground.Release(Key::Digit1);
     const auto tap = [&](auto input) {
         playground.Press(input);
         playground.Run(0.05f);
@@ -1871,6 +1877,7 @@ TEST_CASE("The tool gun places lamps of every kind, many at once, and takes them
     Playground playground;
     playground.Run(1.0f);
     auto& tool = *playground.player->GetComponentInChildren<ToolGun>();
+    tool.mode = ToolGun::Mode::Weld;
     auto& undo = *playground.player->GetComponent<UndoList>();
     Entity* ground = playground.scene.FindEntity("Ground");
     REQUIRE(ground != nullptr);
@@ -2164,7 +2171,7 @@ TEST_CASE("Sandbox effect pooling bounds bursts and reuses expired emitters", "[
     REQUIRE(pool.Spawn(flash, {1000, 1000, 1000}));
     CHECK(pool.GetEmitterCount() == Gameplay::EffectPool::MaxEmitters - 1);
 }
-TEST_CASE("The held physics gun emits beam particles and stops emission on release", "[sandbox][particles]") {
+TEST_CASE("The magic remote holds props without emitting beam particles", "[sandbox][particles]") {
     Playground playground;
     playground.Run(1.5f);
     const auto& beam = Layer(playground.scene, "beam");
@@ -2176,7 +2183,7 @@ TEST_CASE("The held physics gun emits beam particles and stops emission on relea
     playground.Press(Spot::MouseButton::Left);
     playground.Run(0.1f);
     REQUIRE(playground.player->GetComponentInChildren<PhysicsGun>()->IsGrabbing());
-    CHECK(ParticleCount(playground.scene, beam.settings.startColor) > 0);
+    CHECK(ParticleCount(playground.scene, beam.settings.startColor) == 0);
     playground.Release(Spot::MouseButton::Left);
     playground.Run(0.4f);
     CHECK(ParticleCount(playground.scene, beam.settings.startColor) == 0);

@@ -1,0 +1,294 @@
+{
+  "entities": [
+    {
+      "active": true,
+      "components": [
+        {
+          "type": "NetworkObject",
+          "id": "c31bfe1c9df14547b5e0e3652bbf6dda",
+          "enabled": true,
+          "data": {
+            "authority": 0,
+            "priority": 1.0,
+            "relevanceRadius": 150.0
+          }
+        },
+        {
+          "type": "NetworkTransform",
+          "id": "8ebeea6b747b4782a55345664efde015",
+          "enabled": true,
+          "data": {
+            "precision": 0.001,
+            "range": 4096.0,
+            "teleportDistance": 10.0,
+            "maxExtrapolation": 0.25
+          }
+        },
+        {
+          "data": {
+            "displayName": "Ray Gun",
+            "droppable": true,
+            "worldSize": [
+              0.11,
+              0.18,
+              0.3
+            ],
+            "worldCenter": [
+              0.0,
+              -0.02,
+              -0.13
+            ],
+            "damage": 1337.0,
+            "damageType": "Energy",
+            "automatic": true,
+            "fireInterval": 0.1,
+            "infiniteAmmo": true,
+            "magazineSize": 20,
+            "reserveAmmo": 160,
+            "reloadTime": 1.5,
+            "range": 150.0,
+            "spread": 0.0,
+            "impulse": 40.0,
+            "muzzleFlash": 0.8,
+            "muzzleEffect": "ray_gun.muzzle",
+            "tracerEffect": "ray_gun.tracer",
+            "model": "cf23fb0dbe3964d6ee38cb003dc395e1",
+            "worldPose": {
+              "enabled": true,
+              "ready": {
+                "position": [
+                  0.06143,
+                  -0.07,
+                  -0.32531
+                ],
+                "angles": [
+                  -0.35,
+                  0.25,
+                  0
+                ]
+              },
+              "aiming": {
+                "position": [
+                  -0.00386,
+                  0.12,
+                  -0.36053
+                ],
+                "angles": [
+                  0,
+                  0.35,
+                  0
+                ]
+              },
+              "sprint": {
+                "position": [
+                  0.16,
+                  -0.1,
+                  -0.24
+                ],
+                "angles": [
+                  -0.55,
+                  0.9,
+                  0
+                ]
+              },
+              "supportOffset": [
+                0,
+                0,
+                0
+              ],
+              "readyAimWeight": 1
+            },
+            "icon": "e6d6926eba9a97e1216a5abda280b186",
+            "fireSound": "f316d082893ebd9c3bf88503068540d3",
+            "reloadSound": "0c7379df4ea628e65c4ab48d8973707e",
+            "cameraRecoil": 0.025,
+            "viewRecoil": 0.05,
+            "recoilRecovery": 0.2
+          },
+          "enabled": true,
+          "id": "552d23d2bdb7756532df49c2c00f8044",
+          "type": "Firearm"
+        },
+        {
+          "data": {
+            "center": [
+              0.0,
+              -0.02,
+              -0.13
+            ],
+            "friction": 0.5,
+            "restitution": 0.0,
+            "size": [
+              0.11,
+              0.18,
+              0.3
+            ],
+            "trigger": false
+          },
+          "enabled": true,
+          "id": "117c8ccfe7967d4b09816d2b3115cc70",
+          "type": "BoxCollider"
+        },
+        {
+          "data": {
+            "angularDamping": 0.05000000074505806,
+            "canSleep": true,
+            "continuous": false,
+            "gravityScale": 1.0,
+            "kinematic": false,
+            "linearDamping": 0.0,
+            "mass": 2.0,
+            "rotationLocks": {
+              "x": false,
+              "y": false,
+              "z": false
+            }
+          },
+          "enabled": true,
+          "id": "963079c259e6a1fd088c00236e8ce8a7",
+          "type": "Rigidbody"
+        },
+        {
+          "data": {
+            "kind": 2
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000004",
+          "type": "Surface"
+        },
+        {
+          "data": {
+            "fullSpeed": 8.0,
+            "minSpeed": 1.0
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000005",
+          "type": "ImpactSounds"
+        },
+        {
+          "data": {
+            "category": 2,
+            "clearance": 0.1574999988079071,
+            "order": 50,
+            "developerOnly": true
+          },
+          "enabled": true,
+          "id": "00000000000000010000000000000006",
+          "type": "Spawnable"
+        },
+        {
+          "type": "ImpactParticles",
+          "enabled": true,
+          "id": "ea0b212a33324600897e9b9fee72a347",
+          "data": {
+            "minSpeed": 1.5
+          }
+        },
+        {
+          "data": {},
+          "enabled": true,
+          "id": "bc219662864aa4a6637a9ba544943eca",
+          "type": "Persistent"
+        }
+      ],
+      "id": 1,
+      "layer": 0,
+      "name": "Ray Gun",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "tags": []
+    },
+    {
+      "id": 2,
+      "parent": 1,
+      "name": "Ray Gun Enamel",
+      "active": true,
+      "components": [
+        {
+          "type": "MeshRenderer",
+          "id": "0027846c38394d539e8482d6cdb3ed66",
+          "enabled": true,
+          "data": {
+            "mesh": "9f02bc647177e39ac7ad89c618395782",
+            "material": "1ad55c78202f160c8b0b684ed1b95fc6",
+            "submesh": 0,
+            "castsShadows": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "parent": 1,
+      "name": "Ray Gun Polished Brass",
+      "active": true,
+      "components": [
+        {
+          "type": "MeshRenderer",
+          "id": "a1093c908c6144738a513f70be1c8686",
+          "enabled": true,
+          "data": {
+            "mesh": "e5c01520d6328da592220a1682a9177a",
+            "material": "86232408f8d1d89e5b2a8c68d4d9195c",
+            "submesh": 0,
+            "castsShadows": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "parent": 1,
+      "name": "Ray Gun Clean Grip",
+      "active": true,
+      "components": [
+        {
+          "type": "MeshRenderer",
+          "id": "910be5081654471a89fe376e68cc8dd3",
+          "enabled": true,
+          "data": {
+            "mesh": "3ca81cd630aba69def561c361d75358b",
+            "material": "4fd354d8dfe892c2347a98716f5d8cda",
+            "submesh": 0,
+            "castsShadows": true
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "parent": 1,
+      "name": "Ray Gun Core",
+      "active": true,
+      "components": [
+        {
+          "type": "MeshRenderer",
+          "id": "34dd4f4550534a2288f70243a59746e5",
+          "enabled": true,
+          "data": {
+            "mesh": "8e51eade191ec1a9c9a77bc2ff287e97",
+            "material": "71acc2a1693ea30378a432d3a0c57fa5",
+            "submesh": 0,
+            "castsShadows": true
+          }
+        }
+      ]
+    }
+  ],
+  "format": "spot-scene",
+  "version": 2
+}

@@ -1,3 +1,4 @@
+#include "developer_mode.h"
 #include "gameplay/core/players.h"
 #include "grass_visibility.h"
 #include "physics_gun.h"
@@ -141,4 +142,72 @@ TEST_CASE("Spawn, freeze, checkpoint, pause and cleanup preserve the permanent l
     CHECK(game.scene.GetEntity(workshop));
     CHECK(game.scene.FindEntitiesWithTag("SpawnArea").size() == 3);
     CHECK(game.scene.FindEntity("Workshop Ceiling Lamp"));
+}
+
+TEST_CASE("The magic remote starts in levitation mode and exposes every construction mode", "[sandbox][remote]") {
+    SandboxTests::Playground game;
+    auto* remote = game.scene.FindComponent<MagicRemote>();
+    REQUIRE(remote);
+    CHECK(remote->displayName == "Magic Remote");
+    CHECK(remote->mode == MagicRemote::Mode::Physics);
+    CHECK(MagicRemote::ModeNames.size() == 7);
+    CHECK(remote->GetInput().Takes("Reload"));
+    CHECK(remote->GetInput().Takes("Unfreeze"));
+}
+
+TEST_CASE("Players start with only a remote and pistol and only developers can spawn the Ray Gun",
+          "[sandbox][remote][developer][spawn]") {
+    SandboxTests::Playground game;
+    auto* inventory = Gameplay::Players::FindComponent<Gameplay::Inventory>(game.scene);
+    auto* spawner = game.scene.FindComponent<PropSpawner>();
+    auto* developer = game.scene.FindComponent<DeveloperMode>();
+    auto* menu = game.scene.FindComponent<SpawnMenu>();
+    REQUIRE(inventory);
+    REQUIRE(spawner);
+    REQUIRE(developer);
+    REQUIRE(menu);
+    REQUIRE(inventory->GetItemCount() == 2);
+    CHECK(inventory->GetItems()[0]->displayName == "Magic Remote");
+    CHECK(inventory->GetItems()[1]->displayName == "Pistol");
+    const auto catalog = spawner->GetSpawnables();
+    const auto ray = std::ranges::find(catalog, "Ray Gun", &SpawnableItem::name);
+    REQUIRE(ray != catalog.end());
+    const auto index = static_cast<std::size_t>(ray - catalog.begin());
+    CHECK_FALSE(spawner->IsAvailable(index));
+    CHECK_FALSE(spawner->Spawn(index));
+    CHECK_FALSE(spawner->BeginPlacement(index));
+    for (const char* name : {"Rifle", "Shotgun", "Rocket Launcher"}) {
+        const auto entry = std::ranges::find(catalog, name, &SpawnableItem::name);
+        REQUIRE(entry != catalog.end());
+        CHECK(spawner->IsAvailable(static_cast<std::size_t>(entry - catalog.begin())));
+    }
+    menu->Open();
+    menu->SelectCategory(Spawnable::Category::Weapon);
+    menu->Search("Ray Gun");
+    Spot::Entity* card = nullptr;
+    for (const auto id : menu->GetSpawnButtons()) {
+        auto* entity = game.scene.GetEntity(id);
+        if (entity && entity->GetName() == "Ray Gun") {
+            card = entity;
+        }
+    }
+    REQUIRE(card);
+    CHECK_FALSE(card->IsActiveSelf());
+    developer->Unlock();
+    game.Run(2);
+    CHECK(inventory->GetItemCount() == 2);
+    CHECK(spawner->IsAvailable(index));
+    CHECK(card->IsActiveSelf());
+    menu->Close();
+    auto* spawned = spawner->Spawn(index);
+    REQUIRE(spawned);
+    CHECK(spawned->GetComponent<Gameplay::Firearm>()->displayName == "Ray Gun");
+    CHECK(inventory->GetItemCount() == 2);
+    auto* other = game.scene.Instantiate(game.assets.Load<Spot::Prefab>("prefabs/actors/player.prefab"));
+    REQUIRE(other);
+    auto* normal = other->GetComponent<PropSpawner>();
+    REQUIRE(normal);
+    normal->RefreshSpawnables(&game.assets);
+    CHECK_FALSE(normal->IsAvailable(index));
+    CHECK_FALSE(normal->Spawn(index));
 }

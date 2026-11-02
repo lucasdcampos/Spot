@@ -237,11 +237,13 @@ TEST_CASE("A guest's spawn menu fills after its pawn arrives and spawns every Fr
     CHECK(count(menu->lampsTab) != "0");
     CHECK(count(menu->npcsTab) != "0");
     CHECK(count(menu->vehiclesTab) == "3");
-    CHECK(count(menu->weaponsTab) == "6");
-    CHECK(std::ranges::none_of(catalog, [](const auto& item) { return item.name == "Ray Gun"; }));
+    CHECK(count(menu->weaponsTab) == "5");
+    const auto ray = std::ranges::find(catalog, "Ray Gun", &SpawnableItem::name);
+    REQUIRE(ray != catalog.end());
+    CHECK_FALSE(spawner->IsAvailable(static_cast<std::size_t>(ray - catalog.begin())));
     auto* hostSpawner = onHost->GetComponent<PropSpawner>();
     REQUIRE(hostSpawner);
-    for (const auto* name : {"Crate", "Lamp", "Pistol", "Physics Gun", "Tool Gun", "Ally", "Car"}) {
+    for (const auto* name : {"Crate", "Lamp", "Pistol", "Magic Remote", "Ally", "Car"}) {
         INFO(name);
         const auto found = std::ranges::find(catalog, name, &SpawnableItem::name);
         REQUIRE(found != catalog.end());
@@ -459,7 +461,7 @@ TEST_CASE("Messagebox command delivers a modal message box only to the targeted 
     CHECK_FALSE(casterMode->GetLastMessageBox().has_value());
 }
 
-TEST_CASE("A developer guest unlocks only its own Ray Gun on the server and both clients",
+TEST_CASE("A developer guest can spawn a Ray Gun without receiving one automatically",
           "[sandbox][network][developer]") {
     Room room(true);
     auto* guest = Gameplay::Players::FindComponent<DeveloperMode>(room.guest.scene);
@@ -527,6 +529,19 @@ TEST_CASE("A developer guest unlocks only its own Ray Gun on the server and both
         }
         return nullptr;
     };
+    CHECK_FALSE(findGun(guest->GetEntity()));
+    CHECK_FALSE(findGun(*onHost));
+    CHECK_FALSE(findGun(*onOther));
+    auto* spawner = onHost->GetComponent<PropSpawner>();
+    REQUIRE(spawner);
+    const auto catalog = spawner->GetSpawnables();
+    const auto ray = std::ranges::find(catalog, "Ray Gun", &SpawnableItem::name);
+    REQUIRE(ray != catalog.end());
+    const auto index = static_cast<std::size_t>(ray - catalog.begin());
+    auto* spawned = spawner->Spawn(index);
+    REQUIRE(spawned);
+    REQUIRE(onHost->GetComponent<Gameplay::Inventory>()->PickUp(*spawned->GetComponent<Gameplay::Firearm>()));
+    room.Run(20);
     auto* gun = findGun(guest->GetEntity());
     REQUIRE(gun);
     REQUIRE(findGun(*onHost));
@@ -536,20 +551,35 @@ TEST_CASE("A developer guest unlocks only its own Ray Gun on the server and both
     room.Run(20);
     CHECK(onHost->GetComponent<Gameplay::Inventory>()->GetEquipped()->displayName == "Ray Gun");
     CHECK(onOther->GetComponent<Gameplay::Inventory>()->GetEquipped()->displayName == "Ray Gun");
-    auto* target = room.host.scene.FindComponent<Npc>();
-    REQUIRE(target);
-    target->patrolDistance = 0;
-    target->GetEntity().GetTransform().SetWorldPosition(InFront(*room.guest.GetPawn(), 5.0f));
-    auto* targetHealth = target->GetEntity().GetComponent<Gameplay::Health>();
-    REQUIRE(targetHealth);
+    // Keep this permission and pickup test clear of terrain, water and moving NPCs.
+    guest->GetEntity().GetComponent<Gameplay::CharacterMovement>()->SetFlying(true);
+    guest->GetEntity().GetComponent<Gameplay::CharacterMovement>()->SetVelocity({});
+    room.guest.GetPawn()->Teleport({0, 30, 0}, {0, 0, -1}, {});
+    onHost->GetComponent<Gameplay::CharacterMovement>()->SetFlying(true);
+    onHost->GetComponent<Gameplay::Pawn>()->Teleport({0, 30, 0}, {0, 0, -1}, {});
+    room.Run(10);
+    const auto eyes = room.guest.GetPawn()->GetViewPoint();
+    auto& target = room.Spawn("prefabs/spawnables/props/crate.prefab",
+                              eyes.position + eyes.direction * 5.0f + Spot::Vector3{0, 2, 0});
+    target.GetComponent<Spot::Rigidbody>()->SetKinematic(true);
+    auto* targetHealth = &target.AddComponent<Gameplay::Health>();
     targetHealth->maxHealth = 2000;
     targetHealth->regenerationRate = 0;
-    targetHealth->Restore();
     room.Run(30);
-    auto* targetOnGuest = room.guest.Find(target->GetEntity());
+    auto* targetOnGuest = room.guest.Find(target);
     REQUIRE(targetOnGuest);
-    room.LookAt(targetOnGuest->GetTransform().GetWorldPosition() + Spot::Vector3{0, 0.3f, 0});
+    room.LookAt(targetOnGuest->GetTransform().GetWorldPosition());
     room.Run(4);
+    CHECK(gun->damage == 1337.0f);
+    CHECK(findGun(*onHost)->damage == 1337.0f);
+    const auto shot = room.guest.GetPawn()->GetViewPoint();
+    const auto hit = room.guest.scene.GetOrAddSystem<Spot::PhysicsWorld>().Raycast(
+        shot.position, shot.direction, 20.0f, {.ignore = room.guest.GetPawn()->GetEntity().GetId()});
+    const auto targetPosition = targetOnGuest->GetTransform().GetWorldPosition();
+    CAPTURE(shot.position.x, shot.position.y, shot.position.z, shot.direction.x, shot.direction.y, shot.direction.z,
+            targetPosition.x, targetPosition.y, targetPosition.z);
+    REQUIRE(hit);
+    REQUIRE(hit->entity == targetOnGuest->GetId());
     room.guest.input.OnEvent(Spot::MouseButtonPressedEvent{Spot::MouseButton::Left});
     room.Run(2);
     room.guest.input.OnEvent(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Left});
@@ -615,7 +645,7 @@ TEST_CASE("A guest in the playground moves, switches, carries, shoots and rides 
     CHECK(onHost->GetComponent<Gameplay::Inventory>()->GetEquipped());
     Gameplay::Pawn* hostPawn = room.host.GetPawn();
     REQUIRE(hostPawn);
-    hostPawn->GetEntity().GetComponent<Gameplay::Inventory>()->Select(2);
+    hostPawn->GetEntity().GetComponent<Gameplay::Inventory>()->Select(1);
     room.Run(20);
     Spot::Entity* hostOnGuest = room.guest.Find(hostPawn->GetEntity());
     REQUIRE(hostOnGuest);

@@ -37,6 +37,14 @@
     {
       "id": "ee8cb2b1320f714e109d6a1b4f13d25b",
       "key": "mesh:3"
+    },
+    {
+      "id": "6aa9a21acdb6366d597b19f592e19feb",
+      "key": "material:4"
+    },
+    {
+      "id": "bb9d9c3295f3860a4e7cde544396f5a1",
+      "key": "mesh:4"
     }
   ],
   "type": "Model"

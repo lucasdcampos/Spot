@@ -139,7 +139,7 @@ TEST_CASE("Zero holsters the held item until a number or weapon wheel equips it 
     CHECK(pistol->IsEquipped());
     player.Tap(Spot::Key::Digit0);
     player.Tap(Spot::Key::Digit3);
-    CHECK(player.holder.GetSelected() == 2);
+    CHECK(player.holder.GetSelected() == 0);
     REQUIRE(player.holder.GetEquipped());
 
     player.Tap(Spot::Key::Digit0);
@@ -148,7 +148,7 @@ TEST_CASE("Zero holsters the held item until a number or weapon wheel equips it 
     REQUIRE(player.holder.IsWheelOpen());
     player.Release(Spot::Key::Tab);
     game.Step();
-    CHECK(player.holder.GetSelected() == 2);
+    CHECK(player.holder.GetSelected() == 0);
     REQUIRE(player.holder.GetEquipped());
 
     for (const float direction : {-1.0f, 1.0f}) {
@@ -165,7 +165,7 @@ TEST_CASE("Holding Tab opens the weapon wheel: the mouse points at a slot and le
     Player player{game};
     auto ui = SandboxTests::Interface{game.scene};
     REQUIRE(Spot::Input::IsCursorLocked());
-    REQUIRE(player.holder.GetItemCount() == 6);
+    REQUIRE(player.holder.GetItemCount() == 2);
     CHECK_FALSE(Find(game, ui.wheelOverlay)->IsActiveSelf());
 
     const float yaw = player.controller.GetYaw();
@@ -178,28 +178,28 @@ TEST_CASE("Holding Tab opens the weapon wheel: the mouse points at a slot and le
     CHECK(Find(game, ui.wheelOverlay)->IsActiveSelf());
     auto* wheel = Find(game, ui.weaponWheel)->GetComponent<Gameplay::WeaponWheel>();
     REQUIRE(wheel);
-    CHECK(wheel->slots.size() == 6);
-    CHECK(wheel->sectors == 6);
+    CHECK(wheel->slots.size() == 2);
+    CHECK(wheel->sectors == 2);
     // Headless, textures do not load, but every slot names its icon.
     for (const Gameplay::WeaponWheel::Slot& slot : wheel->slots) {
         CHECK(slot.icon.GetId().IsValid());
     }
 
-    // Right of the middle is the third slot, a quarter turn clockwise from the top; the view does not turn meanwhile.
+    // Right of the middle is the second slot, a quarter turn clockwise from the top; the view does not turn meanwhile.
     game.input.OnEvent(Spot::MouseMovedEvent{{700, 360}, {80, 0}});
     game.Step();
-    CHECK(player.holder.GetWheelSlot() == 2);
+    CHECK(player.holder.GetWheelSlot() == 1);
     CHECK(player.controller.GetYaw() == Catch::Approx(yaw));
     game.Step();
-    CHECK(wheel->highlighted == 2);
-    // Down, as the screen counts down: the fourth of six sectors.
+    CHECK(wheel->highlighted == 1);
+    // Down, as the screen counts down: the second of two sectors.
     game.input.OnEvent(Spot::MouseMovedEvent{{600, 400}, {-80, 80}});
     game.Step();
-    CHECK(player.holder.GetWheelSlot() == 3);
-    // Upper left points at the sixth sector; the wheel has no empty sectors.
+    CHECK(player.holder.GetWheelSlot() == 1);
+    // Upper left points at the first sector; the wheel has no empty sectors.
     game.input.OnEvent(Spot::MouseMovedEvent{{600, 400}, {-78, -125}});
     game.Step();
-    CHECK(player.holder.GetWheelSlot() == 5);
+    CHECK(player.holder.GetWheelSlot() == 0);
 
     player.Release(Spot::Key::Tab);
     game.Run(2);
@@ -209,8 +209,8 @@ TEST_CASE("Holding Tab opens the weapon wheel: the mouse points at a slot and le
     CHECK_FALSE(Find(game, ui.wheelOverlay)->IsActiveSelf());
 
     // The number keys still switch at once.
-    player.Tap(Spot::Key::Digit4);
-    CHECK(player.holder.GetSelected() == 3);
+    player.Tap(Spot::Key::Digit2);
+    CHECK(player.holder.GetSelected() == 1);
     CHECK(Find(game, ui.itemIcon)->GetComponent<Spot::UiImage>()->texture.GetId() ==
           SandboxTests::GetFirearm(player.holder)->icon.GetId());
 
@@ -222,7 +222,7 @@ TEST_CASE("Holding Tab opens the weapon wheel: the mouse points at a slot and le
     ui.pause.Open();
     game.Step();
     CHECK_FALSE(player.holder.IsWheelOpen());
-    CHECK(player.holder.GetSelected() == 3);
+    CHECK(player.holder.GetSelected() == 1);
     ui.pause.Close();
     player.Release(Spot::Key::Tab);
     game.Step();
@@ -383,7 +383,7 @@ TEST_CASE("The sandbox drops with V and collects a physical weapon with Use", "[
 }
 
 TEST_CASE("Spawn cleanup and undo preserve collected weapons", "[sandbox][player][inventory]") {
-    const auto* name = GENERATE("Pistol", "Physics Gun", "Tool Gun");
+    const auto* name = GENERATE("Pistol", "Magic Remote");
     Playground game;
     Player player{game};
     auto* spawner = player.holder.GetEntity().GetComponent<PropSpawner>();

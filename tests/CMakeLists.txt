@@ -466,6 +466,13 @@ if(TARGET sandbox)
     target_include_directories(spot_sandbox_test_code PUBLIC ${PROJECT_SOURCE_DIR}/sandbox/src)
     spot_set_compile_options(spot_sandbox_test_code)
     spot_precompile_engine_header(spot_sandbox_test_code)
+spot_add_shaders(spot_sandbox_test_code
+    ${PROJECT_SOURCE_DIR}/sandbox/src/remote_mask.vert.hlsl
+    ${PROJECT_SOURCE_DIR}/sandbox/src/remote_mask.frag.hlsl
+    ${PROJECT_SOURCE_DIR}/sandbox/src/remote_outline.frag.hlsl
+    ${PROJECT_SOURCE_DIR}/sandbox/src/remote_fullscreen.vert.hlsl
+)
+
     add_executable(spot_sandbox_tests
         sandbox/sandbox_tests.cpp
         sandbox/interface_tests.cpp

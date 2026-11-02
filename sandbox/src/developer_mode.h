@@ -9,9 +9,9 @@
 #include <span>
 #include <string_view>
 
-// The sandbox's developer easter egg. The server unlocks the developer skin and Ray Gun for a player's character when
-// authenticated with the developer private key or through the operator console command; presentation follows on
-// every machine, while PlayerInfo keeps the unlock when the player respawns.
+// The sandbox's developer easter egg. The server unlocks the developer skin and Ray Gun spawn option for a player's
+// character when authenticated with the developer private key or through the operator console command; presentation
+// follows on every machine, while PlayerInfo keeps the unlock when the player respawns.
 class DeveloperMode final : public Spot::Component, public Spot::Replicated {
 public:
     enum class Power { Smite, Yeet };
@@ -23,7 +23,6 @@ public:
     static constexpr std::string_view KeyFileName = "developer.key";
     static const PublicKey DefaultPublicKey;
 
-    Spot::EntityId rayGun = Spot::EntityId::Invalid;
     Spot::AssetRef<Spot::Model> skin;
     Spot::AssetRef<Spot::Sound> smiteSound;
 

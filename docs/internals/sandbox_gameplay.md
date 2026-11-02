@@ -894,3 +894,38 @@ Without an enabled item profile, the character's existing ready/aim/sprint defau
 backward shift based on grip spacing. Rifle, shotgun, launcher, physics gun and the player's inline ray gun author
 their own stances. GPU tests equip real item prefabs and capture front/side views in ready and aiming states,
 checking hand reach, receiver clearance and stock positions against the neck and head.
+
+
+The Magic Remote replaces the two starting construction weapons with one item in slot 1.
+Reload cycles Levitate, Weld, Rope, Remover, Color, Material and Lamp. Levitate retains
+hold-to-grab, wheel distance, Use + Look rotation, Aim freeze and Unfreeze all.
+Changing modes releases the prop and clears any pending joint selection. The remote uses
+the existing physics drive and authority transfer, and replicates its mode and options.
+A two-pixel cyan silhouette outlines every mesh part of the held prop; no beam or beam
+particles are emitted. Its mask is rendered through the public graphics API in a scene
+render hook, independently for each view. The ToolGun alias and legacy prefab identities
+are retained for existing C++ integrations and asset references.
+
+The remote has only a `RightHand` grip marker. ViewModel hides left-hand view parts when
+`LeftHand` is absent; WorldModel leaves the left IK constraint at zero weight so the
+character animation controls the free arm.
+
+`RightPalm` selects the first-person palm grip instead of the closed pistol fist. Its
+position is the view wrist contact; the arms model supplies a `Right Palm Hand` mesh.
+The remote's world `RightHand` marker rotates and places the character hand below the
+shell. These separate contacts account for the view hand and character skin having
+different geometry, while other held items keep their existing grips.
+
+
+Players start with just the Magic Remote and pistol, including authenticated developers.
+Other firearms are world pickups spawned from the menu. Developer unlock enables the
+Ray Gun's catalog card without granting an inventory item. Spawnable::developerOnly
+marks restricted entries; the catalog keeps the same indices for all peers, the menu
+filters availability for its player, and PropSpawner checks that player's DeveloperMode
+again when placing or processing a server spawn request. The menu updates when the
+player authenticates while it is open.
+
+Picked-up firearms retain their world NetworkObject. Shot reports, predicted effects and
+local aiming therefore use the holding pawn's NetworkObject, matching Inventory's input
+prediction and the server's validation of the equipped firearm, rather than the pickup's
+server-owned object. This also applies to a Ray Gun collected after developer spawning.

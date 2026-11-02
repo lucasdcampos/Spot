@@ -4,7 +4,7 @@
   "entities": [
     {
       "id": 1,
-      "name": "Physics Gun",
+      "name": "Magic Remote",
       "active": true,
       "layer": 0,
       "position": [
@@ -48,87 +48,71 @@
         },
         {
           "data": {
-            "displayName": "Physics Gun",
-            "hum": 8,
-            "icon": "93f132404e33e4c27a5b59e5ea7332df",
-            "maxSpeed": 40.0,
-            "minDistance": 1.5,
-            "model": "eb15e057c25f6521cd7ba1c6fc717606",
-            "worldPose": {
-              "enabled": true,
-              "ready": {
-                "position": [
-                  0.05403,
-                  -0.06,
-                  -0.33746
-                ],
-                "angles": [
-                  -0.35,
-                  0.2,
-                  0
-                ]
+            "color": 0,
+            "displayName": "Magic Remote",
+            "icon": "13a48e966222fcefbf89be305feffdd2",
+            "lamp": 0,
+            "material": 0,
+            "materials": [
+              {
+                "material": "fad7c5718b4470d72d58d98ae685c223",
+                "name": "Wood"
               },
-              "aiming": {
-                "position": [
-                  -0.01085,
-                  0.12,
-                  -0.37347
-                ],
-                "angles": [
-                  0,
-                  0.3,
-                  0
-                ]
+              {
+                "material": "569419262cf80366b8b60eb87ca66e45",
+                "name": "Painted Metal"
               },
-              "sprint": {
-                "position": [
-                  0.16,
-                  -0.1,
-                  -0.24
-                ],
-                "angles": [
-                  -0.55,
-                  0.9,
-                  0
-                ]
+              {
+                "material": "9e2b14460c1d9780c032e808a107689c",
+                "name": "Rusty Metal"
               },
-              "supportOffset": [
-                0,
-                0,
-                0
-              ],
-              "readyAimWeight": 1
-            },
-            "range": 60.0,
-            "scrollStep": 1.0,
+              {
+                "material": "bb5005e6ac6dae8dbdf528b91f4dd94c",
+                "name": "Concrete"
+              },
+              {
+                "material": "f9c78ca3ef0cf761f60f83279ae74af3",
+                "name": "Rubber"
+              },
+              {
+                "material": "9c7232f7989e087cbed81d3bbeebc74e",
+                "name": "Glass"
+              }
+            ],
+            "mode": 6,
+            "model": "458f3ec25c9dc7bec7941f914ddd512d",
+            "pointLamp": "baeef75678adc105d93327979e91d2a9",
+            "range": 100.0,
+            "spotLamp": "348e9d87a6af30e8f567f43cc918bc96",
+            "hum": 0,
             "worldSize": [
-              0.1040000022,
-              0.1954209059,
-              0.48000001189999997
+              0.055,
+              0.026,
+              0.2
             ],
             "worldCenter": [
-              0.0,
-              -0.025710456049999997,
-              -0.15500000505
+              0,
+              0,
+              -0.06
             ]
           },
           "enabled": true,
           "id": "a389ad6db98046258bf11df504906324",
-          "type": "PhysicsGun"
+          "type": "MagicRemote"
         },
         {
           "data": {
             "center": [
-              0.0,
-              -0.025710456049999997,
-              -0.15500000505
+              0,
+              0,
+              -0.06
             ],
             "friction": 0.5,
             "restitution": 0.0,
             "size": [
-              0.1040000022,
-              0.1954209059,
-              0.48000001189999997
+              0.055,
+              0.026,
+              0.2
             ],
             "trigger": false
           },
@@ -171,16 +155,6 @@
           "enabled": true,
           "id": "aaa741b6173f4b14a689c71b908b9ece",
           "type": "ImpactSounds"
-        },
-        {
-          "data": {
-            "category": 2,
-            "clearance": 0.153420909,
-            "order": 15
-          },
-          "enabled": true,
-          "id": "2f2f50893bc8454cbe9ac13fee15a63c",
-          "type": "Spawnable"
         },
         {
           "type": "ImpactParticles",
@@ -248,11 +222,11 @@
       "components": [
         {
           "type": "MeshRenderer",
-          "id": "b5bddb5a918443af98d6fd6a638b6a49",
+          "id": "7c1d9aa12a854564a733711585dc5f60",
           "enabled": true,
           "data": {
-            "mesh": "74f574339c344560fb3585cce58ffb51",
-            "material": "3fac08269da5893a1b04b9f904cc811c",
+            "mesh": "9c7a651e7b3bc51738fd66628f3ebfda",
+            "material": "76f62a7e81d76c769aba50c3636f0521",
             "submesh": 0,
             "castsShadows": true
           }
@@ -285,11 +259,11 @@
       "components": [
         {
           "type": "MeshRenderer",
-          "id": "0fa436e1d4f84f9d988ca9e2c4fefb5a",
+          "id": "0c650da9baa245e4a2fc5a572a295cc8",
           "enabled": true,
           "data": {
-            "mesh": "ce58d1fdc9b91cd50452e83a228e955c",
-            "material": "490d8a785eca372109785c517e32f459",
+            "mesh": "cf509c3f6bb55f4bd7cf51162dd2e5e2",
+            "material": "c851c85ea4649d69789d1d7bd09ce519",
             "submesh": 0,
             "castsShadows": true
           }
@@ -299,43 +273,6 @@
     },
     {
       "id": 5,
-      "name": "Prongs",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "MeshRenderer",
-          "id": "53ffa76c6a8744d4be4e1d850a6ffa72",
-          "enabled": true,
-          "data": {
-            "mesh": "efb08b9235b18b19eca66e955c8d28cf",
-            "material": "cb362aba3b261436378f964fd084b814",
-            "submesh": 0,
-            "castsShadows": true
-          }
-        }
-      ],
-      "parent": 2
-    },
-    {
-      "id": 6,
       "name": "Grip",
       "active": true,
       "layer": 0,
@@ -359,99 +296,17 @@
       "components": [
         {
           "type": "MeshRenderer",
-          "id": "12298ab1b0554222b978a080d3b3fbde",
+          "id": "2434002213ec4df7a70bc6da6624b129",
           "enabled": true,
           "data": {
-            "mesh": "92d991dd6d3ca9ae0c0fd8be023174ce",
-            "material": "617da04ef4d1868fa9af4d6b31ed55ce",
+            "mesh": "223a077c784a13f77b64db83d2a4ab6b",
+            "material": "a57d45635bc5165614c1f4114ce946ec",
             "submesh": 0,
             "castsShadows": true
           }
         }
       ],
       "parent": 2
-    },
-    {
-      "id": 7,
-      "name": "Core",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "MeshRenderer",
-          "id": "b0192c9aef1d4ede81f90363d04a2762",
-          "enabled": true,
-          "data": {
-            "mesh": "b6e40b7a8c876b64e633a39c07a3e608",
-            "material": "22d0eeb7c358cd5ef80ad5e704a1e872",
-            "submesh": 0,
-            "castsShadows": true
-          }
-        }
-      ],
-      "parent": 2
-    },
-    {
-      "active": true,
-      "components": [
-        {
-          "data": {
-            "bus": "Effects",
-            "loop": true,
-            "pitch": 1.0,
-            "playOnStart": false,
-            "sound": "23ffbdc91408f460a849bb6d7277af1e",
-            "spatial": true,
-            "spatialSettings": {
-              "maxDistance": 50.0,
-              "minDistance": 1.0,
-              "rolloff": 0
-            },
-            "volume": 0.25
-          },
-          "enabled": true,
-          "id": "846e304b301048f6bbd9f948627a3156",
-          "type": "AudioSource"
-        }
-      ],
-      "id": 8,
-      "layer": 0,
-      "name": "Physics Gun Hum",
-      "parent": 1,
-      "position": [
-        0.0,
-        0.0,
-        0.0
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "tags": []
     }
   ]
 }

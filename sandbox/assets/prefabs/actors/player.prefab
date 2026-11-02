@@ -123,7 +123,6 @@
           "id": "ce3dbb43872c4d97a20342f5eda35655",
           "enabled": true,
           "data": {
-            "rayGun": 201115,
             "skin": "990a4c2d149df31efbebe5f70f7da482",
             "smiteSound": "4481c90637b43af34b66a7881bdc70e7"
           }
@@ -456,23 +455,62 @@
       "components": [
         {
           "data": {
-            "displayName": "Physics Gun",
+            "color": 0,
+            "displayName": "Magic Remote",
+            "icon": "13a48e966222fcefbf89be305feffdd2",
+            "lamp": 0,
+            "material": 0,
+            "materials": [
+              {
+                "material": "fad7c5718b4470d72d58d98ae685c223",
+                "name": "Wood"
+              },
+              {
+                "material": "569419262cf80366b8b60eb87ca66e45",
+                "name": "Painted Metal"
+              },
+              {
+                "material": "9e2b14460c1d9780c032e808a107689c",
+                "name": "Rusty Metal"
+              },
+              {
+                "material": "bb5005e6ac6dae8dbdf528b91f4dd94c",
+                "name": "Concrete"
+              },
+              {
+                "material": "f9c78ca3ef0cf761f60f83279ae74af3",
+                "name": "Rubber"
+              },
+              {
+                "material": "9c7232f7989e087cbed81d3bbeebc74e",
+                "name": "Glass"
+              }
+            ],
+            "mode": 6,
+            "model": "458f3ec25c9dc7bec7941f914ddd512d",
+            "pointLamp": "baeef75678adc105d93327979e91d2a9",
+            "range": 100.0,
+            "spotLamp": "348e9d87a6af30e8f567f43cc918bc96",
             "hum": 138,
-            "icon": "93f132404e33e4c27a5b59e5ea7332df",
-            "maxSpeed": 40.0,
-            "minDistance": 1.5,
-            "model": "eb15e057c25f6521cd7ba1c6fc717606",
-            "range": 60.0,
-            "scrollStep": 1.0
+            "worldSize": [
+              0.055,
+              0.026,
+              0.2
+            ],
+            "worldCenter": [
+              0,
+              0,
+              -0.06
+            ]
           },
           "enabled": true,
           "id": "19ff567e8268da6c393e0b18c1b8ce82",
-          "type": "PhysicsGun"
+          "type": "MagicRemote"
         }
       ],
       "id": 200910,
       "layer": 0,
-      "name": "Physics Gun",
+      "name": "Magic Remote",
       "position": [
         0.0,
         0.0,
@@ -545,75 +583,6 @@
         7,
         8
       ]
-    },
-    {
-      "active": false,
-      "components": [
-        {
-          "data": {
-            "color": 0,
-            "displayName": "Tool Gun",
-            "icon": "13a48e966222fcefbf89be305feffdd2",
-            "lamp": 0,
-            "material": 0,
-            "materials": [
-              {
-                "material": "fad7c5718b4470d72d58d98ae685c223",
-                "name": "Wood"
-              },
-              {
-                "material": "569419262cf80366b8b60eb87ca66e45",
-                "name": "Painted Metal"
-              },
-              {
-                "material": "9e2b14460c1d9780c032e808a107689c",
-                "name": "Rusty Metal"
-              },
-              {
-                "material": "bb5005e6ac6dae8dbdf528b91f4dd94c",
-                "name": "Concrete"
-              },
-              {
-                "material": "f9c78ca3ef0cf761f60f83279ae74af3",
-                "name": "Rubber"
-              },
-              {
-                "material": "9c7232f7989e087cbed81d3bbeebc74e",
-                "name": "Glass"
-              }
-            ],
-            "mode": 0,
-            "model": "458f3ec25c9dc7bec7941f914ddd512d",
-            "pointLamp": "baeef75678adc105d93327979e91d2a9",
-            "range": 100.0,
-            "spotLamp": "348e9d87a6af30e8f567f43cc918bc96"
-          },
-          "enabled": true,
-          "id": "059d6cafef2318ee357f4f32b4c3932c",
-          "type": "ToolGun"
-        }
-      ],
-      "id": 200911,
-      "layer": 0,
-      "name": "Tool Gun",
-      "position": [
-        0.0,
-        0.0,
-        0.0
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "scale": [
-        1.0,
-        1.0,
-        1.0
-      ],
-      "tags": [],
-      "parent": 117
     },
     {
       "active": true,
@@ -725,109 +694,6 @@
             "shoulderOffset": 0.42,
             "followRate": 12,
             "maxBoomPitch": 0.65
-          }
-        }
-      ]
-    },
-    {
-      "id": 201115,
-      "name": "Ray Gun",
-      "parent": 117,
-      "active": false,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "Firearm",
-          "id": "6a3c6439c3814ce191900a3476f7f149",
-          "enabled": true,
-          "data": {
-            "displayName": "Ray Gun",
-            "droppable": true,
-            "worldSize": [0.11, 0.18, 0.3],
-            "worldCenter": [0.0, -0.02, -0.13],
-            "damage": 1337.0,
-            "damageType": "Energy",
-            "automatic": true,
-            "fireInterval": 0.1,
-            "infiniteAmmo": true,
-            "magazineSize": 20,
-            "reserveAmmo": 160,
-            "reloadTime": 1.5,
-            "range": 150.0,
-            "spread": 0.0,
-            "impulse": 40.0,
-            "muzzleFlash": 0.8,
-            "muzzleEffect": "ray_gun.muzzle",
-            "tracerEffect": "ray_gun.tracer",
-            "model": "cf23fb0dbe3964d6ee38cb003dc395e1",
-            "worldPose": {
-              "enabled": true,
-              "ready": {
-                "position": [
-                  0.06143,
-                  -0.07,
-                  -0.32531
-                ],
-                "angles": [
-                  -0.35,
-                  0.25,
-                  0
-                ]
-              },
-              "aiming": {
-                "position": [
-                  -0.00386,
-                  0.12,
-                  -0.36053
-                ],
-                "angles": [
-                  0,
-                  0.35,
-                  0
-                ]
-              },
-              "sprint": {
-                "position": [
-                  0.16,
-                  -0.1,
-                  -0.24
-                ],
-                "angles": [
-                  -0.55,
-                  0.9,
-                  0
-                ]
-              },
-              "supportOffset": [
-                0,
-                0,
-                0
-              ],
-              "readyAimWeight": 1
-            },
-            "icon": "e6d6926eba9a97e1216a5abda280b186",
-            "fireSound": "f316d082893ebd9c3bf88503068540d3",
-            "reloadSound": "0c7379df4ea628e65c4ab48d8973707e",
-            "cameraRecoil": 0.025,
-            "viewRecoil": 0.05,
-            "recoilRecovery": 0.2
           }
         }
       ]

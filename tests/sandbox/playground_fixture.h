@@ -34,6 +34,14 @@ inline std::vector<Gameplay::Firearm*> GetFirearms(const Gameplay::Inventory& in
     return firearms;
 }
 
+// Acquires optional firearms for tests that exercise their behavior rather than the starting loadout.
+inline void AddTestWeapons(Gameplay::Inventory& inventory, Spot::AssetManager& assets) {
+    for (const char* name : {"rifle", "shotgun", "rocket_launcher"}) {
+        REQUIRE(inventory.AddFromPrefab(
+            assets.Load<Spot::Prefab>(std::string("prefabs/spawnables/weapons/") + name + ".prefab")));
+    }
+}
+
 // The first of the inventory's items of the type; null when it has none.
 template <typename T>
 T* GetItem(const Gameplay::Inventory& inventory) {

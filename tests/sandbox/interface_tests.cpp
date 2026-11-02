@@ -257,7 +257,7 @@ TEST_CASE("Sandbox empty map has a collidable debug floor and working player too
     CHECK(Gameplay::MapInfo::Get(game.scene)->checkpoint == "empty_world.json");
     auto* inventory = Gameplay::Players::FindComponent<Gameplay::Inventory>(game.scene);
     REQUIRE(inventory);
-    CHECK(inventory->GetItems().size() == 6);
+    CHECK(inventory->GetItems().size() == 2);
     for (int frame = 0; frame < 120; ++frame) {
         game.Step();
     }

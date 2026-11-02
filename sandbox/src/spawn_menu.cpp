@@ -81,6 +81,7 @@ void SpawnMenu::Initialize() {
 
 void SpawnMenu::OnOpen() {
     Build();
+    ApplyFilter();
     // Back in the menu, the prop being placed is put away; the menu still marks it.
     if (auto* spawner = Gameplay::Players::FindComponent<PropSpawner>(
             GetScene(), static_cast<std::size_t>(std::max(playerIndex, 0)))) {
@@ -121,6 +122,8 @@ void SpawnMenu::Build() {
         entity.SetActive(true);
         entity.SetName(spawnables[index].name);
         m_spawnButtons.push_back(entity.GetId());
+        m_spawnIndices.push_back(index);
+        m_availability.push_back(spawner->IsAvailable(index));
         m_categories.push_back(spawnables[index].category);
         m_searchNames.push_back(Lower(spawnables[index].name));
         if (Spot::Entity* caption = entity.FindChild("Label")) {
@@ -198,10 +201,14 @@ void SpawnMenu::SetCompactView(bool compact) {
 
 void SpawnMenu::ApplyFilter() {
     // What matches the search in each category, which the tabs count, and of those the ones of the category shown.
+    auto* spawner =
+        Gameplay::Players::FindComponent<PropSpawner>(GetScene(), static_cast<std::size_t>(std::max(playerIndex, 0)));
     std::array<std::size_t, 5> found{};
     std::size_t shown = 0;
     for (std::size_t index = 0; index < m_spawnButtons.size(); ++index) {
-        const bool match = m_search.empty() || m_searchNames[index].find(m_search) != std::string::npos;
+        m_availability[index] = spawner && spawner->IsAvailable(m_spawnIndices[index]);
+        const bool match =
+            m_availability[index] && (m_search.empty() || m_searchNames[index].find(m_search) != std::string::npos);
         found[static_cast<std::size_t>(m_categories[index])] += match ? 1 : 0;
         const bool active = match && m_categories[index] == m_category;
         if (Spot::Entity* entity = GetScene().GetEntity(m_spawnButtons[index])) {
@@ -248,9 +255,18 @@ void SpawnMenu::AnimateControls(float blend) {
     // A client's character can arrive after its menus, including while this one is open.
     if (IsOpen()) {
         Build();
+        if (auto* spawner = Gameplay::Players::FindComponent<PropSpawner>(
+                GetScene(), static_cast<std::size_t>(std::max(playerIndex, 0)))) {
+            for (std::size_t i = 0; i < m_spawnIndices.size(); ++i) {
+                if (m_availability[i] != spawner->IsAvailable(m_spawnIndices[i])) {
+                    ApplyFilter();
+                    break;
+                }
+            }
+        }
     }
     for (std::size_t index = 0; index < m_spawnButtons.size(); ++index) {
-        StyleControl(m_spawnButtons[index], m_chosen == index, style.text, blend);
+        StyleControl(m_spawnButtons[index], m_chosen == m_spawnIndices[index], style.text, blend);
     }
     const auto tabs = GetTabs();
     for (std::size_t index = 0; index < tabs.size(); ++index) {

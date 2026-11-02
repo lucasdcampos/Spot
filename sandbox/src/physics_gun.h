@@ -1,6 +1,6 @@
 #pragma once
 
-#include "hook_lines.h"
+#include "remote_outline.h"
 
 #include "gameplay/core/input_context.h"
 #include "gameplay/core/player_input.h"
@@ -20,18 +20,16 @@
 // turning it. The dead let go and grab nothing.
 //
 // In a session the server grabs and moves; the player's machine sends what those controls do as intents, and every
-// machine is shown what it holds, with its beam.
-class PhysicsGun final : public Gameplay::HeldItem,
-                         public Gameplay::PlayerInputListener,
-                         public Gameplay::SaveListener,
-                         public Gameplay::UserSettingsListener,
-                         public Spot::Replicated {
+// machine is shown what it holds, with an outline.
+class PhysicsGun : public Gameplay::HeldItem,
+                   public Gameplay::PlayerInputListener,
+                   public Gameplay::SaveListener,
+                   public Gameplay::UserSettingsListener,
+                   public Spot::Replicated {
 public:
     static constexpr std::string_view FrozenTag = "Frozen";
 
     float range = 60.0f;
-    // Particles a second its beam gives off along it.
-    float beamRate = 240.0f;
     float minDistance = 1.5f;
     // Meters the wheel moves the prop per notch; a shoulder held moves it a tenth of that each frame.
     float scrollStep = 1.0f;
@@ -96,11 +94,8 @@ private:
     Spot::Quaternion m_rotation;
     Gameplay::InputContext m_grab{{.name = "Grab", .priority = 30, .actions = {"Fire", "Aim", "Use", "Switch Weapon"}}};
     Gameplay::InputContext m_turn{{.name = "Turn Prop", .priority = 30, .actions = {"Look"}}};
-    float m_particleEmission = 0;
-    // The beam to the prop held, drawn after the scene's surfaces, bright enough to glow.
-    std::vector<Spot::DebugLine> m_beam;
-    HookLines m_beamLines;
-    Spot::RenderHookId m_beamHook = Spot::RenderHookId::Invalid;
+    RemoteOutline m_outline;
+    Spot::RenderHookId m_outlineHook = Spot::RenderHookId::Invalid;
     float m_lookSensitivity = 0.0025f;
     Spot::SignalConnection m_states;
 };

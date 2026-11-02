@@ -60,6 +60,8 @@ private:
     void ApplyFilter();
 
     std::vector<Spot::EntityId> m_spawnButtons;
+    std::vector<std::size_t> m_spawnIndices;
+    std::vector<bool> m_availability;
     std::vector<Spawnable::Category> m_categories;
     // The objects' names in lower case, to search.
     std::vector<std::string> m_searchNames;

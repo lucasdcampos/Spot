@@ -80,6 +80,8 @@ void ViewModel::Show(const Spot::AssetRef<Spot::Model>& model) {
     m_muzzle = {0.0f, 0.03f, -0.3f};
     m_rightGrip = {0.035f, -0.10f, 0.015f};
     m_leftGrip = {-0.045f, -0.10f, 0.0f};
+    m_hasLeftGrip = false;
+    m_palmGrip = false;
     m_hasEye = false;
     m_hip = {};
     const auto nodes = model->GetNodes();
@@ -90,6 +92,10 @@ void ViewModel::Show(const Spot::AssetRef<Spot::Model>& model) {
             m_rightGrip = position;
         } else if (nodes[i].name == "LeftHand") {
             m_leftGrip = position;
+            m_hasLeftGrip = true;
+        } else if (nodes[i].name == "RightPalm") {
+            m_rightGrip = position;
+            m_palmGrip = true;
         } else if (nodes[i].name == "Muzzle") {
             m_muzzle = position;
         } else if (nodes[i].name == "Hip") {
@@ -100,7 +106,20 @@ void ViewModel::Show(const Spot::AssetRef<Spot::Model>& model) {
         }
     }
     if (armsModel) {
-        for (const Spot::ModelPart& part : armsModel->GetParts()) {
+        for (const Spot::ModelPart& original : armsModel->GetParts()) {
+            if (original.name == "Right Palm Hand") {
+                continue;
+            }
+            const Spot::ModelPart* selected = &original;
+            if (m_palmGrip && original.name == "Right Hand") {
+                for (const auto& candidate : armsModel->GetParts()) {
+                    if (candidate.name == "Right Palm Hand") {
+                        selected = &candidate;
+                        break;
+                    }
+                }
+            }
+            const auto& part = *selected;
             auto& entity = GetScene().CreateEntity(part.name);
             entity.SetLayer(renderLayer >= 0 ? std::clamp(renderLayer, 0, 31) : GetEntity().GetLayer());
             auto& renderer = entity.AddComponent<Spot::MeshRenderer>(part.mesh, part.material);
@@ -371,6 +390,10 @@ void ViewModel::UpdateArms(const Matrix4& hand) {
             continue;
         }
         const bool isRight = StartsWith(part.name, "Right");
+        entity->SetActive(isRight || m_hasLeftGrip);
+        if (!isRight && !m_hasLeftGrip) {
+            continue;
+        }
         const Vector3 wrist = TransformPoint(hand, isRight ? right : left);
         Matrix4 transform;
         if (part.name.find("Forearm") != std::string::npos) {

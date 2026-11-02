@@ -6,12 +6,9 @@
 #include "gameplay/core/pawn.h"
 #include "gameplay/core/physics_drive.h"
 #include "gameplay/core/player_controller.h"
-#include "gameplay/effects/effect_library.h"
-#include "gameplay/inventory/view_model.h"
 
 #include <algorithm>
 #include <cmath>
-#include <cstdint>
 #include <utility>
 
 SPOT_COMPONENT(PhysicsGun);
@@ -32,7 +29,7 @@ Spot::Vector3 ToLocal(const Spot::Transform& transform, Spot::Vector3 point) {
 
 } // namespace
 
-PhysicsGun::PhysicsGun() : HeldItem({"Fire", "Unfreeze"}) {
+PhysicsGun::PhysicsGun() : HeldItem({"Fire", "Aim", "Reload", "Unfreeze"}) {
     displayName = "Physics Gun";
 }
 
@@ -69,7 +66,6 @@ void PhysicsGun::Release() {
     m_grabbed = Spot::EntityId::Invalid;
     m_grab.Deactivate();
     m_turn.Deactivate();
-    m_particleEmission = 0;
     if (Spot::AudioSource* source = GetHum()) {
         source->Stop();
     }
@@ -233,7 +229,6 @@ void PhysicsGun::Replicate(Spot::Archive& archive) {
     if (archive.IsLoading() && grabbed != m_grabbed) {
         m_grabbed = grabbed;
         if (!IsGrabbing()) {
-            m_particleEmission = 0;
             if (Spot::AudioSource* source = GetHum()) {
                 source->Stop();
             }
@@ -256,21 +251,18 @@ void PhysicsGun::OnFixedUpdate(float fixedDeltaTime) {
 }
 
 void PhysicsGun::OnEnable() {
-    m_beamHook = GetScene().GetOrAddSystem<Spot::RenderHookSystem>().AddRenderHook(
+    m_outlineHook = GetScene().GetOrAddSystem<Spot::RenderHookSystem>().AddRenderHook(
         Spot::RenderStage::AfterOpaque,
-        [this](const Spot::RenderStageContext& stage) { m_beamLines.Draw(stage, m_beam); });
+        [this](const Spot::RenderStageContext& stage) { m_outline.Draw(stage, GetScene().GetEntity(m_grabbed)); });
 }
 
 void PhysicsGun::OnDisable() {
     Release();
-    GetScene().GetOrAddSystem<Spot::RenderHookSystem>().RemoveRenderHook(m_beamHook);
-    m_beamHook = Spot::RenderHookId::Invalid;
-    m_beam.clear();
-    m_particleEmission = 0;
+    GetScene().GetOrAddSystem<Spot::RenderHookSystem>().RemoveRenderHook(m_outlineHook);
+    m_outlineHook = Spot::RenderHookId::Invalid;
 }
 
-void PhysicsGun::OnLateUpdate(float deltaTime) {
-    m_beam.clear();
+void PhysicsGun::OnLateUpdate(float /*deltaTime*/) {
     // Kinematic too where another machine moves it.
     Spot::Entity* prop = GetScene().GetEntity(m_grabbed);
     const Spot::Rigidbody* body = prop ? prop->GetComponent<Spot::Rigidbody>() : nullptr;
@@ -284,21 +276,6 @@ void PhysicsGun::OnLateUpdate(float deltaTime) {
         }
         source->pitch = 1.0f + std::min(Spot::Length(body->GetLinearVelocity()) / 20.0f, 1.0f);
     }
-    // Brighter than white, so it glows through bloom.
-    const Gameplay::ViewPoint eyes = pawn->GetViewPoint();
-    const auto* view = pawn->GetEntity().GetComponent<Gameplay::ViewModel>();
-    const Spot::Vector3 muzzle =
-        view ? view->GetMuzzlePosition() : eyes.position + eyes.rotation * Spot::Vector3{0.25f, -0.2f, -0.4f};
-    // Births spread along the whole beam; what is left of a particle waits for the next frame.
-    m_particleEmission +=
-        std::isfinite(deltaTime) ? std::clamp(deltaTime, 0.0f, 0.1f) * std::clamp(beamRate, 0.0f, 2000.0f) : 0.0f;
-    const auto count = static_cast<std::uint32_t>(m_particleEmission);
-    m_particleEmission -= static_cast<float>(count);
-    Gameplay::EffectLibrary::PlayAlong(GetScene(), "beam", muzzle,
-                                       ToWorld(body->GetEntity().GetTransform(), m_grabPoint), count);
-    m_beam.push_back({.from = muzzle,
-                      .to = ToWorld(body->GetEntity().GetTransform(), m_grabPoint),
-                      .color = {1.2f, 2.8f, 4.0f, 1.0f}});
 }
 
 Gameplay::ItemStatus PhysicsGun::DescribeStatus() const {
@@ -321,7 +298,6 @@ Gameplay::ItemPose PhysicsGun::DescribePose() const {
 void PhysicsGun::Serialize(Spot::Archive& archive) {
     HeldItem::Serialize(archive);
     archive.Field("range", range, {.min = 0.0f, .max = 1000.0f, .speed = 0.5f});
-    archive.Field("beamRate", beamRate, {.min = 0.0f, .max = 2000.0f, .tooltip = "Particles a second along the beam"});
     archive.Field("minDistance", minDistance, {.min = 0.0f, .max = 100.0f, .speed = 0.05f});
     archive.Field("scrollStep", scrollStep, {.min = 0.0f, .max = 10.0f, .speed = 0.05f});
     archive.Field("hum", hum, {.tooltip = "The entity whose AudioSource hums while holding a prop"});

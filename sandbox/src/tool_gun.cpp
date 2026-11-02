@@ -1,4 +1,4 @@
-#include "tool_gun.h"
+#include "magic_remote.h"
 #include <spot/scene/physics/physics_world.h>
 #include <spot/scene/rendering/render_hook_system.h>
 
@@ -15,7 +15,7 @@
 #include <array>
 #include <string_view>
 
-SPOT_COMPONENT(ToolGun);
+SPOT_COMPONENT(MagicRemote);
 
 namespace {
 
@@ -38,15 +38,18 @@ bool IsProp(const Spot::Entity& entity) {
 
 } // namespace
 
-ToolGun::ToolGun() : HeldItem({"Fire", "Aim", "Reload"}) {
-    displayName = "Tool Gun";
+MagicRemote::MagicRemote() {
+    displayName = "Magic Remote";
 }
 
-UndoList* ToolGun::GetUndo() const {
+UndoList* MagicRemote::GetUndo() const {
     return GetEntity().GetComponentInParent<UndoList>();
 }
 
-void ToolGun::Click(Spot::Entity& entity, Spot::Vector3 point, Spot::Vector3 normal) {
+void MagicRemote::Click(Spot::Entity& entity, Spot::Vector3 point, Spot::Vector3 normal) {
+    if (mode == Mode::Physics) {
+        return;
+    }
     if (mode == Mode::Remover) {
         if (!RemoveLampNear(point)) {
             Remove(entity);
@@ -87,7 +90,7 @@ void ToolGun::Click(Spot::Entity& entity, Spot::Vector3 point, Spot::Vector3 nor
     }
 }
 
-Spot::FixedJoint* ToolGun::Weld(Spot::Entity& first, Spot::Entity& second) {
+Spot::FixedJoint* MagicRemote::Weld(Spot::Entity& first, Spot::Entity& second) {
     if (!IsProp(first) || &first == &second) {
         return nullptr;
     }
@@ -100,8 +103,8 @@ Spot::FixedJoint* ToolGun::Weld(Spot::Entity& first, Spot::Entity& second) {
     return &joint;
 }
 
-Spot::DistanceJoint* ToolGun::Rope(Spot::Entity& first, Spot::Vector3 firstPoint, Spot::Entity& second,
-                                   Spot::Vector3 secondPoint) {
+Spot::DistanceJoint* MagicRemote::Rope(Spot::Entity& first, Spot::Vector3 firstPoint, Spot::Entity& second,
+                                       Spot::Vector3 secondPoint) {
     if (!IsProp(first) || &first == &second) {
         return nullptr;
     }
@@ -117,7 +120,7 @@ Spot::DistanceJoint* ToolGun::Rope(Spot::Entity& first, Spot::Vector3 firstPoint
     return &joint;
 }
 
-bool ToolGun::Remove(Spot::Entity& entity) {
+bool MagicRemote::Remove(Spot::Entity& entity) {
     if (!IsProp(entity)) {
         return false;
     }
@@ -128,7 +131,7 @@ bool ToolGun::Remove(Spot::Entity& entity) {
     return true;
 }
 
-bool ToolGun::Paint(Spot::Entity& entity, Spot::Color paint) {
+bool MagicRemote::Paint(Spot::Entity& entity, Spot::Color paint) {
     auto* renderer = entity.GetComponent<Spot::MeshRenderer>();
     if (!IsProp(entity) || !renderer) {
         return false;
@@ -145,7 +148,7 @@ bool ToolGun::Paint(Spot::Entity& entity, Spot::Color paint) {
     return true;
 }
 
-bool ToolGun::ApplyMaterial(Spot::Entity& entity, const Spot::AssetRef<Spot::Material>& newMaterial) {
+bool MagicRemote::ApplyMaterial(Spot::Entity& entity, const Spot::AssetRef<Spot::Material>& newMaterial) {
     auto* renderer = entity.GetComponent<Spot::MeshRenderer>();
     if (!IsProp(entity) || !renderer || !newMaterial) {
         return false;
@@ -159,7 +162,7 @@ bool ToolGun::ApplyMaterial(Spot::Entity& entity, const Spot::AssetRef<Spot::Mat
     return true;
 }
 
-Spot::Color ToolGun::GetLampColor() const {
+Spot::Color MagicRemote::GetLampColor() const {
     const Spot::Color paint = Palette[static_cast<std::size_t>(color) % Palette.size()].color;
     const float brightest = std::max({paint.r, paint.g, paint.b});
     if (brightest < 0.1f) {
@@ -168,7 +171,7 @@ Spot::Color ToolGun::GetLampColor() const {
     return {paint.r / brightest, paint.g / brightest, paint.b / brightest, 1.0f};
 }
 
-Spot::Entity* ToolGun::PlaceLamp(Spot::Entity& surface, Spot::Vector3 point, Spot::Vector3 normal) {
+Spot::Entity* MagicRemote::PlaceLamp(Spot::Entity& surface, Spot::Vector3 point, Spot::Vector3 normal) {
     const bool spot = lamp == LampKind::Spot || lamp == LampKind::ShadowedSpot;
     Spot::Entity* placed =
         GetScene().Instantiate(spot ? spotLamp : pointLamp, {.parent = IsProp(surface) ? &surface : nullptr});
@@ -204,7 +207,7 @@ Spot::Entity* ToolGun::PlaceLamp(Spot::Entity& surface, Spot::Vector3 point, Spo
     return placed;
 }
 
-bool ToolGun::RemoveLampNear(Spot::Vector3 point) {
+bool MagicRemote::RemoveLampNear(Spot::Vector3 point) {
     Spot::Entity* nearest = nullptr;
     float nearestDistance = 0.35f;
     for (Spot::Entity* candidate : GetScene().FindEntitiesWithTag(LampTag)) {
@@ -224,9 +227,10 @@ bool ToolGun::RemoveLampNear(Spot::Vector3 point) {
     return true;
 }
 
-void ToolGun::OnUse(const Gameplay::ItemInput& input) {
+void MagicRemote::OnUse(const Gameplay::ItemInput& input) {
     namespace Input = Spot::Input;
     if (!input.active) {
+        Release();
         m_first.reset();
         return;
     }
@@ -239,6 +243,11 @@ void ToolGun::OnUse(const Gameplay::ItemInput& input) {
         }
         mode = static_cast<Mode>((static_cast<int>(mode) + 1) % static_cast<int>(ModeNames.size()));
         m_first.reset();
+        Release();
+    }
+    if (mode == Mode::Physics) {
+        PhysicsGun::OnUse(input);
+        return;
     }
     if (input.IsPressed("Aim") && (mode == Mode::Color || mode == Mode::Material || mode == Mode::Lamp)) {
         if (local) {
@@ -267,8 +276,11 @@ void ToolGun::OnUse(const Gameplay::ItemInput& input) {
     }
 }
 
-void ToolGun::OnPredictedUse(const Gameplay::ItemInput& input) {
+void MagicRemote::OnPredictedUse(const Gameplay::ItemInput& input) {
     if (!input.active) {
+        return;
+    }
+    if (mode == Mode::Physics) {
         return;
     }
     const bool option = mode == Mode::Color || mode == Mode::Material || mode == Mode::Lamp;
@@ -282,26 +294,30 @@ void ToolGun::OnPredictedUse(const Gameplay::ItemInput& input) {
     }
 }
 
-void ToolGun::Replicate(Spot::Archive& archive) {
+void MagicRemote::Replicate(Spot::Archive& archive) {
+    PhysicsGun::Replicate(archive);
     archive.Field("mode", mode);
     archive.Field("color", color);
     archive.Field("material", material);
     archive.Field("lamp", lamp);
 }
 
-void ToolGun::OnEnable() {
+void MagicRemote::OnEnable() {
+    PhysicsGun::OnEnable();
     m_ropeHook = GetScene().GetOrAddSystem<Spot::RenderHookSystem>().AddRenderHook(
         Spot::RenderStage::AfterOpaque,
         [this](const Spot::RenderStageContext& stage) { m_ropeLines.Draw(stage, m_ropes); });
 }
 
-void ToolGun::OnDisable() {
+void MagicRemote::OnDisable() {
+    PhysicsGun::OnDisable();
     m_first.reset();
     GetScene().GetOrAddSystem<Spot::RenderHookSystem>().RemoveRenderHook(m_ropeHook);
     m_ropes.clear();
 }
 
-void ToolGun::OnLateUpdate(float /*deltaTime*/) {
+void MagicRemote::OnLateUpdate(float deltaTime) {
+    PhysicsGun::OnLateUpdate(deltaTime);
     // Ropes, until the rendering milestones draw them as more than lines.
     m_ropes.clear();
     GetScene().ForEachComponent<Spot::DistanceJoint>([this](const Spot::DistanceJoint& joint) {
@@ -313,12 +329,20 @@ void ToolGun::OnLateUpdate(float /*deltaTime*/) {
     });
 }
 
-void ToolGun::ToolMaterial::Serialize(Spot::Archive& archive) {
+void MagicRemote::ToolMaterial::Serialize(Spot::Archive& archive) {
     archive.Field("name", name);
     archive.Field("material", material);
 }
 
-Gameplay::ItemStatus ToolGun::DescribeStatus() const {
+Gameplay::ItemStatus MagicRemote::DescribeStatus() const {
+    if (mode == Mode::Physics) {
+        auto status = PhysicsGun::DescribeStatus();
+        if (!IsGrabbing()) {
+            status.count = "Levitate";
+        }
+        status.hints.push_back({"Reload", "Mode"});
+        return status;
+    }
     Gameplay::ItemStatus status = HeldItem::DescribeStatus();
     status.count = ModeNames[static_cast<std::size_t>(mode)];
     status.countIsWord = true;
@@ -336,8 +360,8 @@ Gameplay::ItemStatus ToolGun::DescribeStatus() const {
     return status;
 }
 
-void ToolGun::Serialize(Spot::Archive& archive) {
-    HeldItem::Serialize(archive);
+void MagicRemote::Serialize(Spot::Archive& archive) {
+    PhysicsGun::Serialize(archive);
     archive.Field("mode", mode, {.enumNames = ModeNames});
     archive.Field("lamp", lamp, {.enumNames = LampNames, .tooltip = "The lamp Lamp mode places"});
     archive.Field("color", color, {.min = 0.0f, .max = 7.0f, .tooltip = "The palette color Color mode paints in"});
@@ -345,5 +369,4 @@ void ToolGun::Serialize(Spot::Archive& archive) {
     archive.Field("pointLamp", pointLamp);
     archive.Field("spotLamp", spotLamp);
     archive.Field("material", material, {.min = 0.0f, .max = 64.0f, .tooltip = "The one Material mode gives now"});
-    archive.Field("range", range, {.min = 0.0f, .max = 1000.0f, .speed = 0.5f});
 }

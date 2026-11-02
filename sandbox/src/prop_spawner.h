@@ -18,6 +18,7 @@ struct SpawnableItem {
     Spawnable::Category category = Spawnable::Category::Prop;
     int order = 100;
     float clearance = 0.55f;
+    bool developerOnly = false;
 };
 
 // Discovers spawnable prefabs from the imported manifest. Spawn 1 to Spawn 8 choose the first entries, and Spawn
@@ -39,6 +40,8 @@ public:
 
     // Spawns the prop of the list where the player looks; null when there is no such prop.
     Spot::Entity* Spawn(std::size_t index);
+    // Catalog indices stay identical on clients and the server, including restricted entries.
+    bool IsAvailable(std::size_t index) const;
     // Shows the prop of the list where it would spawn, until it is placed or cancelled; false when there is none.
     bool BeginPlacement(std::size_t index);
     // Spawns the prop being placed where its preview is; null when nothing is being placed.

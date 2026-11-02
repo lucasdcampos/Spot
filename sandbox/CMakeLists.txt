@@ -21,3 +21,10 @@ add_custom_target(sandbox_assets ALL
 )
 add_dependencies(sandbox_assets sandbox_generated_assets)
 add_dependencies(sandbox sandbox_assets)
+
+spot_add_shaders(sandbox
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_mask.vert.hlsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_mask.frag.hlsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_outline.frag.hlsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_fullscreen.vert.hlsl
+)

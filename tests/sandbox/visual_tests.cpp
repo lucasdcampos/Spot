@@ -9,10 +9,12 @@
 #include "npc.h"
 #include "player_appearance.h"
 #include "prop_spawner.h"
+#include "remote_outline.h"
 #include "sandbox_hud.h"
 #include "spawn_menu.h"
 #include "temp_directory.h"
 #include <fstream>
+#include <spot/scene/rendering/render_hook_system.h>
 
 #include "gameplay/camera/first_person_view.h"
 #include "gameplay/character/character.h"
@@ -508,7 +510,10 @@ TEST_CASE("Armed and unarmed humanoid prefabs render with articulated bodies and
             const auto* limb = hand.Get(scene);
             REQUIRE(limb);
             const auto* grip = scene.GetEntity(limb->GetTarget());
-            REQUIRE(grip);
+            if (!grip) {
+                CHECK(limb->GetWeight() == 0.0f);
+                continue;
+            }
             const auto bone = animated->GetSkeleton()->FindBone(limb->GetBone());
             REQUIRE(bone);
             const auto offset = limb->GetOffset().translation;
@@ -946,6 +951,10 @@ TEST_CASE("The cooked sandbox renders held items, recoil, sights and reloads", "
     auto* holder = Gameplay::Players::FindComponent<Gameplay::Inventory>(*scene);
     auto* view = Gameplay::Players::FindComponent<Gameplay::ViewModel>(*scene);
     REQUIRE(holder);
+    for (const char* name : {"rifle", "shotgun", "rocket_launcher"}) {
+        REQUIRE(holder->AddFromPrefab(
+            assets.Load<Spot::Prefab>(std::string("prefabs/spawnables/weapons/") + name + ".prefab")));
+    }
     REQUIRE(view);
     const auto firearm = [&] { return dynamic_cast<Gameplay::Firearm*>(holder->GetEquipped()); };
     holder->Select(1);
@@ -979,6 +988,10 @@ TEST_CASE("The cooked sandbox renders held items, recoil, sights and reloads", "
             REQUIRE(hand);
             CHECK(forearm->GetComponent<Spot::MeshRenderer>()->GetMaterial() == skin->GetMaterial());
             CHECK(hand->GetComponent<Spot::MeshRenderer>()->GetMaterial() == skin->GetMaterial());
+            if (!forearm->IsActiveSelf()) {
+                CHECK_FALSE(hand->IsActiveSelf());
+                continue;
+            }
             const auto end = forearm->GetTransform().GetWorldMatrix() * Spot::Vector4{0, 0, -1, 1};
             CHECK(Spot::Distance(Spot::Vector3{end.x, end.y, end.z}, hand->GetTransform().GetWorldPosition()) <
                   0.0001f);
@@ -1024,11 +1037,18 @@ TEST_CASE("The cooked sandbox renders held items, recoil, sights and reloads", "
     input.OnEvent(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Right});
 
     // Every held item at the hip and down its sights, and a reload halfway.
-    const std::array names{"physics_gun", "pistol", "rifle", "shotgun", "rocket_launcher", "tool_gun"};
-    for (int slot = 0; slot < 6; ++slot) {
+    const std::array names{"magic_remote", "pistol", "rifle", "shotgun", "rocket_launcher"};
+    for (int slot = 0; slot < 5; ++slot) {
         holder->Select(slot);
         for (int i = 0; i < 40; ++i) {
             step();
+        }
+        if (slot == 0) {
+            for (const auto id : view->GetArmEntities()) {
+                const auto* arm = scene->GetEntity(id);
+                REQUIRE(arm);
+                CHECK(arm->IsActiveSelf() == (arm->GetName().find("Right") == 0));
+            }
         }
         const auto hip = draw(std::string(names[static_cast<std::size_t>(slot)]) + "_hip.png");
         if (firearm()) {
@@ -1102,6 +1122,10 @@ TEST_CASE("The cooked sandbox draws its HUD over the game: in hand, the wheel, h
     auto* health = Gameplay::Players::FindComponent<Gameplay::Health>(*scene);
     auto* day = scene->FindComponent<DayCycle>();
     REQUIRE(holder);
+    for (const char* name : {"rifle", "shotgun", "rocket_launcher"}) {
+        REQUIRE(holder->AddFromPrefab(
+            assets.Load<Spot::Prefab>(std::string("prefabs/spawnables/weapons/") + name + ".prefab")));
+    }
     REQUIRE(health);
     REQUIRE(day);
     constexpr std::uint32_t Width = 1280;
@@ -1183,7 +1207,7 @@ TEST_CASE("The cooked sandbox draws its HUD over the game: in hand, the wheel, h
     input.OnEvent(Spot::KeyReleasedEvent{Spot::Key::W});
     run(30);
 
-    tap(Spot::Key::Digit6);
+    tap(Spot::Key::Digit1);
     day->timeOfDay = 0.92f;
     health->TakeDamage({.amount = 78.0f});
     run(6);
@@ -1472,4 +1496,54 @@ TEST_CASE("The authored HUD renders compact ammo, infinity and outlined kill fee
     inventory.Select(ray);
     scene.Update(Spot::Scene::DefaultFixedTimeStep);
     draw("hud_layout_ray_gun.png");
+}
+
+TEST_CASE("The magic remote outlines the prop silhouette and clears it on release",
+          "[gpu][sandbox][remote][offscreen]") {
+    if (!Spot::GraphicsDevice::IsSupported()) {
+        SKIP("No usable graphics device");
+    }
+    auto device = Spot::GraphicsDevice::CreateOffscreen({.debug = true});
+    REQUIRE(device);
+    auto target = device->CreateTexture(
+        {.width = 256, .height = 256, .format = Spot::TextureFormat::Rgba8Srgb, .renderTarget = true});
+    REQUIRE(target);
+    Spot::Scene scene;
+    auto& camera = scene.CreateEntity("Camera");
+    camera.GetTransform().SetPosition({0, 0, 3});
+    camera.AddComponent<Spot::Camera>().SetBackground({0, 0, 0, 1});
+    auto& prop = scene.CreateEntity("Held prop");
+    auto mesh = Spot::Mesh::Create(*device, Spot::PrimitiveMeshes::CreateCube());
+    REQUIRE(mesh);
+    prop.AddComponent<Spot::MeshRenderer>(std::shared_ptr<const Spot::Mesh>(std::move(mesh)));
+    RemoteOutline outline;
+    Spot::Entity* held = &prop;
+    scene.GetOrAddSystem<Spot::RenderHookSystem>().AddRenderHook(
+        Spot::RenderStage::AfterOpaque, [&](const Spot::RenderStageContext& stage) { outline.Draw(stage, held); });
+    Spot::SceneRenderer renderer(*device, {.targetFormat = Spot::TextureFormat::Rgba8Srgb});
+    REQUIRE(renderer.IsValid());
+    const auto render = [&] {
+        scene.PrepareToRender();
+        auto* context = device->BeginOffscreenFrame(*target);
+        REQUIRE(context);
+        renderer.Render(*context, scene, target.get());
+        device->EndFrame();
+        return device->DownloadTexture(*target);
+    };
+    const auto highlighted = render();
+    held = nullptr;
+    const auto released = render();
+    CHECK(highlighted != released);
+    const auto cyanPixels = [](const auto& pixels) {
+        std::size_t count = 0;
+        for (std::size_t i = 0; i + 3 < pixels.size(); i += 4) {
+            count += pixels[i + 1] > pixels[i] + 25 && pixels[i + 2] > pixels[i] + 25 ? 1 : 0;
+        }
+        return count;
+    };
+    CHECK(cyanPixels(highlighted) > 100);
+    CHECK(cyanPixels(released) == 0);
+    const std::filesystem::path output(SPOT_SANDBOX_CAPTURE_DIR);
+    std::filesystem::create_directories(output);
+    CHECK(Spot::Image(256, 256, highlighted).SavePng(output / "magic_remote_outline.png"));
 }

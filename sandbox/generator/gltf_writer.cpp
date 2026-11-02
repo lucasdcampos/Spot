@@ -293,6 +293,14 @@ GltfFiles EncodeGltf(const GltfModel& model, std::string_view binName) {
         node.translation[0] = model.markers[i].position.x;
         node.translation[1] = model.markers[i].position.y;
         node.translation[2] = model.markers[i].position.z;
+        const auto rotation = model.markers[i].rotation;
+        if (rotation != Spot::Quaternion{}) {
+            node.has_rotation = true;
+            node.rotation[0] = rotation.x;
+            node.rotation[1] = rotation.y;
+            node.rotation[2] = rotation.z;
+            node.rotation[3] = rotation.w;
+        }
         sceneNodes.push_back(&node);
     }
     std::vector<cgltf_animation> animations(model.animations.size());

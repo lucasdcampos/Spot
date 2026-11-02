@@ -1855,13 +1855,6 @@ void DeveloperMode::Apply() {
             }
         }
     }
-    if (auto* weapon = GetScene().GetEntity(rayGun); weapon && !weapon->IsActiveSelf()) {
-        weapon->SetActive(true);
-        if (auto* firearm = weapon->GetComponent<Gameplay::Firearm>();
-            firearm && Spot::Network::IsServer(GetScene()) && firearm->GetAmmo() < 0) {
-            firearm->Refill();
-        }
-    }
     const auto* visual = GetEntity().GetComponent<Gameplay::CharacterVisual>();
     auto* body = visual ? GetScene().GetEntity(visual->modelRoot) : nullptr;
     if (m_skinApplied || !body || !skin) {
@@ -1945,7 +1938,6 @@ void DeveloperMode::Replicate(Spot::Archive& archive) {
 }
 
 void DeveloperMode::Serialize(Spot::Archive& archive) {
-    archive.Field("rayGun", rayGun);
     archive.Field("skin", skin);
     archive.Field("smiteSound", smiteSound);
     archive.Field("unlocked", m_unlocked, {.hidden = true});

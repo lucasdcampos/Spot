@@ -4,7 +4,7 @@
   "entities": [
     {
       "id": 1,
-      "name": "Tool Gun",
+      "name": "Magic Remote",
       "active": true,
       "layer": 0,
       "position": [
@@ -49,7 +49,7 @@
         {
           "data": {
             "color": 0,
-            "displayName": "Tool Gun",
+            "displayName": "Magic Remote",
             "icon": "13a48e966222fcefbf89be305feffdd2",
             "lamp": 0,
             "material": 0,
@@ -79,39 +79,40 @@
                 "name": "Glass"
               }
             ],
-            "mode": 0,
+            "mode": 6,
             "model": "458f3ec25c9dc7bec7941f914ddd512d",
             "pointLamp": "baeef75678adc105d93327979e91d2a9",
             "range": 100.0,
             "spotLamp": "348e9d87a6af30e8f567f43cc918bc96",
             "worldSize": [
-              0.0582000018,
-              0.198420912,
-              0.3069999854
+              0.055,
+              0.026,
+              0.2
             ],
             "worldCenter": [
-              0.0,
-              -0.024210453,
-              -0.11149999330000002
-            ]
+              0,
+              0,
+              -0.06
+            ],
+            "hum": 0
           },
           "enabled": true,
           "id": "3fe275d497194a2084fd9eb71308036c",
-          "type": "ToolGun"
+          "type": "MagicRemote"
         },
         {
           "data": {
             "center": [
-              0.0,
-              -0.024210453,
-              -0.11149999330000002
+              0,
+              0,
+              -0.06
             ],
             "friction": 0.5,
             "restitution": 0.0,
             "size": [
-              0.0582000018,
-              0.198420912,
-              0.3069999854
+              0.055,
+              0.026,
+              0.2
             ],
             "trigger": false
           },
@@ -310,80 +311,6 @@
           "data": {
             "mesh": "223a077c784a13f77b64db83d2a4ab6b",
             "material": "a57d45635bc5165614c1f4114ce946ec",
-            "submesh": 0,
-            "castsShadows": true
-          }
-        }
-      ],
-      "parent": 2
-    },
-    {
-      "id": 6,
-      "name": "Glow",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "MeshRenderer",
-          "id": "b69847b6b40b47a7abc8c18f2cd27979",
-          "enabled": true,
-          "data": {
-            "mesh": "ae25e020e7a9633f2e2aa8667a4cb95e",
-            "material": "1cf4ce2b4cd57fdfa742b1a3d444637a",
-            "submesh": 0,
-            "castsShadows": true
-          }
-        }
-      ],
-      "parent": 2
-    },
-    {
-      "id": 7,
-      "name": "Screen",
-      "active": true,
-      "layer": 0,
-      "position": [
-        0,
-        0,
-        0
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "scale": [
-        1,
-        1,
-        1
-      ],
-      "tags": [],
-      "components": [
-        {
-          "type": "MeshRenderer",
-          "id": "455557c1a0fc4b6487fafc211e7ca657",
-          "enabled": true,
-          "data": {
-            "mesh": "3c84664fcbbfbeb4e0e10fdc323f9219",
-            "material": "c78a95f0fc3dce95394983afbbd11736",
             "submesh": 0,
             "castsShadows": true
           }

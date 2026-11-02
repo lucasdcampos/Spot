@@ -145,7 +145,7 @@ void Firearm::PlaySound(const Spot::AssetRef<Spot::Sound>& sound, float volume) 
     if (!sound || !pawn) {
         return;
     }
-    const EffectLibrary::Predicted predicted(GetEntity());
+    const EffectLibrary::Predicted predicted(pawn ? pawn->GetEntity() : GetEntity());
     // Close to full volume for whoever holds it, and heard far around.
     EffectLibrary::PlaySound(GetScene(), sound, pawn->GetViewPoint().position,
                              {.volume = volume,
@@ -184,7 +184,7 @@ void Firearm::Fire() {
     }
     PlaySound(fireSound, 1.0f);
     {
-        const EffectLibrary::Predicted predicted(GetEntity());
+        const EffectLibrary::Predicted predicted(pawn ? pawn->GetEntity() : GetEntity());
         EffectLibrary::Play(GetScene(), muzzleEffect, muzzle, eyes.direction,
                             {.scale = std::clamp(muzzleFlash, 0.1f, 4.0f)});
     }
@@ -229,7 +229,7 @@ void Firearm::FirePellets(Spot::Vector3 eye, Spot::Vector3 aim, Spot::Vector3 mu
     const Spot::EntityId shooter = pawn ? pawn->GetEntity().GetId() : GetEntity().GetId();
     const float cone = m_aiming ? spread * aimSpread : spread;
     // Where the shooter decides its pawn, its machine says what replicated objects were hit.
-    Spot::NetworkObject* own = Spot::Network::GetObject(GetEntity());
+    Spot::NetworkObject* own = Spot::Network::GetObject(pawn ? pawn->GetEntity() : GetEntity());
     const bool decides = Spot::Network::IsServer(GetScene());
     const bool reports = own && own->IsDecidedByClient();
     std::vector<ReportedHit> reported;
@@ -240,7 +240,7 @@ void Firearm::FirePellets(Spot::Vector3 eye, Spot::Vector3 aim, Spot::Vector3 mu
         const auto volume = Traces::Raycast(GetScene(), eye, direction, hit ? hit->distance : range);
         // A streak of light from the muzzle to where the pellet went; every other one of a spread is enough.
         if (pellet % 2 == 0) {
-            const EffectLibrary::Predicted predicted(GetEntity());
+            const EffectLibrary::Predicted predicted(pawn ? pawn->GetEntity() : GetEntity());
             EffectLibrary::PlayTo(GetScene(), tracerEffect, muzzle,
                                   volume ? volume->point
                                   : hit  ? hit->point
@@ -267,7 +267,7 @@ void Firearm::FirePellets(Spot::Vector3 eye, Spot::Vector3 aim, Spot::Vector3 mu
         }
         if (!volume) {
             if (const auto* surface = SurfaceLibrary::Of(GetScene(), entity)) {
-                const EffectLibrary::Predicted predicted(GetEntity());
+                const EffectLibrary::Predicted predicted(pawn ? pawn->GetEntity() : GetEntity());
                 EffectLibrary::Play(GetScene(), surface->impactEffect, hit->point, hit->normal);
             }
         }
@@ -398,7 +398,8 @@ void Firearm::Replicate(Spot::Archive& archive) {
     m_ammo = ammo;
     m_reserve = reserve;
     // Its player's machine aims and starts reloading at once itself (OnPredictedUse()).
-    const Spot::NetworkObject* object = Spot::Network::GetObject(GetEntity());
+    const Pawn* pawn = GetPawn();
+    const Spot::NetworkObject* object = Spot::Network::GetObject(pawn ? pawn->GetEntity() : GetEntity());
     const bool predicted = object && object->IsDecidedByClient();
     if (aiming != m_aiming && !predicted) {
         SetAiming(aiming);

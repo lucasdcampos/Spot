@@ -9,6 +9,7 @@ public:
 
     Category category = Category::Prop;
     int order = 100;
+    bool developerOnly = false;
     // Distance from a hit surface to the prefab's origin, in meters.
     float clearance = 0.55f;
 

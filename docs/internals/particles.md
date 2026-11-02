@@ -98,7 +98,7 @@ definitions on the Game entity in the editor.
 WeaponHolder plays "muzzle" and the `SurfaceLibrary`'s impact effect of the surface hit. Explosions
 emit their layers beside their light/sound/impulse, and water splashes emit theirs (see [Sandbox](sandbox.md)). Spawnable props carry a separate
 ImpactParticles component with a startup grace period and contact cooldown; it works without audio.
-The physics gun emits along its full held beam with a fractional, configurable rate accumulator.
+The Magic Remote uses a mesh silhouette outline while holding props and emits no beam particles.
 
 `Gameplay::EffectPool` owns at most 128 transient emitters by entity id. Each is capped at 512 particles
 and five seconds of lifetime; expired emitters become inactive slots for reuse. Full pools drop new

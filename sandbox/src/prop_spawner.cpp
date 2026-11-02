@@ -1,6 +1,7 @@
 #include "prop_spawner.h"
 #include <spot/scene/physics/physics_world.h>
 
+#include "developer_mode.h"
 #include "undo_list.h"
 
 #include "gameplay/core/pawn.h"
@@ -37,8 +38,8 @@ void PropSpawner::RefreshSpawnables(Spot::AssetManager* assets) {
         const Spot::Entity* root = preview.Instantiate(prefab, {.assets = assets});
         const auto* spawnable = root ? root->GetComponent<Spawnable>() : nullptr;
         if (spawnable) {
-            m_spawnables.push_back(
-                {prefab, root->GetName(), spawnable->category, spawnable->order, std::max(0.0f, spawnable->clearance)});
+            m_spawnables.push_back({prefab, root->GetName(), spawnable->category, spawnable->order,
+                                    std::max(0.0f, spawnable->clearance), spawnable->developerOnly});
         }
     }
     std::ranges::sort(m_spawnables, [](const SpawnableItem& a, const SpawnableItem& b) {
@@ -67,8 +68,16 @@ std::optional<PropSpawner::Placement> PropSpawner::FindPlacement(const Spawnable
                      Gameplay::PhysicsDrive::GetFacing(Gameplay::PhysicsDrive::GetYaw(aim))};
 }
 
-Spot::Entity* PropSpawner::Spawn(std::size_t index) {
+bool PropSpawner::IsAvailable(std::size_t index) const {
     if (index >= m_spawnables.size()) {
+        return false;
+    }
+    const auto* developer = GetEntity().GetComponent<DeveloperMode>();
+    return !m_spawnables[index].developerOnly || (developer && developer->IsUnlocked());
+}
+
+Spot::Entity* PropSpawner::Spawn(std::size_t index) {
+    if (!IsAvailable(index)) {
         return nullptr;
     }
     const auto placement = FindPlacement(m_spawnables[index]);
@@ -83,6 +92,9 @@ Spot::Entity* PropSpawner::Spawn(std::size_t index) {
 }
 
 Spot::Entity* PropSpawner::SpawnAt(std::size_t index, const Placement& placement) {
+    if (!IsAvailable(index)) {
+        return nullptr;
+    }
     const SpawnableItem& item = m_spawnables[index];
     Spot::Entity* entity = GetScene().Instantiate(item.prefab, {.assets = m_assets});
     if (!entity) {
@@ -103,7 +115,7 @@ Spot::Entity* PropSpawner::SpawnAt(std::size_t index, const Placement& placement
 
 bool PropSpawner::BeginPlacement(std::size_t index) {
     CancelPlacement();
-    if (index >= m_spawnables.size() || !Gameplay::Pawn::Of(GetEntity())) {
+    if (!IsAvailable(index) || !Gameplay::Pawn::Of(GetEntity())) {
         return false;
     }
     // Only the prop's meshes, from a copy of it in a scene of its own: the preview has no body and no behavior, and
@@ -269,7 +281,7 @@ void PropSpawner::OnUpdate(float /*deltaTime*/) {
     m_holdingClick = m_holdingClick && (m_place.IsDown("Fire") || m_place.IsDown("Aim"));
     if (m_placing) {
         const auto* pawn = Gameplay::Pawn::Of(GetEntity());
-        if (*m_placing >= m_spawnables.size() || (pawn && (pawn->HasState("Dead") || pawn->HasState("Seated")))) {
+        if (!IsAvailable(*m_placing) || (pawn && (pawn->HasState("Dead") || pawn->HasState("Seated")))) {
             CancelPlacement();
         } else if (m_place.IsPressed("Fire") && Input::IsCursorLocked()) {
             ConfirmPlacement();
@@ -291,8 +303,13 @@ void PropSpawner::OnUpdate(float /*deltaTime*/) {
     }
     // One button for every prop, as gamepads have no buttons to spare: each press spawns the next.
     if (m_input.IsPressed("Spawn") && !m_spawnables.empty()) {
-        Spawn(m_next);
-        m_next = (m_next + 1) % m_spawnables.size();
+        for (std::size_t i = 0; i < m_spawnables.size() && !IsAvailable(m_next); ++i) {
+            m_next = (m_next + 1) % m_spawnables.size();
+        }
+        if (IsAvailable(m_next)) {
+            Spawn(m_next);
+            m_next = (m_next + 1) % m_spawnables.size();
+        }
     }
     if (m_input.IsPressed("Clean Up")) {
         Cleanup();

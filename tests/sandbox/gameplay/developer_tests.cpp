@@ -9,6 +9,7 @@
 #include "gameplay/effects/effect_pool.h"
 #include "gameplay/health/health.h"
 #include "gameplay/network/player_info.h"
+#include "prop_spawner.h"
 #include "sandbox_commands.h"
 #include "sandbox_hud.h"
 
@@ -41,7 +42,7 @@ std::string HexEncode(std::span<const std::uint8_t> bytes) {
 
 } // namespace
 
-TEST_CASE("The developer console easter egg requires cheats and adds only the developer skin and Ray Gun",
+TEST_CASE("The developer console easter egg requires cheats and unlocks the developer skin and Ray Gun spawn option",
           "[sandbox][developer]") {
     SandboxTests::Playground game;
     auto* mode = Gameplay::Players::FindComponent<DeveloperMode>(game.scene);
@@ -62,7 +63,19 @@ TEST_CASE("The developer console easter egg requires cheats and adds only the de
     game.Run(2);
     REQUIRE(mode->IsUnlocked());
     CHECK_FALSE(mode->IsAuthenticated());
-    CHECK(inventory->GetItemCount() == count + 1);
+    CHECK(inventory->GetItemCount() == count);
+    CHECK_FALSE(FindRayGun(*inventory));
+    auto* spawner = mode->GetEntity().GetComponent<PropSpawner>();
+    REQUIRE(spawner);
+    const auto catalog = spawner->GetSpawnables();
+    const auto entry = std::ranges::find(catalog, "Ray Gun", &SpawnableItem::name);
+    REQUIRE(entry != catalog.end());
+    const auto index = static_cast<std::size_t>(entry - catalog.begin());
+    REQUIRE(spawner->IsAvailable(index));
+    auto* spawned = spawner->Spawn(index);
+    REQUIRE(spawned);
+    REQUIRE(inventory->PickUp(*spawned->GetComponent<Gameplay::Firearm>()));
+    game.Step();
     auto* gun = FindRayGun(*inventory);
     REQUIRE(gun);
     CHECK(gun->damage == 1337.0f);
@@ -156,7 +169,7 @@ TEST_CASE("Only a matching Ed25519 private key in developer.key automatically un
     mode->Unlock();
     CHECK_FALSE(mode->IsAuthenticated());
 
-    // Matching private key unlocks the skin and Ray Gun.
+    // Matching private key unlocks the skin and Ray Gun spawn option.
     std::ofstream(keyFile, std::ios::trunc) << HexEncode(RfcSeed) << '\n';
     mode->SetKeyPath(keyFile);
     game.Step();
@@ -164,7 +177,7 @@ TEST_CASE("Only a matching Ed25519 private key in developer.key automatically un
     CHECK(info.developer);
     CHECK(mode->IsAuthenticated());
     CHECK(info.developerAuthenticated);
-    CHECK(FindRayGun(*mode->GetEntity().GetComponent<Gameplay::Inventory>()));
+    CHECK_FALSE(FindRayGun(*mode->GetEntity().GetComponent<Gameplay::Inventory>()));
 
     auto& replacement = game.scene.CreateEntity("Replacement character").AddComponent<DeveloperMode>();
     info.pawn = replacement.GetEntity().GetId();

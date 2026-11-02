@@ -10,3 +10,10 @@ file(GLOB_RECURSE sources CONFIGURE_DEPENDS *.cpp *.h)
 spot_add_game(${sources})
 # Files include each other by their path from here, such as "gameplay/core/pawn.h", from any folder.
 target_include_directories(game_code PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+spot_add_shaders(game_code
+    ${CMAKE_CURRENT_SOURCE_DIR}/remote_mask.vert.hlsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/remote_mask.frag.hlsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/remote_outline.frag.hlsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/remote_fullscreen.vert.hlsl
+)
