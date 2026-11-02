@@ -12,10 +12,8 @@
 #include <string>
 #include <vector>
 
-// The spawn menu, on Spawn Menu: a card for each prop of the PropSpawner's catalog, with a picture of it, under tabs
-// for its categories that count what they hold, a search and a compact view. Clicking a card closes the menu and has
-// the spawner place that prop where the player aims; the menu marks the one last chosen. Its footer undoes the last
-// spawn and cleans up every one.
+// A compact asset browser with category rows and two thumbnail densities. Left click enters placement;
+// middle click spawns immediately while keeping the browser open. Actions share its toolbar.
 class SpawnMenu final : public Gameplay::Menu {
 public:
     Spot::EntityId grid = Spot::EntityId::Invalid, scroll = Spot::EntityId::Invalid,
@@ -38,7 +36,7 @@ public:
     Spawnable::Category GetCategory() const { return m_category; }
     // Shows only the objects whose names hold the text, ignoring case; the categories count them.
     void Search(std::string_view text);
-    // Smaller cards, more to a row.
+    // Smaller thumbnails, more to a row.
     void SetCompactView(bool compact);
     bool IsCompactView() const { return m_compact; }
     // The object last chosen, which the menu marks; none before the first.
@@ -48,6 +46,7 @@ public:
 protected:
     void Initialize() override;
     void OnOpen() override;
+    void OnRawEvent(const Spot::Event& event, bool& consumed) override;
     void AnimateControls(float blend) override;
     void OnDestroy() override;
     void Serialize(Spot::Archive& archive) override;
@@ -58,6 +57,7 @@ private:
     void Build();
     void ChooseSpawn(std::size_t index);
     void ApplyFilter();
+    void RenderBackdrop(const Spot::RenderStageContext& stage);
 
     std::vector<Spot::EntityId> m_spawnButtons;
     std::vector<std::size_t> m_spawnIndices;
@@ -66,11 +66,17 @@ private:
     // The objects' names in lower case, to search.
     std::vector<std::string> m_searchNames;
     std::string m_search;
+    std::optional<Spot::Vector2> m_pointer;
     Spawnable::Category m_category = Spawnable::Category::Prop;
     std::optional<std::size_t> m_chosen;
     bool m_compact = false;
     // The grid as authored, for the larger view.
     std::optional<Spot::UiLayoutGroupSettings> m_gridSettings;
     MenuThumbnails m_thumbnails;
+    std::unique_ptr<Spot::Tonemapper> m_backdropTonemapper;
+    std::unique_ptr<Spot::Renderer2D> m_backdropRenderer;
+    std::unique_ptr<Spot::Texture> m_backdropSmall;
+    std::shared_ptr<Spot::Texture> m_backdropTexture;
+    Spot::RenderHookId m_backdropHook = Spot::RenderHookId::Invalid;
     Spot::RenderHookId m_thumbnailHook = Spot::RenderHookId::Invalid;
 };

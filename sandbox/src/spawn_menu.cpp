@@ -1,9 +1,9 @@
 #include "spawn_menu.h"
 #include "gameplay/core/players.h"
+#include <spot/scene/rendering/post_processing.h>
 #include <spot/scene/rendering/render_hook_system.h>
 #include <spot/scene/ui/ui_input_system.h>
 
-#include "interface_palette.h"
 #include "prop_spawner.h"
 #include "undo_list.h"
 
@@ -17,19 +17,17 @@ SPOT_COMPONENT(SpawnMenu);
 
 namespace {
 
-namespace Palette = InterfacePalette;
-
 std::string Lower(std::string_view text) {
     std::string lower(text);
     std::ranges::transform(lower, lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return lower;
 }
 
-// The compact view's cards and how many fit a row of the grid.
-constexpr Spot::Vector2 CompactCell{104.0f, 124.0f};
-constexpr int CompactColumns = 8;
-// The thumbnail's inset from the card's sides and top, in canvas pixels.
-constexpr float ThumbnailInset = 6.0f;
+// Both densities keep the thumbnail dominant and leave one line for the name.
+constexpr Spot::Vector2 CompactCell{78.0f, 100.0f};
+constexpr int CompactColumns = 12;
+// Keep the preview nearly flush with its cell.
+constexpr float ThumbnailInset = 2.0f;
 
 } // namespace
 
@@ -71,6 +69,12 @@ void SpawnMenu::Initialize() {
             undo->Undo();
         }
     });
+    m_backdropHook = GetScene().GetOrAddSystem<Spot::RenderHookSystem>().AddRenderHook(
+        Spot::RenderStage::BeforePostProcessing, [this](const Spot::RenderStageContext& stage) {
+            if (IsOpen()) {
+                RenderBackdrop(stage);
+            }
+        });
     m_thumbnailHook = GetScene().GetOrAddSystem<Spot::RenderHookSystem>().AddRenderHook(
         Spot::RenderStage::BeforeOpaque, [this](const Spot::RenderStageContext& stage) {
             if (IsOpen()) {
@@ -92,6 +96,9 @@ void SpawnMenu::OnOpen() {
 
 void SpawnMenu::OnDestroy() {
     Menu::OnDestroy();
+    if (m_backdropHook != Spot::RenderHookId::Invalid) {
+        GetScene().GetOrAddSystem<Spot::RenderHookSystem>().RemoveRenderHook(m_backdropHook);
+    }
     if (m_thumbnailHook != Spot::RenderHookId::Invalid) {
         GetScene().GetOrAddSystem<Spot::RenderHookSystem>().RemoveRenderHook(m_thumbnailHook);
     }
@@ -145,6 +152,37 @@ void SpawnMenu::Build() {
     SelectCategory(Spawnable::Category::Prop);
 }
 
+void SpawnMenu::OnRawEvent(const Spot::Event& event, bool& consumed) {
+    if (const auto* move = event.GetIf<Spot::MouseMovedEvent>()) {
+        m_pointer = move->position;
+    }
+    const auto* mouse = event.GetIf<Spot::MouseButtonPressedEvent>();
+    if (!IsOpen() || !mouse || mouse->button != Spot::MouseButton::Middle) {
+        return;
+    }
+    if (!m_pointer) {
+        return;
+    }
+    const auto viewSize = GetScene().GetOrAddSystem<Spot::UiSystem>().GetViewSize();
+    const Spot::Vector2 point{m_pointer->x, viewSize.y - m_pointer->y};
+    for (std::size_t index = 0; index < m_spawnButtons.size(); ++index) {
+        const auto* widget = Get<Spot::UiWidget>(m_spawnButtons[index]);
+        const auto* layout = widget ? widget->GetLayout() : nullptr;
+        if (!widget || !widget->IsActiveAndEnabled() || !widget->IsInteractable() || !layout ||
+            !layout->bounds.Contains(point) || !layout->clip.Contains(point)) {
+            continue;
+        }
+        if (auto* spawner = Gameplay::Players::FindComponent<PropSpawner>(
+                GetScene(), static_cast<std::size_t>(std::max(playerIndex, 0)))) {
+            m_chosen = m_spawnIndices[index];
+            spawner->Spawn(*m_chosen);
+            PlayClick();
+        }
+        consumed = true;
+        return;
+    }
+}
+
 void SpawnMenu::ChooseSpawn(std::size_t index) {
     // Closed first, so the cursor is the game's again as the preview follows the aim.
     m_chosen = index;
@@ -193,7 +231,7 @@ void SpawnMenu::SetCompactView(bool compact) {
             thumbnail->layout.sizeDelta = {side, side};
         }
         if (auto* label = GetChild<Spot::UiText>(id, "Label")) {
-            label->fontSize = compact ? 11.0f : 12.0f;
+            label->fontSize = 12.0f;
         }
     }
     ApplyFilter();
@@ -216,7 +254,7 @@ void SpawnMenu::ApplyFilter() {
         }
         shown += active ? 1 : 0;
     }
-    // The tab shown is raised, marked in the accent and set in the title font.
+    // Categories behave like compact explorer rows.
     const auto tabs = GetTabs();
     for (std::size_t index = 0; index < tabs.size(); ++index) {
         const Spot::EntityId id = tabs[index];
@@ -226,12 +264,12 @@ void SpawnMenu::ApplyFilter() {
             continue;
         }
         const bool selected = category == m_category;
-        tab->style.normal = Palette::WithAlpha(Palette::Surface, selected ? 1.0f : 0.0f);
+        tab->style.normal = Spot::Color{1, 1, 1, selected ? 0.06f : 0.0f};
         if (Spot::Entity* marker = tab->GetEntity().FindChild("Marker")) {
-            marker->SetActive(selected);
+            marker->SetActive(false);
         }
         if (auto* label = GetChild<Spot::UiText>(id, "Label")) {
-            label->font = selected && titleFont ? titleFont : font;
+            label->font = font;
         }
         if (auto* number = GetChild<Spot::UiText>(id, "Count")) {
             number->text = std::to_string(found[static_cast<std::size_t>(category)]);
@@ -247,6 +285,19 @@ void SpawnMenu::ApplyFilter() {
             view->contentSize.y = Spot::MeasureUiLayoutGroup(group->settings, sizes).y;
         }
         view->SetOffset({});
+    }
+    if (const auto* group = Get<Spot::UiLayoutGroup>(grid)) {
+        std::vector<Spot::Vector2> sizes(shown, group->settings.cellSize);
+        const float height = std::clamp(Spot::MeasureUiLayoutGroup(group->settings, sizes).y + 42.0f, 200.0f, 480.0f);
+        if (auto* root = GetScene().GetEntity(canvas)) {
+            for (const auto name : {"Spawn Panel", "Spawn Backdrop"}) {
+                if (auto* panel = root->FindChild(name)) {
+                    if (auto* rect = panel->GetComponent<Spot::UiRect>()) {
+                        rect->layout.sizeDelta.y = height;
+                    }
+                }
+            }
+        }
     }
     RefreshInput();
 }
@@ -265,8 +316,23 @@ void SpawnMenu::AnimateControls(float blend) {
             }
         }
     }
+    bool hovering = false;
     for (std::size_t index = 0; index < m_spawnButtons.size(); ++index) {
-        StyleControl(m_spawnButtons[index], m_chosen == m_spawnIndices[index], style.text, blend);
+        if (const auto* widget = Get<Spot::UiWidget>(m_spawnButtons[index]); widget && widget->IsActiveAndEnabled()) {
+            hovering |= widget->GetUiState() == Spot::UiControlState::Hovered;
+        }
+        const bool selected = m_chosen == m_spawnIndices[index];
+        if (auto* button = Get<Spot::UiButton>(m_spawnButtons[index])) {
+            button->style.normal = {1, 1, 1, selected ? 0.10f : 0.035f};
+        }
+        StyleControl(m_spawnButtons[index], false, style.textSecondary, blend);
+    }
+    if (auto* root = GetScene().GetEntity(canvas)) {
+        if (auto* panel = root->FindChild("Spawn Panel")) {
+            if (auto* hint = panel->FindChild("Spawn Hint")) {
+                hint->SetActive(hovering);
+            }
+        }
     }
     const auto tabs = GetTabs();
     for (std::size_t index = 0; index < tabs.size(); ++index) {
@@ -290,6 +356,67 @@ void SpawnMenu::AnimateControls(float blend) {
     if (auto* icon = GetChild<Spot::UiImage>(searchFrame, "Icon")) {
         approach(icon->tint, typing ? style.text : style.textMuted);
     }
+}
+
+void SpawnMenu::RenderBackdrop(const Spot::RenderStageContext& stage) {
+    auto* root = GetScene().GetEntity(canvas);
+    auto* background = root ? root->FindChild("Spawn Backdrop") : nullptr;
+    auto* image = background ? background->GetComponent<Spot::UiImage>() : nullptr;
+    if (!image || !stage.sceneColor) {
+        return;
+    }
+    auto& ui = GetScene().GetOrAddSystem<Spot::UiSystem>();
+    ui.Layout(stage.viewSize);
+    const auto* layout = ui.Find(background->GetId());
+    if (!layout) {
+        return;
+    }
+    const auto width = static_cast<std::uint32_t>(std::max(1.0f, stage.viewSize.x / 12.0f));
+    const auto height = static_cast<std::uint32_t>(std::max(1.0f, stage.viewSize.y / 12.0f));
+    if (!m_backdropTonemapper) {
+        m_backdropTonemapper = Spot::Tonemapper::Create(stage.device, Spot::TextureFormat::Rgba8);
+        m_backdropRenderer = std::make_unique<Spot::Renderer2D>(
+            stage.device, Spot::Renderer2DConfig{.targetFormat = Spot::TextureFormat::Rgba8});
+    }
+    if (!m_backdropTonemapper || !m_backdropRenderer->IsValid()) {
+        return;
+    }
+    if (!m_backdropSmall || m_backdropSmall->GetWidth() != width || m_backdropSmall->GetHeight() != height) {
+        m_backdropSmall = stage.device.CreateTexture(
+            {.width = width, .height = height, .format = Spot::TextureFormat::Rgba8, .renderTarget = true});
+    }
+    const auto size = layout->bounds.GetSize();
+    const auto panelWidth = static_cast<std::uint32_t>(std::max(1.0f, size.x / 4.0f));
+    const auto panelHeight = static_cast<std::uint32_t>(std::max(1.0f, size.y / 4.0f));
+    if (!m_backdropTexture || m_backdropTexture->GetWidth() != panelWidth ||
+        m_backdropTexture->GetHeight() != panelHeight) {
+        m_backdropTexture = stage.device.CreateTexture(
+            {.width = panelWidth, .height = panelHeight, .format = Spot::TextureFormat::Rgba8, .renderTarget = true});
+    }
+    if (!m_backdropSmall || !m_backdropTexture) {
+        return;
+    }
+    // Downsampling and bilinear reconstruction soften the scene without blurring labels or thumbnails.
+    {
+        auto pass = stage.context.BeginRenderPass({.target = m_backdropSmall.get()});
+        const std::array scenes{&GetScene()};
+        const auto* look = Spot::PostProcessing::Find(scenes);
+        auto tonemapping = look ? look->GetTonemapping(scenes) : Spot::TonemapSettings{};
+        tonemapping.dither = false;
+        m_backdropTonemapper->Draw(pass, *stage.sceneColor, tonemapping,
+                                   look ? look->GetGrading() : Spot::GradingSettings{});
+    }
+    {
+        auto pass = stage.context.BeginRenderPass({.target = m_backdropTexture.get()});
+        const Spot::Vector2 targetSize{static_cast<float>(panelWidth), static_cast<float>(panelHeight)};
+        m_backdropRenderer->Begin(pass, Spot::UiSystem::ScreenCamera(targetSize), targetSize);
+        const Spot::TextureRegion region{
+            {layout->bounds.min.x / stage.viewSize.x, 1.0f - layout->bounds.max.y / stage.viewSize.y},
+            {layout->bounds.max.x / stage.viewSize.x, 1.0f - layout->bounds.min.y / stage.viewSize.y}};
+        m_backdropRenderer->DrawQuad(targetSize * 0.5f, targetSize, *m_backdropSmall, Spot::Color::White, region);
+        m_backdropRenderer->End();
+    }
+    image->texture = Spot::AssetRef<Spot::Texture>(m_backdropTexture);
 }
 
 void SpawnMenu::Serialize(Spot::Archive& archive) {

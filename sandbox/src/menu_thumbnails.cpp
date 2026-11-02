@@ -45,7 +45,7 @@ std::unique_ptr<Spot::Scene> Preview(const Spot::AssetRef<Spot::Prefab>& prefab)
         }
     });
     const auto center = (min + max) * 0.5f;
-    const float radius = std::max(0.5f, Spot::Length(max - min) * 0.35f);
+    const float radius = std::max(0.05f, Spot::Length(max - min) * 0.35f);
     Spot::Camera3D view;
     view.position = center + Spot::Normalize(Spot::Vector3{2, 1.5f, 2.5f}) * radius * 3;
     view.LookAt(center);
@@ -54,11 +54,11 @@ std::unique_ptr<Spot::Scene> Preview(const Spot::AssetRef<Spot::Prefab>& prefab)
     cameraEntity.GetTransform().SetRotation(view.rotation);
     auto& camera = cameraEntity.AddComponent<Spot::Camera>();
     camera.SetProjection(Spot::CameraProjection::Orthographic);
-    camera.SetOrthographicSize(radius * 1.2f);
+    camera.SetOrthographicSize(radius * 1.05f);
     camera.SetNearPlane(0.01f);
     camera.SetFarPlane(radius * 20 + 10);
-    // A well a little darker than the card around it.
-    camera.SetBackground({0.0068f, 0.0078f, 0.0096f, 1});
+    // Transparent previews keep the cell surface visible behind each model.
+    camera.SetBackground({0, 0, 0, 0});
     scene->CreateEntity("Thumbnail Ambient").AddComponent<Spot::AmbientLight>(Spot::Color::White, 0.6f);
     auto& light = scene->CreateEntity("Thumbnail Light");
     light.GetTransform().SetRotation(Spot::Quaternion::LookRotation({-0.5f, -1, -0.6f}));
@@ -93,10 +93,12 @@ void MenuThumbnails::Render(const Spot::RenderStageContext& stage, Spot::Scene& 
             continue;
         if (!m_renderer)
             m_renderer = std::make_unique<Spot::SceneRenderer>(
-                stage.device, Spot::SceneRendererConfig{.targetFormat = Spot::TextureFormat::Rgba8,
-                                                        .sampleCount = 1,
-                                                        .shadowMapSize = 0,
-                                                        .localShadowMapSize = 0});
+                stage.device,
+                Spot::SceneRendererConfig{.targetFormat = Spot::TextureFormat::Rgba8,
+                                          .sampleCount = 1,
+                                          .tonemapping = {.op = Spot::TonemapOperator::Linear, .dither = false},
+                                          .shadowMapSize = 0,
+                                          .localShadowMapSize = 0});
         if (!entry.preview)
             entry.preview = Preview(entry.prefab);
         auto texture = stage.device.CreateTexture(

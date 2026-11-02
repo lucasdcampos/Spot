@@ -425,6 +425,29 @@ TEST_CASE("Sandbox menu clicks preview real prefabs to place and offer undo and 
     CHECK(spawner.GetSpawnedCount() == 0);
 }
 
+TEST_CASE("Middle clicking a spawn thumbnail repeatedly spawns without placement or closing", "[sandbox][ui]") {
+    InterfaceGame game;
+    auto ui = game.GetUi();
+    ui.spawn.Open();
+    auto& spawner = *Gameplay::Players::FindComponent<PropSpawner>(game.scene);
+    const auto id = ui.spawn.GetSpawnButtons().front();
+    const auto* layout = game.scene.GetOrAddSystem<Spot::UiSystem>().Find(id);
+    REQUIRE(layout);
+    const auto center = layout->bounds.GetCenter();
+    game.Send(Spot::MouseMovedEvent{{center.x, 720 - center.y}, {}});
+    REQUIRE(game.scene.GetOrAddSystem<Spot::UiInputSystem>().Focus(id));
+    for (std::size_t count = 1; count <= 2; ++count) {
+        CHECK(game.Send(Spot::MouseButtonPressedEvent{Spot::MouseButton::Middle}));
+        game.Send(Spot::MouseButtonReleasedEvent{Spot::MouseButton::Middle});
+        CHECK(spawner.GetSpawnedCount() == count);
+        CHECK_FALSE(spawner.IsPlacing());
+        CHECK(ui.spawn.IsOpen());
+    }
+    game.Send(Spot::MouseMovedEvent{{0, 0}, {}});
+    game.Send(Spot::MouseButtonPressedEvent{Spot::MouseButton::Middle});
+    CHECK(spawner.GetSpawnedCount() == 2);
+}
+
 TEST_CASE("The spawn preview follows the aim, places on Fire without firing and cancels on Aim", "[sandbox][ui]") {
     InterfaceGame game;
     auto& spawner = *Gameplay::Players::FindComponent<PropSpawner>(game.scene);
@@ -519,7 +542,11 @@ TEST_CASE("The spawn menu searches, counts each category and switches to a compa
     CHECK(std::ranges::find(propNames, "Coupe") == propNames.end());
     CHECK(std::ranges::find(propNames, "Helicopter") == propNames.end());
     CHECK(count(ui.spawn.vehiclesTab) == "3");
-    CHECK(count(ui.weaponsTab) == "6");
+    CHECK(count(ui.weaponsTab) == std::to_string(std::ranges::count_if(spawnables, [&](const SpawnableItem& item) {
+              const auto index = static_cast<std::size_t>(&item - spawnables.data());
+              return item.category == Spawnable::Category::Weapon &&
+                     Gameplay::Players::FindComponent<PropSpawner>(game.scene)->IsAvailable(index);
+          })));
     auto* vehiclesTab = game.scene.GetEntity(ui.spawn.vehiclesTab);
     REQUIRE(vehiclesTab);
     REQUIRE(vehiclesTab->GetComponent<Spot::UiButton>());
@@ -564,7 +591,7 @@ TEST_CASE("The spawn menu searches, counts each category and switches to a compa
     game.scene.GetEntity(ui.gridView)->GetComponent<Spot::UiButton>()->Click();
     CHECK_FALSE(ui.spawn.IsCompactView());
     CHECK(grid->settings.cellSize.x > compact.x);
-    CHECK(grid->settings.columns < 8);
+    CHECK(grid->settings.columns == 10);
     Gameplay::Menu::CloseAll(game.scene);
 }
 

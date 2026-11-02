@@ -866,3 +866,16 @@ marks restricted entries; the catalog keeps the same indices for all peers, the 
 filters availability for its player, and PropSpawner checks that player's DeveloperMode
 again when placing or processing a server spawn request. The menu updates when the
 player authenticates while it is open.
+
+The spawn browser uses a flat, dense thumbnail grid (ten columns, or twelve in compact view). Left click enters placement; middle click spawns the hovered asset at the player aim immediately and keeps the browser open. Both paths use PropSpawner, including its authority and availability checks.
+
+The browser uses a 42-pixel toolbar and a 136-pixel category sidebar. Its height follows the
+filtered grid between 200 and 480 canvas pixels, keeping long catalogs scrollable. Undo, cleanup
+and close share the toolbar; placement hints appear beneath the panel only while hovering an item.
+Category selection uses a translucent row fill without a marker. Names use the body font at 12 pixels.
+
+A BeforePostProcessing hook downsamples the scene color, tonemaps it into a small texture, and
+reconstructs the panel crop with linear filtering behind an 80% graphite surface. This uses public
+Tonemapper and Renderer2D APIs, allocates targets only when their sizes change, and runs only while
+the browser is open. Thumbnail cameras use transparent backgrounds and fit each model without a
+minimum half-unit framing radius, so small props remain legible and the cell surface stays visible.
