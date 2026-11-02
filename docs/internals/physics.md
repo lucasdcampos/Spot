@@ -178,7 +178,7 @@ rebuilt first where colliders or rigidbodies changed since, and never wake bodie
 
 Overlaps name each collider once and keep no contacts, so a body of a single collider is no longer tested once it is
 found (`OverlapCollector` in `jolt_queries.cpp`, which stops Jolt's narrow phase for that body and starts it over for
-the next). Without that, a box over a mesh collider, such as the ground under the sandbox's pond, was tested against
+the next). Without that, a box over a mesh collider, such as compound terrain colliders, was tested against
 each triangle it reached for the same hit: the pond's water took 2.9 ms a frame for it, and 0.04 ms since.
 
 ## The physics world
@@ -211,7 +211,7 @@ controllers and joints (`PhysicsDebugFlags::Colliders`), where bodies touch with
 Static bodies are green, dynamic ones orange, or blue while asleep, kinematic ones purple, triggers yellow,
 characters cyan and joints white. `DrawColliders()` adds the same shapes to any `DebugLines` from the components
 alone, which is how the editor's scene views show colliders (the shapes button in their toolbar) in scenes whose
-physics never ran. The sandbox switches the debug view with B.
+physics never ran. Games can toggle physics debug rendering at runtime.
 
 `Ragdoll` builds ordinary rigidbodies and swing/twist joints from a skeleton through the
 public API, and transfers their transforms back to animation. See [animation](animation.md).

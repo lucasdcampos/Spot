@@ -21,7 +21,7 @@ std::string_view GetPlatformName();
 std::size_t ImportProjectAssets(const Project& project);
 
 // Imports the project's source assets into "imported" in the folder, and writes the game's GameSettings there, so a
-// game's executable in that folder runs the project's game, as the engine's own sandbox does. Imports are cached as
+// game's executable in that folder runs the project's game, as cooked games do. Imports are cached as
 // in a project's import directory. Returns false, after logging why, when the folder cannot be written.
 bool CookGame(const Project& project, const std::filesystem::path& directory);
 

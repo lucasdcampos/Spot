@@ -6,7 +6,7 @@ assets; the version 2 font importer keeps the original font bytes and size so la
 back to `?`). The atlas stores distances in alpha, with the contour at 128/255 and six pixels of
 padding. The renderer reconstructs coverage using screen derivatives, so the same atlas supports
 small labels and large titles without blocky edges. Font sizes must be finite and between 1 and
-256 pixels; 32–64 pixels are practical atlas resolutions. Extra imported sizes remain available.
+256 pixels; 32â€“64 pixels are practical atlas resolutions. Extra imported sizes remain available.
 
 `TextRenderer` is a serializable component: set its font, UTF-8 text, color, pixel scale, camera-facing
 flag and order. Its entity origin is the top-left of the text; one atlas pixel occupies `pixelScale`
@@ -22,7 +22,7 @@ Add a `Canvas` to a root entity and `UiRect` to its child elements. `UiRect::lay
 normalized anchor minimum/maximum, pivot, an offset and size delta in logical canvas pixels.
 Coordinates grow right and up. Equal anchors give a fixed-size rectangle; separate anchors stretch
 between points on the parent, with `sizeDelta` added to the stretched size. The offset moves the
-pivot relative to the anchored point. Set anchors to (0,0)–(1,1), pivot to (0.5,0.5), and size delta
+pivot relative to the anchored point. Set anchors to (0,0)â€“(1,1), pivot to (0.5,0.5), and size delta
 to (-20,-20) for ten-pixel margins on every side.
 
 UI uses entity hierarchy and activity, but does not read or modify entity `Transform`. This keeps
@@ -129,40 +129,3 @@ The **Anchors** popup offers nine fixed positions and full stretching. **Keep re
 the visible rectangle while changing its anchoring; disable it to move to the preset's position.
 Canvas scale, reference resolution, modal input and dismissal key use the ordinary inspector.
 
-## Sandbox interface
-
-The sandbox instantiates `sandbox/assets/prefabs/interface.prefab` under its HUD entity. It is a
-normal editable UI tree with bound widget ids, label children and inactive catalog/binding templates.
-Open it as a prefab in the editor, enable a menu canvas to preview it, and use the same rectangle
-handles and inspector. `RuntimeInterface` fills the templates from the spawn manifest and input
-map. The HUD shows a spreading crosshair, hit marker, the item in hand with its rounds or tool mode, a reload
-bar, context controls, the clock, the controls on H and, on F11, statistics; see [Sandbox](sandbox.md).
-
-Q or gamepad Back opens the spawn menu; a sidebar of Props/Lamps/Weapons and a search field filter its catalog.
-Clicking a thumbnail closes the menu and shows the prefab, translucent, where it would go; PropSpawner places it on
-Fire and cancels on Aim. Footer buttons undo and clean up.
-`MenuThumbnails` renders the prefab's mesh tree through public SceneRenderer into a cached texture,
-with a two-item budget per frame and no gameplay simulation. Escape/Start opens pause; Resume,
-Escape or gamepad East/Start closes it and restores the previous time scale and cursor request.
-Menu opening is routed before simulation, and captures update game actions immediately.
-
-Pause holds sensitivity, FOV, master/effects/music/ambience/interface volumes, three graphics presets
-and every action binding (including composite parts). Select a binding, then press a key, mouse or
-gamepad control; Escape cancels capture. Settings debounce writes using unscaled time, flush on
-closing, and save in the game's user directory as versioned `interface.json`. Rebinds are stored
-with them. Headless callers can supply an explicit directory. Runtime graphics changes retain
-input bindings and project defaults; both standalone and editor game rendering follow them.
-
-Custom component overlays derive from `UiDrawListener` (`scene/ui/ui_draw_listener.h`) and
-override `OnDrawUi(Renderer2D&, Vector2)`. `UiWidget` implements this interface for built-in widgets.
-
-Custom UI listeners draw after `HasStarted()` becomes true, in component addition order outside
-canvases and in canvas layout order inside them. Widgets may draw before their first update so
-interfaces are visible immediately; disabled, removed and faulted components are skipped.
-
-The custom-overlay pass checks UiDrawListener before finding a component's ancestor canvas. Non-UI gameplay and
-physics components therefore incur no hierarchy search during interface drawing. Canvas widgets retain layout
-order; custom overlays outside canvases retain component addition order. Finding those overlays goes through every
-component of the scene, so `UiSystem` keeps them, by entity and component id, until `Scene::GetStructureVersion()`
-says what the scene holds changed: in the sandbox's playground, with its thousands of components, interface drawing
-fell from 0.8 to 0.07 ms a frame.

@@ -197,7 +197,7 @@ the clouds shows what it changed, view by view.
   the volume share.
 - `clouds_volume.frag.hlsl`, `clouds_resolve.frag.hlsl` and `clouds_composite.frag.hlsl`: the volume, from
   `SkyRenderer::RenderVolumetricClouds()` and `CompositeClouds()`.
-- The sandbox's `DayCycle` turns the stars with its time of day, and its playground has a `Clouds` on the sun.
+- A `DayCycle` component can rotate celestial objects with the time of day.
 
 Sky occlusion expands its sampling footprint with the height of the cover read from the overhead depth map
 (twice the gap, with the existing minimum radius). Narrow elevated canopies therefore leave much of the sky

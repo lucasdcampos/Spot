@@ -6,7 +6,6 @@ project(spot
     LANGUAGES CXX
 )
 
-option(SPOT_BUILD_SANDBOX "Build the sandbox application" ${PROJECT_IS_TOP_LEVEL})
 option(SPOT_BUILD_EDITOR "Build the Spot editor" ${PROJECT_IS_TOP_LEVEL})
 option(SPOT_BUILD_TESTS "Build the Spot test suite" ${PROJECT_IS_TOP_LEVEL})
 option(SPOT_BUILD_EXAMPLES "Build the examples of using the engine" ${PROJECT_IS_TOP_LEVEL})
@@ -17,10 +16,10 @@ set(SPOT_VERSION_SUFFIX "" CACHE STRING "Appended to the engine's version")
 set(SPOT_VERSION "${PROJECT_VERSION}${SPOT_VERSION_SUFFIX}")
 
 # The bundled programs and their integration tests run scripted projects. Library-only consumers can omit it.
-if(NOT SPOT_SCRIPTING AND (SPOT_BUILD_EDITOR OR SPOT_BUILD_SANDBOX OR SPOT_BUILD_TESTS))
+if(NOT SPOT_SCRIPTING AND (SPOT_BUILD_EDITOR OR SPOT_BUILD_TESTS))
     message(FATAL_ERROR
         "The bundled applications and tests require SPOT_SCRIPTING=ON. "
-        "For a library-only build, set SPOT_BUILD_EDITOR, SPOT_BUILD_SANDBOX and SPOT_BUILD_TESTS to OFF."
+        "For a library-only build, set SPOT_BUILD_EDITOR and SPOT_BUILD_TESTS to OFF."
     )
 endif()
 
@@ -80,21 +79,17 @@ include(cmake/spot_embed_files.cmake)
 
 add_subdirectory(engine)
 
-# The tools and their command line, which the editor shares and the sandbox imports its assets with, and the player
-# that the tools run and ship games without code of their own with.
-if(SPOT_BUILD_SANDBOX OR SPOT_BUILD_EDITOR OR SPOT_BUILD_TESTS OR SPOT_BUILD_EXAMPLES)
+# The tools and their command line, which the editor shares, and the player that the tools run and ship games
+# without code of their own with.
+if(SPOT_BUILD_EDITOR OR SPOT_BUILD_TESTS OR SPOT_BUILD_EXAMPLES)
     add_subdirectory(player)
     add_subdirectory(tools)
     add_subdirectory(cli)
 endif()
 
-if(SPOT_BUILD_SANDBOX)
-    add_subdirectory(sandbox)
-    set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT sandbox)
-endif()
-
 if(SPOT_BUILD_EDITOR)
     add_subdirectory(editor)
+    set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT spot_editor)
 endif()
 
 if(SPOT_BUILD_EXAMPLES)

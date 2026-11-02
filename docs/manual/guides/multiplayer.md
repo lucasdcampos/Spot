@@ -60,10 +60,9 @@ where the object is, as the wheels of a car they drive, says so by returning tru
 
 A player's own character should respond at once too: give it **Owner** authority as well, and give it to its player
 when it spawns. The server then checks what that machine says, as how fast it moves, and puts it back where it was
-when it fails; to put it somewhere itself, as when respawning it, the server calls `system->Place(object)`, which moves
-it on the player's machine and ignores that machine's states from before. The gameplay framework of the sandbox does
-this for its players' characters (`Pawn::Teleport()`), with damage, inventories and everything else still decided by
-the server.
+when it fails; to put it somewhere itself, as when respawning it, the server calls `system->Place(object)`, which moves it on the player's machine and ignores
+that machine's states from before. Games can do this for player characters (`Pawn::Teleport()`), with damage,
+inventories and game rules decided by the server.
 
 ## Messages
 
@@ -87,14 +86,14 @@ system->SendToServer(*door.GetComponent<Spot::NetworkObject>(), Use{.target = do
 and `SendToServer()` are for the game as a whole. The server must check what clients ask, as a player may send
 anything.
 
-The sandbox's copyable gameplay framework provides `Pawn::Request(name)` for discrete player actions. Implement
+A game's gameplay framework can provide `Pawn::Request(name)` for discrete player actions. Implement
 `PlayerInputListener::OnPlayerRequest(name)` on the pawn part that handles an action; it runs on the server, or
 immediately while playing alone. With `NetworkPlayers` in the scene, a client sends it reliably and the server checks
 that player still possesses the pawn. The handler must check the action's rules too. The supplied `Interactor`
 rechecks reach and obstacles on the server, and vehicles use requests to exit their seats. Movement continues through
 `SerializeIntent()`, so repeating movement packets cannot repeat a discrete action.
 
-In the Sandbox, press E while looking at a car, coupe or helicopter to take the driver's seat. If someone is already
+Pressing interact while looking at a vehicle allows a pawn to take the driver's seat. If someone is already
 driving, you take its free passenger seat instead; a full vehicle offers no entry. Passengers keep their own view,
 see the vehicle's speed and an Exit hint, and press E to leave without affecting the driver. Each seat is chosen on
 the server and shown to all players, including those who join later. Passengers stay seated when the driver leaves.
@@ -103,7 +102,7 @@ the server and shown to all players, including those who join later. Passengers 
 
 ### Maps and modes in the gameplay framework
 
-The sandbox's `gameplay/game/` keeps maps separate from their rules. To add a map, save a scene with `MapInfo`,
+Games can keep maps separate from their game modes and rules. To add a map, save a scene with `MapInfo`,
 give it a name, description, player limit and spawn points, and select its default mode prefab. `modes` lists the
 mode prefab ids it supports; an empty list accepts any mode. The map also owns its checkpoint file, restart scene
 and preview. A restart uses the current scene asset when no override is set.
@@ -112,14 +111,14 @@ A mode is a prefab with `GameMode` (or your subclass) on its root, its player pr
 needs. Both `GameMode` and its root must be active, with `NetworkObject` on the root so clients can instantiate the
 mode selected by the server. Set its name,
 description and catalog order on `GameMode`. `MapCatalog` and `ModeCatalog` discover imported content without running
-its gameplay; the sandbox's main menu builds its map list from this data automatically.
+its gameplay; the main menu can build its map list from this data automatically.
 
 Before starting a map, the server can call `MapInfo::StartMode(prefab)` to select a supported mode; otherwise the
 first update starts `defaultMode`. Clients wait for the server's mode. The supplied Free mode is shared by the
 playground and the empty map, each with sixteen spawn points and its own checkpoint.
 
 `GameMode::allowsTimeScale` controls whether the rules allow pause and slow motion. Menus, the inventory wheel and
-the sandbox's `timescale` command share `WorldTime` in `gameplay/core/`: changes are allowed only while alone,
+a game's `timescale` command can share `WorldTime` in its core gameplay systems: changes are allowed only while alone,
 including a host with no connected peers. A paused host resumes normal time when another player connects.
 
 ### Starting a session
@@ -138,11 +137,9 @@ join or was disconnected. `Leave()` ends the session; the scene goes on alone.
 
 ## Testing on one machine
 
-Run two copies of the game, one hosting and one joining `127.0.0.1`; in the sandbox, the join page also lists the
-rooms of your local network, those on this machine included. Both draw and share the computer, and the one
+Run two copies of the game, one hosting and one joining `127.0.0.1`. Both draw and share the computer, and the one
 in the background may be slowed down by the system: as the host is the server, everything then lags for everyone. A
-dedicated server avoids that: in the sandbox, `Sandbox --server` serves the playground without a window, and the
-copies that play join it. To see how the game plays over a bad network,
+dedicated server avoids that by running headlessly without a window, and the copies that play join it. To see how the game plays over a bad network,
 set these in the console of either: `net.lag 0.1` (seconds each message takes), `net.jitter 0.03` and `net.loss 0.05`
 (the share of messages lost). The `stats` console command shows the session's numbers with the others: round trip,
 loss, snapshots a second and the longest wait between them, bandwidth, and how many moving objects are shown late.
@@ -153,9 +150,9 @@ A server without a player needs no screen: run it with `ApplicationConfig::windo
 (`graphics.enabled = false`) and without the audio module, with a frame rate cap (`maxFrameRate`) so it keeps a
 steady pace. Remove the map's local players before it starts, so its rules give no pawn to anyone on the server.
 Add `Spot::TerminalConsole` to command it from the terminal it runs in: each line typed is a console command, and
-`quit` stops it; register your own commands, as the sandbox's `status`, `kick` and `password`.
+`quit` stops it; register your own console commands, such as `status`, `kick` and `password`.
 
-In the sandbox, the host can grant operator permissions with `op <nickname>`. Operators can use
+The host can grant operator permissions with `op <nickname>`. Operators can use
 `god` even when room cheats are disabled; other players need cheats enabled. Open the console and enter
 `god` to toggle invulnerability, `god true` to enable it or `god false` to disable it for your character.
 The setting lasts until the character is replaced. Developer mode is separate: a developer with god mode
@@ -163,7 +160,7 @@ shows a purple `Immortal Object` badge for three seconds when another player hit
 Nearby players' nicknames appear above their heads within 20 meters, fading near the edge of that range;
 walls hide both names and badges.
 
-The `</>` badge next to a sandbox nickname identifies a developer authenticated with `developer.key`.
+Badges next to nicknames can identify developers or operators authenticated with a key file.
 `imthegamedev` unlocks the easter egg without granting this badge. Authentication is decided by the
 server, replicated separately from the unlock, retained across character replacement and never saved
 as scene data. A player who used the command can still authenticate with a valid key afterward.

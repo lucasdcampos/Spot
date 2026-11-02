@@ -38,9 +38,6 @@ library with a loop of its own ([`own_loop`](../../examples/own_loop/main.cpp)),
 | [Developer tools](developer_tools.md) | Commands, typed cvars, consoles, statistics, profiler timelines and captures |
 | [Editor](editor.md) | The editor's documents, panels, undo, play mode and game code reloading |
 | [Tools and the command line](tools_and_command_line.md) | Projects, cooking, building, running and exporting games with `spot` |
-| [Sandbox](sandbox.md) | Running the playground, prefab spawnables, controls and a play-test checklist |
-| [Sandbox gameplay framework](sandbox_gameplay.md) | The sandbox's gameplay as independent systems that games can take, and its rules |
-| [Sandbox release](sandbox_release.md) | Release exports, runtime libraries, relocation checks and platform acceptance |
 | [Releases and installation](releases.md) | The installed engine's layout, the release workflow, the installers and `spot update` |
 
 Building, testing and the code rules are in [`CONTRIBUTING.md`](../../CONTRIBUTING.md) and [`AGENTS.md`](../../AGENTS.md).

@@ -119,11 +119,8 @@ An object a client decides can still be put somewhere by the server, as when the
 states then carry; the server ignores states with an older count, sent before the client heard of it, and shows the
 object where it put it until newer ones come. The client puts it there even before it hears that it decides it. What
 else the game changes, as the velocity, it tells the client itself. `NetworkObject::IsDecidedByClient()` tells
-whether a client decides an object: on the server any client, on clients this one. The engine once had clients
-predict objects the server decided and be corrected (`predicted`); the sandbox's characters, its only users, are now
-decided by their players' machines, as the server already let those machines decide the vehicles they drive, the
-props they push and the hits of their shots, and the server's copy of a character was stepped among bodies the client
-had and it did not, so it was corrected again and again wherever there was something to touch.
+whether a client decides an object: on the server any client, on clients this one. Player-controlled characters
+can be decided by their players' machines, along with the vehicles they drive, props they push and the hits of their shots.
 
 As authority over a body changes hands, the machine taking it starts it where its newest state, carried on as it was
 going, puts it now (`NetworkTransform::ShowNewest()`), not where it was shown, in the past, which the others would see

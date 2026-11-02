@@ -53,7 +53,7 @@ of an installed engine (see [Releases and installation](releases.md)).
   configuring, compiling and linking, told apart where the build tool says when it links. The editor also logs how
   long loading the module and reloading the scenes took, and how long after the code changed.
 - **Cooking**: `CookGame()` imports the sources into `imported/` in a folder and writes `game.json` there, so a game's
-  executable in that folder runs the game. The engine's own build cooks the sandbox this way.
+  executable in that folder runs the game.
 - **Running**: `PrepareGameRun()` writes `game.json`, pointing at the project's imports, and tells what to start
   (`GameLaunch`): a game with code runs its built executable, with `game.json` beside it; one without runs the player
   with `--game .spot/run`, since every game without code shares it. `GameRunner` runs it in its own window, logging
@@ -98,38 +98,5 @@ The generated game CMake package copies the MSVC redistributable runtime or the 
 the executable. Versioned Unix libraries such as `libstdc++.so.6` are included when exporting. Linux searches
 `$ORIGIN` and macOS searches `@loader_path`, so moving the complete export keeps its engine reachable. The
 operating system and graphics/audio drivers remain platform prerequisites. The shipped shaders are embedded;
-players need no CMake, compiler, shader tools, source assets or project files. See [Sandbox release](sandbox_release.md)
-for export commands, relocation testing and platform acceptance.
+players need no CMake, compiler, shader tools, source assets or project files.
 
-## The sandbox
-
-`sandbox/` is a project like any other (`sandbox/Sandbox.spot`): the editor opens it, and `spot` builds it. The
-engine's own build also builds its code into the `sandbox` executable with the static engine, and cooks its assets
-beside it, so the engine is tried out and debugged with a game: `./run.ps1` or `./run.sh` builds and runs it.
-
-### Generated assets
-
-The sandbox's props are made by code: `sandbox_generator` (`sandbox/generator/`, built with the engine) writes their
-glTF models (with cgltf's writer, from `MeshData`) and PNG textures (painted pixel by pixel, encoded with
-`Image::EncodePng()`) into `sandbox/assets/generated/`: the props, each with a PBR texture set of its own painted for
-its shape (`generator/prop_textures.cpp`), so its relief, roughness and metal follow its paint, as a crate's frame,
-nails and gaps do, but for the ramp and the stairs, which are of the concrete surface; a PBR texture set per surface
-(wood, painted metal, rusty metal, concrete, rubber, glass, and the weapons' polymer, gunmetal and walnut), whose ORM
-texture packs occlusion, roughness and metallic as glTF allows; and the models of what the player holds, made of
-beveled side views (`Shapes::BeveledExtrude()`), parts turned on a lathe (`Shapes::Lathe()`) and beveled blocks of
-those surfaces. Surfaces are painted from gradient noise and cells (`generator/texture_painting.h`), then weathered:
-dirt darkens what lies below the surface around it and wear lightens what stands out (`Weathering`). They are painted
-at 1024 pixels for what is seen up close, 2048 for the grass and the concrete slabs that cover most of the ground.
-Fixed seeds make every run write the same files, and it only rewrites files whose content changed. The sandbox's build runs it (`sandbox_generated_assets`, before its assets are
-imported) whenever the generator is rebuilt, so changing its code is all it takes. Its files are imported like any
-artist's assets, but only their `.meta` files are committed: the files themselves are ignored by git, since the
-generator makes them again exactly, and keeping every version of its images would swell the repository. The `.meta`
-files hold the ids that materials, prefabs and scenes refer to; they come from the import, the generator never touches
-them, and the asset database keeps one whose file is missing until the file comes back. Models import their images as
-colors or data by how their materials use them, but the surfaces' normal and ORM textures are also imported on their
-own, for the level's `.material` files, so their `.meta` files have `srgb` off. The generator can also be run by hand,
-as after deleting its files, whose stamp in the build would otherwise keep it from running:
-
-```sh
-./build/msvc/sandbox/generator/Debug/sandbox_generator    # or with a folder to write into
-```

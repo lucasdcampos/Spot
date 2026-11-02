@@ -291,9 +291,8 @@ without the prepass. A probe's capture, small and drawn once, leaves it out. Amb
 single-sample camera depth, since it needs the custom surfaces and, under multisampling, a texture it can read.
 
 The prepass costs a pass over the vertices of what is in view, which surfaces covering each other repay, as in most 3D
-views. In the sandbox benchmark (`--props 500 --lamps 50 --quality 2 --vehicles 1`, Release, Vulkan, GTX 1660,
-1600x900 with 4x MSAA, 2026-10-28), it took the lit pass from 8.0 to 3.6 ms of GPU time for 0.5 ms of its own, and
-the frame from 12.1 to 8.5 ms.
+views. In benchmark scenes (Release, Vulkan, GTX 1660, 1600x900 with 4x MSAA), it took the lit pass from 8.0 to 3.6 ms
+of GPU time for 0.5 ms of its own, and the frame from 12.1 to 8.5 ms.
 
 ### Shadows
 
@@ -325,9 +324,8 @@ those are still free, so a lamp that stands still keeps its shadows however the 
 faces go through only the casters within its reach, gathered once. Tiles drawn again among kept ones are cleared one by
 one with a triangle the viewport's depth range puts at the far plane; with none kept, the whole atlas is cleared at
 once. Custom surfaces draw shadows whose changes Renderer3D cannot tell, so with any in the frame every tile is drawn.
-The profiler counts `Shadow tiles kept`. In the sandbox benchmark, the five shadowed lamps' thirty tiles are all kept
-while nothing moves, and about seventeen while its crates settle and its people walk, taking the shadows from 1.37 to
-0.93 ms of the CPU's time and from 2.0 to 1.5 ms of the GPU's.
+The profiler counts `Shadow tiles kept`. In scenes with static lamps, their tiles are all kept
+while nothing moves, taking shadows down significantly in both CPU and GPU time.
 
 ### Clustered lights
 
@@ -638,7 +636,7 @@ turn it on, next to multisampling or instead of it. The interfaces are drawn aft
   set, the moon opposite it lights the night the same way, as a directional light that casts the shadows in the
   sun's place and as the faint blue sky it scatters (`GetMoonlight()`), far brighter than the real moon so that nights
   are dark but not black. `GetStats().skyLightingUpdates` tells when a capture happened; a sky that
-  turns all the time, as the sandbox's does, is captured every frame, which costs a few small passes. What lies
+  turns continuously, it is captured every frame, which costs a few small passes. What lies
   under cover gets less of it (see [Light from all around](#light-from-all-around)).
 - `ReflectionProbe`: a reflection probe at its entity, lighting a box of `size` centered on it, along the world's
   axes, with its `blendDistance` and `intensity`; each component has an id of its own, which keeps its capture, and
@@ -670,11 +668,7 @@ cmake --build --preset msvc-release --target spot_benchmark
 
 With `--scene <file> --assets <imported folder>`, it times a project's scene instead, its cameras off, with
 `--lamps <count>` lamps (48 by default) spread over it, a quarter of them spots and an eighth casting shadows; the
-sandbox's playground, from the assets its build imported:
 
-```sh
-./build/msvc/tests/Release/spot_benchmark --scene sandbox/assets/scenes/playground.scene --assets build/msvc/sandbox/Debug/imported
-```
 
 ## Golden-image tests
 
@@ -737,7 +731,7 @@ of the main camera, so a player's hidden body can appear. Scene entities remain 
 only GPU targets and matrices are retained between frames. Captures refresh each visible frame, including animation.
 
 `Renderer2D::GetDevice()` exposes the renderer's graphics device for widgets that cache generated textures.
-The sandbox weapon wheel caches a ring-sector mask for its current number of carried items.
+A circular weapon wheel can cache a ring-sector mask for its current number of items.
 
 `FontAtlas` includes printable ASCII, Latin-1 and U+221E (infinity), so UI counters can render unlimited ammunition
 with the same font, size and alignment as numeric counts. Other unsupported code points retain the question-mark fallback.

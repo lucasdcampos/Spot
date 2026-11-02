@@ -39,7 +39,7 @@ which get ids of their own under a key that names the part (`models/house.glb#Ro
   (`engine/spot/assets/asset_pak.h`), which `spot export` and `spot pack` write: a table of the assets, then each one,
   compressed with LZ4 when that saves enough. `AssetManager` reads from it whenever it is there, and from a file per
   asset otherwise, as the editor and `spot run` do; opening one file instead of hundreds halves the time a scene
-  such as the sandbox's playground takes to load.
+  such as complex game scenes take to load.
 - Imports are cached: a source is imported again only when it, a file it depends on, its settings or its importer's
   version change. `GetChanged()` tells what was imported again, so loaded copies can be reloaded:
   `DevToolsModule::ReloadAssets()` makes them and the assets that refer to them load anew, and
@@ -169,7 +169,6 @@ reading, the import scale, clip settings, material overrides and sub-assets, is 
   load from.
 - `spot cook --out <folder>` and `spot export` import into the game's folder, beside `game.json`, whose
   `importDirectory` points at them.
-- The engine's own build cooks the sandbox's assets beside its executable.
 
 ## Asset types of other layers
 

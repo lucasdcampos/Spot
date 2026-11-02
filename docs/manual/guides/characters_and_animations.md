@@ -90,22 +90,22 @@ one long animation.
 Blend shapes, such as facial expressions, and lights and cameras in the file are skipped. Opacity textures of their
 own are not supported: put the transparency in the base color's alpha.
 
-Players and NPCs hold weapons with both hands at the model’s grip nodes. Players bleed when shot and fall into a physical ragdoll when killed, including in multiplayer. Restoring their health returns them to their animated body and movement.
+Players and NPCs hold weapons with both hands at the modelâ€™s grip nodes. Players bleed when shot and fall into a physical ragdoll when killed, including in multiplayer. Restoring their health returns them to their animated body and movement.
 
-## Sandbox character poses
+## Character locomotion poses
 
-The Sandbox player blends forward, backward and sideways steps while walking, running or crouching. Holding Aim
+Player characters can blend forward, backward and sideways steps while walking, running or crouching. Holding Aim
 raises the weapon from a low ready posture into a sighted posture; both hands follow its grip nodes. NPCs raise
 their weapons when engaging a visible enemy.
 
-To replace a Sandbox character, assign its skeleton and compatible clips to the Animator, keep the player
+To customize a character, assign its skeleton and compatible clips to the Animator, keep the player
 controller's `forward`, `sideways` and `crouching` parameters, and configure CharacterVisual's model and animator.
 The locomotion clips are in place because CharacterMovement moves the player. On WorldModel, enable `poseMount`
 and tune `readyPosition`, `aimingPosition` and their pitches for the new model's arm length. Configure the mount's
 BoneAttachment bone and each hand's TwoBoneIK bone, grip offset and elbow pole. Clips can use the animator's
 name-based retargeting for skeletons with matching bone names; other naming conventions require compatible clips.
 
-Jumping blends distinct rising and falling poses and returns to locomotion on landing. When adapting the Sandbox
+Jumping blends distinct rising and falling poses and returns to locomotion on landing. When adapting the locomotion
 controller, preserve its `airborne` boolean and `vertical` float parameters alongside the directional parameters.
 WorldModel lowers weapons during a sprint; tune `sprintPosition`, `sprintPitch` and `sprintState` for the character.
 The third-person camera now sits closer over the shoulder. On ChaseCamera, `distance` and `shoulderOffset` set the

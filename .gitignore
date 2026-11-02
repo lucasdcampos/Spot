@@ -20,7 +20,7 @@ compile_commands.json
 .DS_Store
 Thumbs.db
 
-# Logs written by the sandbox
+# Logs
 *.log
 
 # Python
@@ -28,7 +28,3 @@ Thumbs.db
 venv/
 __pycache__/
 *.pyc
-
-# The sandbox's generated assets, which its build writes; their .meta files, which hold their ids, are committed
-/sandbox/assets/generated/**/*.*
-!/sandbox/assets/generated/**/*.meta

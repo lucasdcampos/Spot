@@ -1,7 +1,6 @@
 # Gameplay toolkit
 
-The sandbox applies these APIs to component timers, weapon recoil, aiming, flash fades and coroutine-driven
-camera bob. Its F9/F10 checkpoint uses `SaveData` and expanded scene trees; see [the sandbox](sandbox.md).
+Games can apply these APIs to component timers, weapon recoil, aiming, flash fades, and coroutines. Checkpoints can use `SaveData` and scene trees.
 
 Small reusable scheduling APIs replace per-component countdowns. They receive simulation seconds from the scene,
 so the application's global `Time::SetTimeScale()` controls their speed and pauses them at zero. Tools and UI can
@@ -172,6 +171,6 @@ temporary files. This is a single-writer store; on Windows, a process interrupti
 leave a backup for recovery. Loading callbacks should read into temporary game data before applying changes if
 they need transactional changes to live objects.
 
-The sandbox uses recorded firearm shots and weapon-specific reload sequences from `sandbox/assets/sounds/`, with sources and CC0 licenses in `CREDITS.md` there. Reload events follow the magazine seating and action release animation timings; shotgun reloads use four shell insertions and a pump cycle. Shots retain their fast pressure transient and use shortened reflection tails.
+Games can use recorded firearm shots and weapon-specific reload sequences. Reload events can follow magazine seating and action release animation timings.
 
 `ImpactSounds::impactSound` overrides the material impact for objects with their own acoustic behavior. Vehicle prefabs use the dedicated crash recording, including crushing and debris, and a 0.35-second cooldown to avoid overlapping crashes from adjacent contacts. Other objects continue to use their surface's impact and the default 0.08-second cooldown. The override follows the same network effect relay as material impacts.

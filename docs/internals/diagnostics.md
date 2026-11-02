@@ -63,7 +63,7 @@ only kept on the frame's thread.
 
 Scope names are string literals, or names made at run time and kept with `Profiler::Intern()`. Scopes outside of
 frames are not recorded. Frames reuse their memory, so the profiler stays on in Release;
-`Profiler::SetEnabled(false)` turns it off. The sandbox HUD samples unscaled FPS; the `stats` developer overlay
+`Profiler::SetEnabled(false)` turns it off. The `stats` developer overlay
 adds frame time, rendering, physics, audio and resident-memory counters.
 
 Frames also count things: `Profiler::Count("Name", amount)` adds to the frame's counter of that name, which starts at

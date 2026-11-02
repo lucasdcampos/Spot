@@ -443,101 +443,13 @@ add_executable(spot_scene_benchmark benchmark/scene_benchmark.cpp)
 target_link_libraries(spot_scene_benchmark PRIVATE spot::spot)
 spot_set_compile_options(spot_scene_benchmark)
 
-# The sandbox's asset generator, when the sandbox is built.
-if(TARGET sandbox_generator_core)
-    add_executable(spot_animation_generator_tests animation_generator_tests.cpp)
-    target_link_libraries(spot_animation_generator_tests PRIVATE sandbox_generator_core Catch2::Catch2WithMain)
-    spot_set_compile_options(spot_animation_generator_tests)
-    catch_discover_tests(spot_animation_generator_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 60)
-    target_sources(spot_tests PRIVATE sandbox_generator_tests.cpp)
-    target_link_libraries(spot_tests PRIVATE sandbox_generator_core)
-endif()
-
-# The sandbox's game code on its real scenes, when the sandbox is built: the engine's integration test.
-if(TARGET sandbox)
-    add_test(NAME "Two sandbox processes join a room, move and share props on both maps"
-        COMMAND $<TARGET_FILE:sandbox> --smoke-test-network)
-    set_tests_properties("Two sandbox processes join a room, move and share props on both maps"
-        PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 180)
-    file(GLOB_RECURSE sandbox_game_sources CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/sandbox/src/*.cpp)
-    list(FILTER sandbox_game_sources EXCLUDE REGEX "/main[.]cpp$")
-    add_library(spot_sandbox_test_code OBJECT ${sandbox_game_sources})
-    target_link_libraries(spot_sandbox_test_code PUBLIC spot::spot)
-    target_include_directories(spot_sandbox_test_code PUBLIC ${PROJECT_SOURCE_DIR}/sandbox/src)
-    spot_set_compile_options(spot_sandbox_test_code)
-    spot_precompile_engine_header(spot_sandbox_test_code)
-spot_add_shaders(spot_sandbox_test_code
-    ${PROJECT_SOURCE_DIR}/sandbox/src/remote_mask.vert.hlsl
-    ${PROJECT_SOURCE_DIR}/sandbox/src/remote_mask.frag.hlsl
-    ${PROJECT_SOURCE_DIR}/sandbox/src/remote_outline.frag.hlsl
-    ${PROJECT_SOURCE_DIR}/sandbox/src/remote_fullscreen.vert.hlsl
-)
-
-    add_executable(spot_sandbox_tests
-        sandbox/sandbox_tests.cpp
-        sandbox/interface_tests.cpp
-        sandbox/level_tests.cpp
-        sandbox/feature_tests.cpp
-        sandbox/polish_tests.cpp
-        sandbox/target_tests.cpp
-        sandbox/player_tests.cpp
-        sandbox/water_tests.cpp
-        sandbox/car_tests.cpp
-        sandbox/network_playground_tests.cpp
-    )
-    # The gameplay framework's systems, each in a world of its own rather than the playground.
-    file(GLOB sandbox_gameplay_tests CONFIGURE_DEPENDS sandbox/gameplay/*.cpp)
-    target_sources(spot_sandbox_tests PRIVATE ${sandbox_gameplay_tests})
-    # The framework includes only the engine and its own folders, so it can be taken out of the sandbox.
-    add_test(NAME "The sandbox's gameplay framework includes only the engine and the folders it needs"
-        COMMAND ${CMAKE_COMMAND} -DGAMEPLAY_DIR=${PROJECT_SOURCE_DIR}/sandbox/src/gameplay
-            -P ${PROJECT_SOURCE_DIR}/sandbox/src/gameplay/check_includes.cmake
-    )
-    target_link_libraries(spot_sandbox_tests PRIVATE spot::tools spot::import spot::spot Catch2::Catch2WithMain)
-    target_include_directories(spot_sandbox_tests PRIVATE ${PROJECT_SOURCE_DIR}/sandbox/src ${CMAKE_CURRENT_SOURCE_DIR})
-    # The assets the build cooks beside the sandbox, which the tests load as the game does.
-    target_compile_definitions(spot_sandbox_tests PRIVATE
-        SANDBOX_ASSETS_DIR="${PROJECT_SOURCE_DIR}/sandbox/assets"
-        SANDBOX_IMPORTED_DIR="$<TARGET_FILE_DIR:sandbox>/imported")
-    target_link_libraries(spot_sandbox_tests PRIVATE spot_sandbox_test_code)
-    add_executable(spot_sandbox_gpu_tests sandbox/visual_tests.cpp sandbox/scenery_tests.cpp sandbox/effects_visual_tests.cpp)
-    if(SPOT_ENABLE_LUAU)
-        target_sources(spot_sandbox_tests PRIVATE sandbox/luau_tests.cpp)
-        target_sources(spot_sandbox_gpu_tests PRIVATE sandbox/luau_visual_tests.cpp)
-    endif()
-    target_link_libraries(spot_sandbox_gpu_tests PRIVATE spot_sandbox_test_code Catch2::Catch2WithMain)
-    target_include_directories(spot_sandbox_gpu_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_compile_definitions(spot_sandbox_gpu_tests PRIVATE
-        SANDBOX_IMPORTED_DIR="$<TARGET_FILE_DIR:sandbox>/imported"
-        SPOT_SANDBOX_CAPTURE_DIR="${CMAKE_CURRENT_BINARY_DIR}/sandbox_captures")
-    add_dependencies(spot_sandbox_gpu_tests sandbox_assets)
-    spot_set_compile_options(spot_sandbox_gpu_tests)
-    target_precompile_headers(spot_sandbox_gpu_tests REUSE_FROM spot_tests_precompiled_header)
-    catch_discover_tests(spot_sandbox_gpu_tests PROPERTIES LABELS gpu RUN_SERIAL TRUE TIMEOUT 120)
-    add_executable(spot_sandbox_benchmark benchmark/sandbox_benchmark.cpp)
-    target_link_libraries(spot_sandbox_benchmark PRIVATE spot_sandbox_test_code)
-    target_compile_definitions(spot_sandbox_benchmark PRIVATE
-        SANDBOX_IMPORTED_DIR="$<TARGET_FILE_DIR:sandbox>/imported"
-        SPOT_SANDBOX_BENCHMARK_DATA_DIR="${CMAKE_CURRENT_BINARY_DIR}/sandbox_benchmark")
-    add_dependencies(spot_sandbox_benchmark sandbox_assets)
-    spot_set_compile_options(spot_sandbox_benchmark)
-    target_sources(spot_gpu_tests PRIVATE ${PROJECT_SOURCE_DIR}/sandbox/src/menu_thumbnails.cpp)
-    target_compile_definitions(spot_gpu_tests PRIVATE SPOT_SANDBOX_IMPORTED_DIR="$<TARGET_FILE_DIR:sandbox>/imported")
-    add_dependencies(spot_gpu_tests sandbox_assets)
-    add_dependencies(spot_sandbox_tests sandbox_assets)
-    spot_set_compile_options(spot_sandbox_tests)
-    target_precompile_headers(spot_sandbox_tests REUSE_FROM spot_tests_precompiled_header)
-    # Full-scene Debug physics and tests with several sections can take over a minute.
-    catch_discover_tests(spot_sandbox_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 180)
-endif()
-
 # Standalone test scenes register the systems they exercise, just as a standalone engine user does.
 foreach(component_test_target IN ITEMS
     spot_tests spot_script_asset_tests spot_script_tests spot_script_shared_tests
     spot_luau_tests spot_luau_shared_tests spot_animation_tests spot_ui_tests spot_particle_tests
     spot_gameplay_tests spot_console_tests spot_profile_process_tests spot_gpu_tests spot_module_tests
     spot_editor_tools_tests spot_editor_tests spot_editor_module_tests spot_editor_gpu_tests
-    spot_animation_generator_tests spot_sandbox_tests spot_sandbox_gpu_tests)
+)
     if(TARGET ${component_test_target})
         target_sources(${component_test_target} PRIVATE register_components.cpp)
     endif()

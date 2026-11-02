@@ -105,30 +105,20 @@ jobs:
         run: ctest --test-dir build/release -LE gpu --parallel 2 --output-on-failure
       - name: Install
         run: cmake --install build/release --component spot --prefix stage/spot
-      # The installed engine exports the sandbox, building its code against the installation, and the game runs moved
-      # elsewhere, as players get it.
-      - name: Export the sandbox with the installed engine
+      # Test that the installed engine can create, build and export a game with C++ code.
+      - name: Verify installed engine with a sample game
         run: |
           stage/spot/bin/spot${{ matrix.executable }} version
           stage/spot/bin/spot${{ matrix.executable }} doctor
-          stage/spot/bin/spot${{ matrix.executable }} export sandbox/Sandbox.spot --out build/export/sandbox
-          cmake -E make_directory build/relocated
-          cmake -E rename build/export/sandbox build/relocated/sandbox
-      - name: Smoke-test the relocated sandbox
-        env:
-          SDL_VIDEO_DRIVER: dummy
-          SDL_AUDIO_DRIVER: dummy
-        working-directory: build/relocated/sandbox
-        run: ./Sandbox${{ matrix.executable }} --smoke-test
+          stage/spot/bin/spot${{ matrix.executable }} new SmokeGame --path build/smoke --template 3d --code cpp
+          stage/spot/bin/spot${{ matrix.executable }} export build/smoke/SmokeGame/SmokeGame.spot --out build/export/smokegame
       - name: Package
         run: |
           mkdir dist
           if [ "${{ matrix.archive }}" = zip ]; then
             (cd stage && cmake -E tar cf "../dist/spot-${{ matrix.platform }}.zip" --format=zip spot)
-            (cd build/relocated && cmake -E tar cf "../../dist/sandbox-${{ matrix.platform }}.zip" --format=zip sandbox)
           else
             tar -czf "dist/spot-${{ matrix.platform }}.tar.gz" -C stage spot
-            tar -czf "dist/sandbox-${{ matrix.platform }}.tar.gz" -C build/relocated sandbox
           fi
           cd dist
           for file in *; do

@@ -58,9 +58,7 @@ that builds them, found when their code is configured, since that may not be the
   with `-nightly.<date>+<commit>` (`SPOT_VERSION_SUFFIX`), and it replaces the one prerelease tagged `nightly`.
 
 Each platform's job (Windows x64, Linux x64, macOS arm64) builds Release with Ninja, runs the headless tests, installs
-into a staging folder, then uses that installed `spot` to export the sandbox, which builds its code against the
-installed package, and runs the moved export's `--smoke-test` (see [Sandbox release](sandbox_release.md)). The release
-has, per platform, `spot-<platform>.zip` or `.tar.gz` and `sandbox-<platform>.zip` or `.tar.gz`, each with a
+into a staging folder, verifies creating and exporting a sample game, and packages `spot-<platform>.zip` or `.tar.gz` with a
 `.sha256`, plus `version.txt` and the installers. Assets are named without the version, so
 `releases/latest/download/<asset>` always reaches the newest stable one.
 

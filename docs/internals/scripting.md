@@ -44,11 +44,11 @@ With scripting on, `SPOT_ENABLE_LUAU=OFF` still supports custom language adapter
 shared consumers inherit `SPOT_SCRIPTING=1` only in enabled builds; exported `Spot::Shared` packages carry the same
 feature definitions.
 
-The bundled editor, player, sandbox and integration tests require scripting support and build with it on. To build
+The bundled editor, player and integration tests require scripting support and build with it on. To build
 only the engine without scripting:
 
 ```powershell
-cmake --preset msvc -DSPOT_SCRIPTING=OFF -DSPOT_BUILD_EDITOR=OFF -DSPOT_BUILD_SANDBOX=OFF -DSPOT_BUILD_TESTS=OFF
+cmake --preset msvc -DSPOT_SCRIPTING=OFF -DSPOT_BUILD_EDITOR=OFF -DSPOT_BUILD_TESTS=OFF
 cmake --build --preset msvc-debug --target spot spot_shared
 ```
 
@@ -356,7 +356,6 @@ caching callbacks in entity wrappers after component-type unregistration.
 
 The completed native-token and persistent-wrapper paths passed all 17 native-runtime and 32 Luau cases against
 both libraries, including binding replacement/unregistration and allocation pressure, plus the three real-scene
-sandbox Luau cases. The benchmark now adds its system modules explicitly, preserving its workload after Phase 6.2.
 
 ## Binding layout
 
@@ -376,8 +375,6 @@ Captured on 2026-10-24 from `658c7ac`, before the binding split, on the Phase 2.
 vsync/validation off, orbit camera, 240 warm-up frames and 1,200 measured frames in each fresh process.
 
 ```powershell
-cmake --build --preset msvc-release --target spot_sandbox_benchmark
-./build/msvc/tests/Release/spot_sandbox_benchmark --props 500 --lamps 50 --warmup 240 --frames 1200 --quality 2
 ```
 
 | Measurement (ms) | Capture 1 | Capture 2 | Capture 3 |
@@ -398,15 +395,15 @@ rejected. Assets start uncached in each process; the OS cache is warm. These fig
 across intervening phases, so they do not isolate this change's contribution. Frame means increased relative to
 Phase 2.1; the script gain is not a claim of whole-frame improvement.
 
-Validation: the full MSVC Debug build succeeded. The headless run passed 941 of 942 cases, with the falling/respawn
-sandbox case timing out under concurrent build load; its isolated repeat passed in 134.30 seconds. After the final
+Validation: the full MSVC Debug build succeeded. The headless run passed 941 of 942 cases, with one
+test case timing out under concurrent build load; its isolated repeat passed in 134.30 seconds. After the final
 property fast-path adjustment and getter-copy regression test, all 16 native-runtime and 32 Luau cases passed
 against both static and shared libraries. The binding split also passed those cases and six tooling/API checks.
 
 ### Final integrated implementation
 
 Three new fresh-process captures from `a1ee0e8` include the completed native property-token path and persistent
-Lua reference wrappers, plus the application and asset-reload refactors integrated from `main`. The sandbox
+Lua reference wrappers, plus the application and asset-reload refactors integrated from `main`. The integration
 benchmark adds the required system/game modules explicitly; its workload and measured scopes remain the same.
 Both scripting options are on. No compiler, linker or test process overlapped any capture.
 

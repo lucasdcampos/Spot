@@ -15,7 +15,6 @@ all layers, allowing a player's body to appear even if the main camera hides tha
 The reflection updates with moving objects and animated characters. Other mirrors are not
 reflected recursively. Reflections omit shadow maps and expensive screen effects.
 
-The sandbox playground has a mirror above the workshop workbench.
 
 For a material fallback outside the capture distance, place a thin mesh just behind the mirror surface.
 The workshop uses its chrome material this way. Its mirror excludes layer 29, which holds both this backing

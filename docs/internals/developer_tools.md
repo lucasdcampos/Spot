@@ -74,8 +74,7 @@ The overlays, screenshots, RenderDoc captures and profile streaming are `DevTool
 (`engine/spot/runtime/dev_tools_module.h`), which development builds and the editor add first, so the console sees
 events before the game and draws over everything. It registers the `stats`, `screenshot`, `capture` and
 `profiler.stream` commands, connects to RenderDoc when it is made, before the graphics device, and streams profiled
-frames as they complete. Set the game's imported UI font with `DevToolsModule::SetFont()`; the sandbox uses its HUD
-font. It draws `DrawConsoleOverlay()` with the public `Renderer2D` after the game's rendering, including when scene
+frames as they complete. Set the game's imported UI font with `DevToolsModule::SetFont()`. It draws `DrawConsoleOverlay()` with the public `Renderer2D` after the game's rendering, including when scene
 rendering is disabled. Tools can turn the overlay off (`DevToolsConfig::consoleOverlay`); the editor uses its own
 console panel.
 Its command field executes the shared registry, logs results, completes with Tab and browses with Up/Down.
@@ -92,7 +91,7 @@ combine 3D, shadow draw calls and Renderer2D; triangle counts include the main 3
 resident memory, including assets and backend allocations; it does not measure dedicated GPU memory and is zero
 when the platform cannot query it. The setting persists with the other saved cvars. Other systems add lines below
 while they exist with a `StatsSection`, whose text `RuntimeStats::Sample()` asks for each time; `NetworkModule` adds its
-session's, and games may add theirs, as the sandbox does for its prediction's corrections.
+session's, and games may add theirs.
 
 `RuntimeStats::Sample()` also works without graphics. When recording is disabled, FPS uses the unscaled frame
 clock and rendering counts are zero instead of showing stale recordings. Applications record bodies, voices and

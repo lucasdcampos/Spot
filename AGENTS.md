@@ -12,7 +12,6 @@ layers, each usable from code on its own; the editor and the tools are programs 
 - `cli/` – `spot`, the command line: `new`, `cook`, `build`, `run` and `export`
 - `player/` – `spot_player`, which runs games without C++ code from their `game.json`
 - `examples/` – one small program per way of using the engine, run by the tests
-- `sandbox/` – the sample project (`Sandbox.spot`), built into the `sandbox` executable
 - `tests/` – Catch2 tests
 - `scripts/` – the installers, which install releases or builds of the source (`cmake/spot_install.cmake`)
 - `docs/` – `manual/` for making games with Spot, `internals/` a page per system for working on it
@@ -29,8 +28,8 @@ ctest --preset msvc-debug-gpu        # GPU tests, when rendering, shaders or gra
 GPU tests open real windows and run one at a time: run the relevant ones (`-R <pattern>`) only for changes that can
 affect what is drawn, and never two GPU suites at once. When a graphics backend or a shader changes, run the whole GPU
 suite on each backend (`msvc-debug-gpu-sdl-gpu`, `msvc-debug-gpu-vulkan`). The `-all` presets run everything; Release
-presets have the same variants. `./run.ps1` or `./run.sh` build and run the sandbox (`editor` runs the editor, `debug` a
-Debug build, `no-build` skips building, `cli <arguments>` runs `spot` with them in the current folder).
+presets have the same variants. `./run.ps1` or `./run.sh` build and run the `spot` CLI, forwarding any arguments
+to it in the caller's folder (`debug` builds Debug, `no-build` skips building; e.g. `./run.ps1 run`, `./run.ps1 new <name>`).
 
 Shaders are HLSL (`*.vert.hlsl`, `*.frag.hlsl`), compiled by `spot_add_shaders()` (`cmake/spot_shaders.cmake`) into
 a header per shader with a ready-to-use `Spot::ShaderDesc`.
@@ -52,7 +51,7 @@ a header per shader with a ready-to-use `Spot::ShaderDesc`.
 - Every source asset has a `.meta` file beside it, committed with it; never edit its ids by hand. New source formats
   get an importer in `engine/spot/import/importers/`, and a change to an imported format bumps its importer's version.
 - Scripting API changes update `ScriptApi::Types` (`engine/spot/scene/scripting/script_api.h`), the editor's Luau
-  highlighting and its tests, the scripts they affect, the sandbox's included, and the generated scripting reference
+  highlighting and its tests, the scripts they affect, and the generated scripting reference
   (run the tests with `SPOT_UPDATE_DOCS=1`), in the same change.
 
 ## Tests
@@ -61,7 +60,6 @@ a header per shader with a ready-to-use `Spot::ShaderDesc`.
 - GPU tests go in `tests/gpu_tests.cpp` and are skipped where no GPU is available. Golden-image tests
   (`tests/golden_tests.cpp`) compare scenes with `tests/golden/`: when a change to how things look is meant, run them
   with `SPOT_UPDATE_GOLDEN=1`, look at the new images and commit them with the change.
-- Sandbox tests (`tests/sandbox/`) run the sandbox's game code on its real scenes, headless, with simulated input.
 - Editor tests go in `tests/editor/`: headless (`spot_editor_tests`), GPU (`spot_editor_gpu_tests`) and project code
   builds (`spot_editor_module_tests`, slow).
 
