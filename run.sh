@@ -39,7 +39,10 @@ case "$config" in
     *) configDir=Debug ;;
 esac
 
-executable="$root/build/$preset/cli/$configDir/$executableName"
+executable="$root/build/$preset/tools/cli/$configDir/$executableName"
+if [ ! -x "$executable" ]; then
+    executable="$root/build/$preset/cli/$configDir/$executableName"
+fi
 if [ ! -x "$executable" ]; then
     echo "Executable '$executable' not found or not executable. Run './run.sh' to build it first." >&2
     exit 1

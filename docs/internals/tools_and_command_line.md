@@ -1,7 +1,7 @@
 # Tools and the command line
 
 The tools make games out of projects. They are `spot_tools` (`spot::tools`, `tools/`), shared by the editor and the
-command line, and `spot` (target `spot_cli`, `cli/`), the command line itself. The tools are built against the
+command line, and `spot` (target `spot_cli`, `tools/cli/`), the command line itself. The tools are built against the
 engine's headers only, so whatever links them links one engine library itself.
 
 ## Projects

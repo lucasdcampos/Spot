@@ -84,7 +84,6 @@ add_subdirectory(engine)
 if(SPOT_BUILD_EDITOR OR SPOT_BUILD_TESTS OR SPOT_BUILD_EXAMPLES)
     add_subdirectory(player)
     add_subdirectory(tools)
-    add_subdirectory(cli)
 endif()
 
 if(SPOT_BUILD_EDITOR)

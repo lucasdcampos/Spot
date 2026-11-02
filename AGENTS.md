@@ -8,8 +8,7 @@ layers, each usable from code on its own; the editor and the tools are programs 
 - `engine/` – the engine, its modules in `engine/spot/`: static library `spot` (`spot::spot`), and shared library
   `spot_shared` for the editor and the game code it loads
 - `editor/` – the editor (`spot_editor`, Dear ImGui); everything but `main.cpp` is `spot_editor_core`
-- `tools/` – `spot_tools`, which makes games out of projects, for the editor and the command line
-- `cli/` – `spot`, the command line: `new`, `cook`, `build`, `run` and `export`
+- `tools/` – `spot_tools`, which makes games out of projects, for the editor and the command line (`tools/cli/`, target `spot_cli`, binary `spot`)
 - `player/` – `spot_player`, which runs games without C++ code from their `game.json`
 - `examples/` – one small program per way of using the engine, run by the tests
 - `tests/` – Catch2 tests

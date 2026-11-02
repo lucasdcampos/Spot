@@ -205,7 +205,7 @@ target_link_libraries(spot_console_tests PRIVATE spot::spot Catch2::Catch2WithMa
 spot_set_compile_options(spot_console_tests)
 catch_discover_tests(spot_console_tests PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy" TIMEOUT 30)
 add_library(spot_capture_fixture SHARED frame_capture_fixture.cpp)
-target_include_directories(spot_capture_fixture SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party/renderdoc)
+target_include_directories(spot_capture_fixture SYSTEM PRIVATE ${renderdoc_SOURCE_DIR})
 spot_set_compile_options(spot_capture_fixture)
 target_compile_definitions(spot_console_tests PRIVATE SPOT_CAPTURE_FIXTURE="$<TARGET_FILE:spot_capture_fixture>")
 add_dependencies(spot_console_tests spot_capture_fixture)

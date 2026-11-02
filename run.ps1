@@ -37,7 +37,10 @@ try {
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
 
-    $executable = Join-Path $PSScriptRoot "build/msvc/cli/$config/$executableName.exe"
+    $executable = Join-Path $PSScriptRoot "build/msvc/tools/cli/$config/$executableName.exe"
+    if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
+        $executable = Join-Path $PSScriptRoot "build/msvc/cli/$config/$executableName.exe"
+    }
     if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
         Write-Error "Executable '$executable' not found. Run './run.ps1' to build it first."
         exit 1

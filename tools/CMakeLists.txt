@@ -62,3 +62,5 @@ set_property(SOURCE install/installation.cpp APPEND PROPERTY COMPILE_DEFINITIONS
 )
 # What the tools build games against, and run games without code with, comes with them.
 add_dependencies(spot_tools spot_shared spot_player)
+
+add_subdirectory(cli)

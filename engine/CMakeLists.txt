@@ -523,7 +523,6 @@ FetchContent_Declare(stb
 )
 FetchContent_MakeAvailable(stb)
 target_include_directories(spot_objects SYSTEM PRIVATE ${stb_SOURCE_DIR})
-target_include_directories(spot_objects SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/third_party/renderdoc)
 
 # LZ4 compresses the assets of paks; only its one source file is built, without its CMake project.
 FetchContent_Declare(lz4
@@ -566,6 +565,17 @@ FetchContent_Declare(dr_libs
 )
 FetchContent_MakeAvailable(dr_libs)
 target_include_directories(spot_objects SYSTEM PRIVATE ${dr_libs_SOURCE_DIR})
+
+# RenderDoc application API for frame captures.
+FetchContent_Declare(renderdoc
+    URL https://raw.githubusercontent.com/baldurk/renderdoc/v1.35/renderdoc/api/app/renderdoc_app.h
+    URL_HASH SHA256=0ab27bfa81235ebfc8f4c48111399ea81477eb4f77665e6209c9247daee91b94
+    DOWNLOAD_NO_EXTRACT TRUE
+    SYSTEM
+)
+FetchContent_MakeAvailable(renderdoc)
+set(renderdoc_SOURCE_DIR "${renderdoc_SOURCE_DIR}" PARENT_SCOPE)
+target_include_directories(spot_objects SYSTEM PRIVATE ${renderdoc_SOURCE_DIR})
 
 # The backend is chosen at build time. Its types never reach the public headers, so swapping it does not
 # change the engine API.

@@ -66,7 +66,7 @@ leaves it out. A module header compiles on its own (`tests/module_headers/`).
 | `runtime/` | `<spot/runtime.h>` | `Application`, the default game loop with scenes, and what runs a game: settings, the console, save data, profile streaming, game modules |
 | `scene/<module>/`: `scene/rendering/`, `scene/physics/`, `scene/audio/`, `scene/ui/`, `scene/net/`… | `<spot/modules.h>` | Each system's components and scene systems, built on its public API (rendering level 3): `MeshRenderer`, `Rigidbody`, `PhysicsWorld`, `SceneRenderer`, the entity-based UI, `NetworkObject` and `NetworkSystem` |
 | `scene/scripting/` | `<spot/scripting.h>` | Luau scripts and their bindings |
-| `import/`, then `tools/`, `cli/`, `player/` and `editor/` outside the engine | | Importing and making games out of projects, which games never link |
+| `import/`, then `tools/` (including `tools/cli/`), `player/` and `editor/` outside the engine | | Importing and making games out of projects, which games never link |
 
 Backends live in their system's folder, behind its contract: Vulkan through NVRHI in `graphics/nvrhi/` and SDL_GPU in `graphics/sdl_gpu/`, SDL3 audio in
 `audio/sdl3/`, Jolt in `physics/jolt/`, Box2D in `physics/box2d/`, ENet in `net/enet/`. Public headers never show backend types.
