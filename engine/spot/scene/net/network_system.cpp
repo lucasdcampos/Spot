@@ -214,6 +214,10 @@ struct NetworkSystem::Object {
     // While a client decides it: how many times the server put it somewhere, which that client's states carry; the
     // server ignores those sent before the latest.
     std::uint32_t placement = 0;
+    // On the client deciding it: the state it sent last, how many times in a row, and when.
+    std::vector<std::byte> sentState;
+    std::uint32_t sentRepeats = 0;
+    double sentTime = 0.0;
 };
 
 struct NetworkSystem::Peer {
@@ -222,12 +226,13 @@ struct NetworkSystem::Peer {
         bool spawned = false;
         std::uint8_t ackedOwned = 0;
         bool sent = false;
-        std::vector<std::byte> ackedState;
-        std::vector<std::byte> lastSentState;
         std::uint8_t lastSentOwned = 0;
+        std::uint64_t lastSentRevision = 0;
         std::uint32_t lastChangeSequence = 0;
         std::uint64_t ackedRevision = 0;
         float accumulator = 0.0f;
+        // Seconds since it was last sent to this client, by the snapshots' time.
+        float sinceSent = 1000.0f;
     };
     struct Despawn {
         bool byKey = false;
@@ -238,7 +243,6 @@ struct NetworkSystem::Peer {
     struct Sent {
         NetworkId id = NetworkId::Invalid;
         std::uint8_t owned = 0;
-        std::vector<std::byte> state;
         std::uint64_t revision = 0;
     };
     struct Snapshot {
@@ -254,6 +258,8 @@ struct NetworkSystem::Peer {
     std::vector<Despawn> pendingDespawns;
     std::deque<Snapshot> history;
     std::uint32_t nextSequence = 1;
+    // The share of the snapshot budget this client gets, less while what it is sent is being lost.
+    float budgetScale = 1.0f;
     // What the client decides, shown on the server.
     OwnerClock ownerClock;
     ShownDelay ownerDelay;
@@ -271,6 +277,8 @@ struct NetworkSystem::State {
     // The bodies made kinematic as another machine decides them, with whether they were before.
     std::unordered_map<const NetworkObject*, bool> kinematic;
     float sendTimer = 0.0f;
+    // On the server: snapshots made so far, by which bodies at rest take turns being read.
+    std::uint32_t sends = 0;
     // On clients: whether the server was told which scene this one runs.
     bool toldScene = false;
     // On clients: the snapshots received, to acknowledge.
@@ -325,6 +333,7 @@ void NetworkSystem::Reset() {
     m_state = std::make_unique<State>();
     m_bound = false;
     m_synchronized = false;
+    m_announced = false;
 }
 
 bool NetworkSystem::IsPeerReady(NetPeerId peer) const {
@@ -524,8 +533,13 @@ void NetworkSystem::TellScene() {
     BitWriter writer;
     writer.WriteBits(static_cast<std::uint32_t>(ReliableKind::SceneReady), 8);
     WriteAssetId(writer, GetScene().GetSourceAsset());
+    writer.WriteVarUInt(m_session->GetSceneGeneration());
     m_session->GetHost().Send(m_session->GetServerPeer(), NetworkSession::ReplicationChannel, writer.TakeBytes(),
                               NetDelivery::Reliable);
+}
+
+void NetworkSystem::TellSceneAgain() {
+    m_state->toldScene = false;
 }
 
 void NetworkSystem::OnBeforeFixedSteps(float /*deltaTime*/) {
@@ -673,7 +687,10 @@ void NetworkSystem::Receive(NetPeerId peer, std::uint8_t channel, std::span<cons
     const bool reliable = channel == NetworkSession::ReplicationChannel;
     if (reliable && kind == static_cast<std::uint32_t>(ReliableKind::SceneReady)) {
         const AssetId scene = ReadAssetId(reader);
-        if (IsServer() && reader.IsValid() && scene == GetScene().GetSourceAsset()) {
+        const std::uint64_t generation = reader.ReadVarUInt();
+        // Once for each scene: starting over would have the whole world sent again each time a client asks.
+        if (IsServer() && reader.IsValid() && scene == GetScene().GetSourceAsset() &&
+            generation == m_session->GetSceneGeneration() && !IsPeerReady(peer)) {
             Peer& state = m_state->peers[peer] = Peer{};
             state.ready = true;
             // The scene's objects that still exist: the client lets go of the others, destroyed before it came.
@@ -889,8 +906,17 @@ void NetworkSystem::ServerSend(float deltaTime) {
     const float elapsed = m_state->sendTimer;
     m_state->sendTimer = std::fmod(m_state->sendTimer, interval);
 
+    ++m_state->sends;
     for (auto& [id, entry] : m_state->objects) {
         if (entry.object) {
+            // What rests rarely changes, and reading the whole world each time is what a large room costs most. What
+            // else it has, as a color, comes at most a few snapshots late.
+            constexpr std::uint32_t RestingTurns = 8;
+            const auto* body = entry.object->GetEntity().GetComponent<Rigidbody>();
+            if (!entry.wasChanging && body && !body->IsKinematic() && body->IsSleeping() &&
+                (m_state->sends + static_cast<std::uint32_t>(id)) % RestingTurns != 0) {
+                continue;
+            }
             std::vector<std::byte> state = WriteState(*entry.object);
             const bool changed = state != entry.state;
             // Clients infer velocity from transform samples. They need one identical sample after motion stops,
@@ -909,6 +935,8 @@ void NetworkSystem::ServerSend(float deltaTime) {
             continue;
         }
         const Entity* focus = GetScene().GetEntity(peer.focus);
+        const float resendAfter =
+            std::clamp(m_session->GetHost().GetStats(peerId).roundTrip * 1.5f, interval * 2.0f, 0.5f);
         struct Candidate {
             NetworkId id;
             float accumulator;
@@ -921,7 +949,7 @@ void NetworkSystem::ServerSend(float deltaTime) {
             Peer::Known& known = peer.known[id];
             const std::uint8_t owned = GetOwnership(*entry.object, peerId);
             if (known.spawned && known.ackedSequence >= known.lastChangeSequence && known.ackedOwned == owned &&
-                known.ackedState == entry.state && known.ackedRevision == entry.revision) {
+                known.ackedRevision == entry.revision) {
                 continue;
             }
             float scale = 1.0f;
@@ -930,6 +958,17 @@ void NetworkSystem::ServerSend(float deltaTime) {
                 const float distance = Distance(focus->GetTransform().GetWorldPosition(),
                                                 entry.object->GetEntity().GetTransform().GetWorldPosition());
                 scale = radius / std::max(radius, distance);
+            }
+            known.sinceSent += elapsed;
+            // Beyond its radius it is sent less often, down to an eighth; and a change this client has on its way is
+            // not sent again until its acknowledgement should have come.
+            const bool seen = known.spawned && known.lastSentOwned == owned;
+            if (seen && known.sinceSent < interval / std::max(scale, 0.125f) - interval * 0.5f) {
+                continue;
+            }
+            if (known.sent && known.lastSentOwned == owned && known.lastSentRevision == entry.revision &&
+                known.sinceSent < resendAfter) {
+                continue;
             }
             known.accumulator += std::max(entry.object->priority, 0.01f) * scale * elapsed;
             // What has never been seen comes first, so clients have it to apply its parts' states to.
@@ -949,11 +988,17 @@ void NetworkSystem::ServerSend(float deltaTime) {
             writer.WriteVarUInt(despawn.value);
         }
 
+        // Less while the way to this client loses what it is sent, and back slowly: what does not fit waits.
+        const float loss = m_session->GetHost().GetStats(peerId).loss;
+        peer.budgetScale = loss > 0.05f ? std::max(peer.budgetScale * 0.98f, 0.25f)
+                                        : std::min(peer.budgetScale + 0.002f, 1.0f);
+        const auto budget = static_cast<std::size_t>(static_cast<float>(m_config.snapshotBudget) * peer.budgetScale);
+
         BitWriter entries;
         std::size_t count = 0;
         std::unordered_set<NetworkId> written;
         for (const Candidate& candidate : candidates) {
-            if (entries.GetBitCount() / 8 >= m_config.snapshotBudget) {
+            if (entries.GetBitCount() / 8 >= budget) {
                 break;
             }
             Object& entry = m_state->objects[candidate.id];
@@ -992,17 +1037,17 @@ void NetworkSystem::ServerSend(float deltaTime) {
             entries.WriteVarUInt(entry.state.size());
             entries.WriteBytes(entry.state);
             known.sent = true;
-            // A state may return to the acknowledged baseline after an unacknowledged change. Keep sending that
-            // return until it too is acknowledged, since the client may have seen the change and lost its ACK.
-            if (known.lastSentOwned != owned || known.lastSentState != entry.state) {
+            // The hold may return to the acknowledged one after an unacknowledged change. Keep sending that return
+            // until it too is acknowledged, since the client may have seen the change and lost its ACK.
+            if (known.lastSentOwned != owned || known.lastSentRevision != entry.revision) {
                 known.lastChangeSequence = snapshot.sequence;
                 known.lastSentOwned = owned;
-                known.lastSentState = entry.state;
+                known.lastSentRevision = entry.revision;
             }
             known.accumulator = 0.0f;
+            known.sinceSent = 0.0f;
             written.insert(candidate.id);
-            snapshot.sent.push_back(
-                {.id = candidate.id, .owned = owned, .state = entry.state, .revision = entry.revision});
+            snapshot.sent.push_back({.id = candidate.id, .owned = owned, .revision = entry.revision});
             ++count;
         }
         writer.WriteVarUInt(count);
@@ -1048,7 +1093,6 @@ void NetworkSystem::ServerReceiveAck(NetPeerId peerId, BitReader& reader) {
             known->second.ackedSequence = snapshot.sequence;
             known->second.spawned = true;
             known->second.ackedOwned = sent.owned;
-            known->second.ackedState = std::move(sent.state);
             known->second.ackedRevision = sent.revision;
         }
         for (const Peer::Despawn& despawn : snapshot.despawns) {
@@ -1062,7 +1106,7 @@ void NetworkSystem::ServerReceiveOwnerState(NetPeerId peer, BitReader& reader) {
     const double ownerTime = reader.ReadDouble();
     const auto placement = static_cast<std::uint32_t>(reader.ReadVarUInt());
     const std::vector<std::byte> state = ReadBlob(reader);
-    NetworkObject* object = reader.IsValid() ? FindObject(id) : nullptr;
+    NetworkObject* object = reader.IsValid() && std::isfinite(ownerTime) ? FindObject(id) : nullptr;
     const auto found = m_state->peers.find(peer);
     if (!object || object->authority != NetworkAuthority::Owner || object->GetOwner() != peer ||
         found == m_state->peers.end() || m_state->objects[id].placement != placement) {
@@ -1142,7 +1186,7 @@ void NetworkSystem::ClientReceiveSceneObjects(BitReader& reader) {
 void NetworkSystem::ClientReceiveSnapshot(BitReader& reader) {
     const std::uint32_t sequence = reader.ReadBits(32);
     const double time = reader.ReadDouble();
-    if (!reader.IsValid()) {
+    if (!reader.IsValid() || !std::isfinite(time)) {
         return;
     }
     if (sequence > m_state->lastReceived) {
@@ -1332,22 +1376,33 @@ void NetworkSystem::ClientSend(float deltaTime) {
     m_state->sendTimer = std::fmod(m_state->sendTimer, interval);
     // When it had them, by its estimate of the server's clock, for the server to space them as they were made.
     const double time = GetStateTime();
+    bool sentAny = false;
     for (auto& [id, entry] : m_state->objects) {
         if (!entry.object || entry.object->authority != NetworkAuthority::Owner || !entry.object->HasAuthority()) {
             continue;
         }
+        // Where it is and what the owner decides: what else it has, as its health or who rides it, stays the
+        // server's.
+        std::vector<std::byte> state = WriteState(*entry.object, true);
+        // At rest, a prop given to this machine costs nothing but a state now and then. It stops being sent only after
+        // two the same, as the server infers velocity from them; and one object always goes, by which the server
+        // knows how often states come and how far back to show them.
+        entry.sentRepeats = state == entry.sentState ? entry.sentRepeats + 1 : 0;
+        if (entry.sentRepeats >= 2 && sentAny && time - entry.sentTime < 0.5) {
+            continue;
+        }
+        sentAny = true;
+        entry.sentTime = time;
         BitWriter writer;
         writer.WriteBits(static_cast<std::uint32_t>(UnreliableKind::OwnerState), 8);
         writer.WriteVarUInt(static_cast<std::uint32_t>(id));
         writer.WriteDouble(time);
         writer.WriteVarUInt(entry.placement);
-        // Where it is and what the owner decides: what else it has, as its health or who rides it, stays the
-        // server's.
-        const std::vector<std::byte> state = WriteState(*entry.object, true);
         writer.WriteVarUInt(state.size());
         writer.WriteBytes(state);
         m_session->GetHost().Send(server, NetworkSession::UnreliableChannel, writer.TakeBytes(),
                                   NetDelivery::Sequenced);
+        entry.sentState = std::move(state);
     }
 }
 

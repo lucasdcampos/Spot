@@ -70,6 +70,8 @@ public:
     Signal<NetPeerId> OnPeerReady;
     // On clients: whether the server took this scene as its own and sent its first snapshot.
     bool IsSynchronized() const { return m_synchronized; }
+    // On clients: says again which scene this one runs, as when it turns out to be the one the server asks for.
+    void TellSceneAgain();
 
     // On the server: gives an object, and those below it, to a client, or back to the server with Invalid.
     void SetOwner(NetworkObject& object, NetPeerId owner);
@@ -147,6 +149,7 @@ protected:
 
 private:
     friend class NetworkSession;
+    friend class NetworkModule;
     struct Object;
     struct Peer;
     struct State;
@@ -193,6 +196,8 @@ private:
     NetworkObject* m_dispatching = nullptr;
     bool m_bound = false;
     bool m_synchronized = false;
+    // On servers: whether the session's clients were told of this scene (NetworkModule).
+    bool m_announced = false;
     Statistics m_statistics;
 };
 

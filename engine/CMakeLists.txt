@@ -430,6 +430,7 @@ add_library(spot_objects OBJECT
     spot/net/net_conditions.cpp
     spot/net/net_discovery.h
     spot/net/net_discovery.cpp
+    spot/net/net_rate_limit.h
     spot/net/net_host.h
     spot/net/net_host.cpp
     spot/net/net_messages.h

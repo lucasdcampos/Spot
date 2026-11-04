@@ -10,9 +10,10 @@ client in one process, and `tests/network_tests.cpp`.
 `NetTransport` (`net/net_transport.h`) is the contract of the backends: open a port, connect, send on a channel with
 a `NetDelivery` (`Reliable`, in order; `Unreliable`; `Sequenced`, never older after newer), disconnect, and poll
 events. `CreateNetTransport()` makes the platform's, ENet over UDP, in `net/enet/`; it is the only file that includes
-ENet, and ENet 1.3 speaks IPv4 only. ENet's packet throttle is kept open for every peer: it drops unreliable packets
+ENet, and ENet 1.3 speaks IPv4 only, and packets are limited to 1 MB, what a client can have a server hold. ENet's packet throttle is kept open for every peer: it drops unreliable packets
 at the sender whenever round trips rise above their recent low, as they do on Wi-Fi, and replication limits what it
-sends by its own budgets. `NetDatagramSocket` sends single packets without connections, for discovery.
+sends by its own budgets. Both ends compress packets with ENet's range coder, and a peer is taken as gone after 15 to 30
+seconds without an answer, as a machine loading a map does not answer. `NetDatagramSocket` sends single packets without connections, for discovery.
 
 - **Loopback** (`LoopbackNetwork`): transports and sockets of one process that reach one another by port, delivering
   at the receiver's next poll, in order and without loss. The tests run servers and clients through it, with no
@@ -31,11 +32,16 @@ within `handshakeTimeout` are dropped.
 Data is written with `BitWriter` and read with `BitReader` (`net/bit_stream.h`), which fails instead of reading past
 the end, so a packet is checked once after it is read. `NetQuantize` writes ranged floats, angles and rotations
 (smallest three) in fewer bits. `NetArchiveWriter` and `NetArchiveReader` are `Archive` backends that write fields
-in order, without names and exactly, so messages and replicated state are described as saved data is. Entity ids
-differ between machines, so a `NetEntityMapper` turns them into ids both know.
+in order, without names and exactly, or in `FieldOptions::netBits` bits, so messages and replicated state are described as saved data is. The reader
+fails on values that are not numbers, NaN or infinite, so what a machine sends cannot spread them through another's
+physics; what must be infinite does not cross. Entity ids differ between machines, so a `NetEntityMapper` turns them
+into ids both know.
 
 Messages (`net/net_messages.h`) are structs with a `NetName` and a `Serialize(Archive&)`; their id on the wire is the
 FNV-1a hash of the name. `NetMessageHandlers` calls the handler of each type and refuses unknown or truncated ones.
+
+`NetRateLimit` says how often a peer may have something done, for what a server does for each message clients can send
+as fast as they like.
 
 `NetDiscovery` broadcasts a query on a port; every `NetDiscoveryResponder` of the same protocol listening there answers
 with what the game gives it, such as a server's name and port.
@@ -82,10 +88,11 @@ Snapshots, and the states owners send, carry the time their state was made at: t
 fixed steps began, less what they left for the next frame (`Scene::GetFixedTimeLeft()`). Stamped with the clock when
 sent, the fixed-step remainder and frames of two or three steps became jitter in what others showed.
 
-Every `1 / sendRate` seconds the server writes each object's state once, and, for each ready client, sends what
-differs from what that client acknowledged: spawn information until a snapshot holding it is acknowledged, the
-owner flag, and the state. Changes are taken by an accumulated priority (`NetworkObject::priority`, lower beyond
-`relevanceRadius` from the client's focus, `SetFocus()`), never-seen objects first, until `snapshotBudget` bytes;
+Every `1 / sendRate` seconds the server writes each object's state once, a body at rest only every eighth time, and, for
+each ready client, sends what differs from what that client acknowledged, and was not sent to it so lately that its
+acknowledgement could not have come: spawn information until a snapshot holding it is acknowledged, the
+owner flag, and the state. Changes are taken by an accumulated priority (`NetworkObject::priority`, lower and sent less often, down to an eighth,
+beyond `relevanceRadius` from the client's focus, `SetFocus()`), never-seen objects first, until `snapshotBudget` bytes;
 the rest wait. A child is sent only once its root is known to the client. Despawns go in every snapshot until one
 holding them is acknowledged: by saved id for scene objects, by network id for spawned ones.
 
@@ -93,9 +100,12 @@ Clients acknowledge the latest snapshot with a mask of the 32 before it, unrelia
 server keeps 64 snapshots per client to match acknowledgements to what they held. Nothing is resent by the
 transport: state that was lost differs from what was acknowledged, so it goes again.
 
-Each peer also remembers the last state sent for an object and the sequence of its latest change. A return to an
-older acknowledged value must be sent until a snapshot after that change is acknowledged too: the client may have
-seen an intermediate value whose acknowledgement was lost. This includes the ownership flag.
+Each object counts the changes of its state, and each peer remembers the count it acknowledged, rather than a copy of
+the state. A hold returning to an older acknowledged value must be sent until a snapshot after that change is
+acknowledged too: the client may have seen an intermediate value whose acknowledgement was lost.
+
+A client that loses more than 5% of what it is sent gets less of `snapshotBudget`, down to a quarter, which comes back
+slowly once the loss ends.
 
 Clients register all spawns in a snapshot before reading replicated fields, so references to later entries resolve
 regardless of send order. If the budget splits the objects across snapshots, the client retains the latest state
@@ -138,7 +148,8 @@ arrive (following earlier arrivals at once, later ones slowly), so their spacing
 jitter is lateness, and shows the object as far back as that client's states need (`GetShownDelay(peer)`, adapting as
 clients do). It forwards the owner's transform in its snapshots as it came, with its time, rather than as it showed
 it, so the other clients move the object as the owner did, interpolated once; they show everything far enough back
-for those states too. When a client leaves, what it owned goes back to the server.
+for those states too. An object at rest is sent twice more and then every half second, as long as another one's state
+goes each time. When a client leaves, what it owned goes back to the server.
 
 The server may change an object's authority while the game runs, setting `authority` before `SetOwner()`, so a client
 decides an object for a while, as a prop its player pushes. Snapshots tell each client, in two bits, whether it owns an
@@ -154,8 +165,10 @@ those of clients not ready; a client drops those of objects it does not know.
 `NetworkModule` hosts (`Host()`) or joins (`Join()`) a session over the platform's transport, wrapped in the
 conditions the `net.lag`, `net.jitter` and `net.loss` console settings give, and binds the application's scene to it
 each frame. The server sends each client the scene asset it runs (`Scene::GetSourceAsset()`, set by
-`InstantiateScene()`), when it joins and whenever the scene changes; a client loads it, and its system tells the
-server which scene it runs once connected: the server replicates only to clients running its scene. `Leave()` tells
+`InstantiateScene()`), when it joins and whenever the scene changes, starting the same one anew included, with a count
+of the scenes it ran (`NetworkSession::GetSceneGeneration()`); a client loads it, and its system tells the server which
+scene it runs, once for each, once connected: the server replicates only to clients running its scene, and that start of
+it. A client asked for the scene it came with keeps it, as it would be loaded the same. `Leave()` tells
 the other machines and lets the scene play alone. The profiler counts replicated objects and snapshot bytes.
 
 With `stats` on, the statistics overlay shows the session, measured over each second: the round trip, jitter, loss
