@@ -60,6 +60,9 @@ void NetworkSession::Update() {
 }
 
 double NetworkSession::GetLocalTime() const {
+    if (m_clock) {
+        return m_clock();
+    }
     return std::chrono::duration<double>(std::chrono::steady_clock::now() - m_start).count();
 }
 

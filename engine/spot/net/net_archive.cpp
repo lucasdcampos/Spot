@@ -1,5 +1,8 @@
 #include "spot/net/net_archive.h"
 
+#include "spot/net/net_quantize.h"
+
+#include <cmath>
 #include <limits>
 
 namespace Spot {
@@ -13,6 +16,15 @@ void ReadInto(BitReader& reader, T& value, Read read) {
     if (reader.IsValid()) {
         value = readValue;
     }
+}
+
+// What is not a number never is valid data, and would spread through whatever computes with it, as the physics.
+float ReadFinite(BitReader& reader) {
+    const float value = reader.ReadFloat();
+    if (!std::isfinite(value)) {
+        reader.Fail();
+    }
+    return value;
 }
 
 } // namespace
@@ -37,8 +49,14 @@ void NetArchiveWriter::Field(std::string_view, std::uint64_t& value, const Field
     m_writer->WriteVarUInt(value);
 }
 
-void NetArchiveWriter::Field(std::string_view, float& value, const FieldOptions&) {
-    m_writer->WriteFloat(value);
+void NetArchiveWriter::Field(std::string_view, float& value, const FieldOptions& options) {
+    if (options.netBits > 0 && options.angle) {
+        NetQuantize::WriteAngle(*m_writer, value, options.netBits);
+    } else if (options.netBits > 0 && options.min < options.max) {
+        NetQuantize::WriteFloat(*m_writer, value, options.min, options.max, options.netBits);
+    } else {
+        m_writer->WriteFloat(value);
+    }
 }
 
 void NetArchiveWriter::Field(std::string_view, double& value, const FieldOptions&) {
@@ -131,12 +149,26 @@ void NetArchiveReader::Field(std::string_view, std::uint64_t& value, const Field
     ReadInto(*m_reader, value, [&] { return m_reader->ReadVarUInt(); });
 }
 
-void NetArchiveReader::Field(std::string_view, float& value, const FieldOptions&) {
-    ReadInto(*m_reader, value, [&] { return m_reader->ReadFloat(); });
+void NetArchiveReader::Field(std::string_view, float& value, const FieldOptions& options) {
+    ReadInto(*m_reader, value, [&] {
+        if (options.netBits > 0 && options.angle) {
+            return NetQuantize::ReadAngle(*m_reader, options.netBits);
+        }
+        if (options.netBits > 0 && options.min < options.max) {
+            return NetQuantize::ReadFloat(*m_reader, options.min, options.max, options.netBits);
+        }
+        return ReadFinite(*m_reader);
+    });
 }
 
 void NetArchiveReader::Field(std::string_view, double& value, const FieldOptions&) {
-    ReadInto(*m_reader, value, [&] { return m_reader->ReadDouble(); });
+    ReadInto(*m_reader, value, [&] {
+        const double read = m_reader->ReadDouble();
+        if (!std::isfinite(read)) {
+            m_reader->Fail();
+        }
+        return read;
+    });
 }
 
 void NetArchiveReader::Field(std::string_view, std::string& value, const FieldOptions&) {
@@ -145,43 +177,43 @@ void NetArchiveReader::Field(std::string_view, std::string& value, const FieldOp
 
 void NetArchiveReader::Field(std::string_view, Vector2& value, const FieldOptions&) {
     ReadInto(*m_reader, value, [&] {
-        const float x = m_reader->ReadFloat();
-        return Vector2{x, m_reader->ReadFloat()};
+        const float x = ReadFinite(*m_reader);
+        return Vector2{x, ReadFinite(*m_reader)};
     });
 }
 
 void NetArchiveReader::Field(std::string_view, Vector3& value, const FieldOptions&) {
     ReadInto(*m_reader, value, [&] {
-        const float x = m_reader->ReadFloat();
-        const float y = m_reader->ReadFloat();
-        return Vector3{x, y, m_reader->ReadFloat()};
+        const float x = ReadFinite(*m_reader);
+        const float y = ReadFinite(*m_reader);
+        return Vector3{x, y, ReadFinite(*m_reader)};
     });
 }
 
 void NetArchiveReader::Field(std::string_view, Vector4& value, const FieldOptions&) {
     ReadInto(*m_reader, value, [&] {
-        const float x = m_reader->ReadFloat();
-        const float y = m_reader->ReadFloat();
-        const float z = m_reader->ReadFloat();
-        return Vector4{x, y, z, m_reader->ReadFloat()};
+        const float x = ReadFinite(*m_reader);
+        const float y = ReadFinite(*m_reader);
+        const float z = ReadFinite(*m_reader);
+        return Vector4{x, y, z, ReadFinite(*m_reader)};
     });
 }
 
 void NetArchiveReader::Field(std::string_view, Quaternion& value, const FieldOptions&) {
     ReadInto(*m_reader, value, [&] {
-        const float x = m_reader->ReadFloat();
-        const float y = m_reader->ReadFloat();
-        const float z = m_reader->ReadFloat();
-        return Quaternion{x, y, z, m_reader->ReadFloat()};
+        const float x = ReadFinite(*m_reader);
+        const float y = ReadFinite(*m_reader);
+        const float z = ReadFinite(*m_reader);
+        return Quaternion{x, y, z, ReadFinite(*m_reader)};
     });
 }
 
 void NetArchiveReader::Field(std::string_view, Color& value, const FieldOptions&) {
     ReadInto(*m_reader, value, [&] {
-        const float r = m_reader->ReadFloat();
-        const float g = m_reader->ReadFloat();
-        const float b = m_reader->ReadFloat();
-        return Color{r, g, b, m_reader->ReadFloat()};
+        const float r = ReadFinite(*m_reader);
+        const float g = ReadFinite(*m_reader);
+        const float b = ReadFinite(*m_reader);
+        return Color{r, g, b, ReadFinite(*m_reader)};
     });
 }
 

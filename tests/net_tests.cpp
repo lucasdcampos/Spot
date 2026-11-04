@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <string>
 #include <thread>
@@ -187,6 +188,36 @@ TEST_CASE("Messages are described as saved data and reach their handlers", "[net
         CHECK(handlers.Dispatch(Spot::NetPeerId{1}, mapped, &mapper));
         CHECK(received.target == Spot::EntityId{142});
     }
+}
+
+namespace {
+
+struct Aim {
+    static constexpr std::string_view NetName = "Tests.Aim";
+    float amount = 0.0f;
+    Spot::Vector3 direction;
+
+    void Serialize(Spot::Archive& archive) {
+        archive.Field("amount", amount);
+        archive.Field("direction", direction);
+    }
+};
+
+} // namespace
+
+TEST_CASE("Messages with values that are not numbers are refused", "[net]") {
+    Spot::NetMessageHandlers handlers;
+    int received = 0;
+    handlers.On<Aim>([&](Spot::NetPeerId, Aim&) { ++received; });
+    const auto dispatch = [&](Aim aim) {
+        return handlers.Dispatch(Spot::NetPeerId{1}, Spot::EncodeNetMessage(std::move(aim)));
+    };
+    CHECK(dispatch({.amount = 1.0f, .direction = {0.0f, 1.0f, 0.0f}}));
+    CHECK(received == 1);
+    CHECK_FALSE(dispatch({.amount = std::numeric_limits<float>::quiet_NaN()}));
+    CHECK_FALSE(dispatch({.amount = std::numeric_limits<float>::infinity()}));
+    CHECK_FALSE(dispatch({.direction = {0.0f, -std::numeric_limits<float>::infinity(), 0.0f}}));
+    CHECK(received == 1);
 }
 
 TEST_CASE("Addresses parse with and without ports", "[net]") {

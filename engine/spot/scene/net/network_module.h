@@ -101,7 +101,6 @@ private:
     NetConditions m_conditions;
     std::shared_ptr<NetworkSession> m_session;
     ConditionedNetTransport* m_transport = nullptr;
-    AssetId m_announcedScene;
     // Why the client's connection ended, to end the session with once its update is over.
     std::optional<std::string> m_ended;
     std::vector<SignalConnection> m_connections;

@@ -4,10 +4,13 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <chrono>
+#include <cmath>
+#include <cstdio>
 #include <functional>
 #include <memory>
 #include <string>
 #include <thread>
+#include <vector>
 
 namespace {
 
@@ -111,10 +114,10 @@ struct World {
     Spot::AssetRef<Spot::Prefab> prefab = MakeCratePrefab();
     Machine server, client;
 
-    explicit World(std::size_t snapshotBudget = 4000) {
+    explicit World(std::size_t snapshotBudget = 4000, std::size_t maxClients = 8) {
         auto serverHost = std::make_unique<Spot::NetHost>(
             network.CreateTransport(), Spot::NetHostConfig{.channels = Spot::NetworkSession::ChannelCount});
-        REQUIRE(serverHost->Listen(7000, 8));
+        REQUIRE(serverHost->Listen(7000, maxClients));
         server.Start(std::move(serverHost), prefab, snapshotBudget);
     }
 
@@ -248,6 +251,35 @@ TEST_CASE("A client running another scene gets none of the server's objects", "[
     world.Step(10);
     CHECK(world.server.system->GetReadyPeers().empty());
     CHECK_FALSE(world.client.system->IsSynchronized());
+}
+
+TEST_CASE("A client still in an earlier start of the scene gets none of the server's objects", "[network]") {
+    World world;
+    world.server.session->SetSceneGeneration(2);
+    world.Join(world.client);
+    world.client.session->SetSceneGeneration(1);
+    world.Step(10);
+    CHECK(world.server.system->GetReadyPeers().empty());
+    CHECK_FALSE(world.client.system->IsSynchronized());
+    // Told of the new start, its scene takes part.
+    world.client.session->SetSceneGeneration(2);
+    world.client.system->TellSceneAgain();
+    world.Step(10);
+    CHECK(world.server.system->GetReadyPeers().size() == 1);
+    CHECK(world.client.system->IsSynchronized());
+}
+
+TEST_CASE("A client saying again which scene it runs does not start over", "[network]") {
+    World world;
+    int ready = 0;
+    const Spot::SignalConnection connection = world.server.system->OnPeerReady.Connect([&](Spot::NetPeerId) { ++ready; });
+    world.Join(world.client);
+    world.Step(10);
+    CHECK(ready == 1);
+    world.client.system->TellSceneAgain();
+    world.Step(10);
+    CHECK(ready == 1);
+    CHECK(world.server.system->GetReadyPeers().size() == 1);
 }
 
 TEST_CASE("Clients show objects farther back while snapshots come less often", "[network]") {
@@ -426,6 +458,60 @@ TEST_CASE("Replication gets through a lossy, slow network", "[network]") {
     }
     CHECK(crates == 5);
     CHECK(world.Find(world.client, "Door").GetComponent<Door>()->label == "through loss");
+}
+
+// Not run by default: `spot_tests "[benchmark]"`. What a full room costs a server, without rendering or physics.
+TEST_CASE("A server with 500 crates, some moving, and 15 clients", "[.][benchmark]") {
+    constexpr int Crates = 500;
+    constexpr int Moving = 50;
+    constexpr int Frames = 600;
+    World world(4000, 15);
+    std::vector<std::unique_ptr<Machine>> clients;
+    for (int i = 0; i < 15; ++i) {
+        clients.push_back(std::make_unique<Machine>());
+        world.Join(*clients.back());
+    }
+    std::vector<Spot::Entity*> crates;
+    for (int i = 0; i < Crates; ++i) {
+        crates.push_back(world.server.scene.Instantiate(world.prefab));
+        REQUIRE(crates.back());
+        crates.back()->GetTransform().SetWorldPosition({static_cast<float>(i % 25), 1.0f, static_cast<float>(i / 25)});
+    }
+    const auto step = [&] {
+        world.server.scene.Update(1.0f / 60.0f);
+        for (const auto& client : clients) {
+            client->scene.Update(1.0f / 60.0f);
+        }
+    };
+    for (int i = 0; i < 300; ++i) {
+        step();
+    }
+    REQUIRE(world.server.system->GetReadyPeers().size() == 15);
+    const auto bytesSent = [&] {
+        std::uint64_t bytes = 0;
+        for (const Spot::NetPeerId peer : world.server.session->GetHost().GetPeers()) {
+            bytes += world.server.session->GetHost().GetStats(peer).bytesSent;
+        }
+        return bytes;
+    };
+    const std::uint64_t startBytes = bytesSent();
+    std::chrono::duration<double, std::milli> serverTime{};
+    for (int frame = 0; frame < Frames; ++frame) {
+        for (int i = 0; i < Moving; ++i) {
+            crates[static_cast<std::size_t>(i)]->GetTransform().SetWorldPosition(
+                {static_cast<float>(i % 25) + std::sin(static_cast<float>(frame) * 0.05f), 1.0f, 0.0f});
+        }
+        const auto start = std::chrono::steady_clock::now();
+        world.server.scene.Update(1.0f / 60.0f);
+        serverTime += std::chrono::steady_clock::now() - start;
+        for (const auto& client : clients) {
+            client->scene.Update(1.0f / 60.0f);
+        }
+    }
+    std::printf("%d crates, %d moving, 15 clients: server %.3f ms a frame, %.1f KiB/s sent to each\n", Crates, Moving,
+                serverTime.count() / Frames,
+                static_cast<double>(bytesSent() - startBytes) / 1024.0 / (Frames / 60.0) / 15.0);
+    CHECK(world.server.system->GetReadyPeers().size() == 15);
 }
 
 TEST_CASE("A scene whose session ended plays alone", "[network]") {

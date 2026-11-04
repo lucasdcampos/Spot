@@ -8,6 +8,7 @@
 #include "spot/net/net_archive.h"
 #include "spot/net/net_conditions.h"
 #include "spot/net/net_discovery.h"
+#include "spot/net/net_rate_limit.h"
 #include "spot/net/net_host.h"
 #include "spot/net/net_messages.h"
 #include "spot/net/net_quantize.h"

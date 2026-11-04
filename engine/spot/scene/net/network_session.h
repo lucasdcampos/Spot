@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <span>
 #include <string_view>
@@ -44,6 +45,10 @@ public:
     NetPeerId GetServerPeer() const { return m_server; }
     // A server always is; a client once its server accepted it, until it is disconnected.
     bool IsConnected() const;
+    // Which of the scenes the server ran it runs now, as the same scene started anew is another one. A client's follows
+    // what it was told to load; a scene takes part only when it says the server's. Stays 0 where nothing counts them.
+    std::uint32_t GetSceneGeneration() const { return m_sceneGeneration; }
+    void SetSceneGeneration(std::uint32_t generation) { m_sceneGeneration = generation; }
     // The bound scene's system, if any.
     NetworkSystem* GetSystem() const { return m_system; }
 
@@ -83,6 +88,9 @@ public:
     double GetTime() const;
     // On clients: whether the server's time has been heard yet.
     bool HasTime() const { return IsServer() || m_hasTime; }
+    // What this machine's time is read from, in seconds, instead of the real clock: for tests whose frames take no time,
+    // where states a step apart would seem to move many times as fast.
+    void SetClock(std::function<double()> clock) { m_clock = std::move(clock); }
 
 private:
     friend class NetworkSystem;
@@ -107,9 +115,11 @@ private:
     NetMessageHandlers m_messages;
     NetPeerId m_server = NetPeerId::Invalid;
     std::chrono::steady_clock::time_point m_start;
+    std::function<double()> m_clock;
     double m_timeOffset = 0.0;
     bool m_hasTime = false;
     bool m_disconnected = false;
+    std::uint32_t m_sceneGeneration = 0;
 };
 
 } // namespace Spot

@@ -28,8 +28,12 @@ const NetworkSystem* FindSystem(const Application& application, const NetworkSes
 struct NetworkModule::LoadScene {
     static constexpr std::string_view NetName = "Spot.LoadScene";
     AssetId scene;
+    std::uint32_t generation = 0;
 
-    void Serialize(Archive& archive) { archive.Field("scene", scene); }
+    void Serialize(Archive& archive) {
+        archive.Field("scene", scene);
+        archive.Field("generation", generation);
+    }
 };
 
 NetworkModule::NetworkModule(NetworkModuleConfig config) : m_config(std::move(config)) {
@@ -70,7 +74,6 @@ bool NetworkModule::Join(const NetAddress& address, std::span<const std::byte> h
 bool NetworkModule::Start(std::unique_ptr<NetHost> host) {
     m_session = std::make_shared<NetworkSession>(std::move(host));
     m_ended.reset();
-    m_announcedScene = {};
     NetworkSession& session = *m_session;
     if (session.IsServer()) {
         m_connections.push_back(
@@ -80,8 +83,14 @@ bool NetworkModule::Start(std::unique_ptr<NetHost> host) {
             [this](NetPeerId, std::string_view reason) { m_ended = std::string(reason); }));
         session.GetMessages().On<LoadScene>([this](NetPeerId, LoadScene& message) {
             Application& application = GetApplication();
-            const Scene* current = application.GetScene();
-            if (current && current->GetSourceAsset() == message.scene) {
+            Scene* current = application.GetScene();
+            const bool first = m_session->GetSceneGeneration() == 0;
+            m_session->SetSceneGeneration(message.generation);
+            // The scene it came with is taken as the server's; after that, the same one again was started anew.
+            if (first && current && current->GetSourceAsset() == message.scene) {
+                if (auto* system = current->GetSystem<NetworkSystem>()) {
+                    system->TellSceneAgain();
+                }
                 return;
             }
             if (auto scene = InstantiateScene(application.GetAssets(), message.scene)) {
@@ -129,7 +138,7 @@ void NetworkModule::SetConditions(const NetConditions& conditions) {
 void NetworkModule::SendScene(NetPeerId peer) {
     const Scene* scene = GetApplication().GetScene();
     if (m_session && scene && scene->GetSourceAsset().IsValid()) {
-        m_session->Send(peer, LoadScene{scene->GetSourceAsset()});
+        m_session->Send(peer, LoadScene{scene->GetSourceAsset(), m_session->GetSceneGeneration()});
     }
 }
 
@@ -138,13 +147,16 @@ void NetworkModule::BindScene() {
     if (!m_session || !scene) {
         return;
     }
-    if (auto* system = scene->GetSystem<NetworkSystem>()) {
+    auto* system = scene->GetSystem<NetworkSystem>();
+    if (system) {
         system->SetSession(m_session);
     } else {
-        scene->AddSystem<NetworkSystem>(m_session, m_config.system);
+        system = &scene->AddSystem<NetworkSystem>(m_session, m_config.system);
     }
-    if (m_session->IsServer() && scene->GetSourceAsset() != m_announcedScene) {
-        m_announcedScene = scene->GetSourceAsset();
+    // By its system rather than its asset: a scene restarted is the same asset, and its clients must start over too.
+    if (m_session->IsServer() && !system->m_announced) {
+        system->m_announced = true;
+        m_session->SetSceneGeneration(m_session->GetSceneGeneration() + 1);
         for (const NetPeerId peer : m_session->GetHost().GetPeers()) {
             SendScene(peer);
         }

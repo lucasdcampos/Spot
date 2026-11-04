@@ -82,6 +82,13 @@ public:
             Log::Error("Could not open port {} for the network", config.port);
             return false;
         }
+        // Far below ENet's 32 MB: more than any message of a session, and what one peer can have this end hold.
+        m_host->maximumPacketSize = 1024 * 1024;
+        m_host->maximumWaitingData = 4 * 1024 * 1024;
+        // Both ends of a session do: states repeat much of what they held before.
+        if (enet_host_compress_with_range_coder(m_host) != 0) {
+            Log::Warning("The network's packets will not be compressed");
+        }
         ENetAddress bound{};
         m_port = enet_socket_get_address(m_host->socket, &bound) == 0 ? bound.port : config.port;
         m_channels = config.channels;
@@ -142,6 +149,8 @@ public:
                 // do on Wi-Fi; the session's own budgets limit what it sends instead.
                 enet_peer_throttle_configure(event.peer, ENET_PEER_PACKET_THROTTLE_INTERVAL,
                                              ENET_PEER_PACKET_THROTTLE_SCALE, 0);
+                // A machine loading a map does not answer for a while, and is not gone for that.
+                enet_peer_timeout(event.peer, ENET_PEER_TIMEOUT_LIMIT, 15000, 30000);
                 const NetPeerId id = event.peer->data ? IdOf(event.peer) : Add(event.peer);
                 events.push_back({.type = NetTransportEvent::Type::Connected, .peer = id});
                 break;

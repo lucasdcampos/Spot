@@ -73,6 +73,8 @@ struct FieldOptions {
     bool layerMask = false;
     // Tools restrict an entity picker and drag-and-drop to entities accepted by this predicate.
     std::function<bool(EntityId)> entityFilter = {};
+    // Bits a float takes over the network, between min and max, or around a turn when it is an angle; 0 sends it whole.
+    int netBits = 0;
     std::string_view componentType = {};
 };
 
