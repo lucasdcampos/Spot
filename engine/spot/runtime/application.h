@@ -64,7 +64,7 @@ public:
     // The application that is running, as game code reaches it. Only available while Run() is running.
     static Application& Get();
     // Null while no application runs.
-    static Application* TryGet() { return s_running; }
+    static Application* TryGet();
 
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
@@ -192,7 +192,9 @@ private:
     // Returns false, after logging why, when the game's startup scene cannot be loaded.
     bool LoadStartupScene();
 
-    static inline Application* s_running = nullptr;
+    // In the source, with what reads it: game code linking the shared library on Windows would otherwise have its own
+    // copy, which nothing sets, as exporting all symbols does not export data.
+    static Application* s_running;
 
     ApplicationConfig m_config;
     std::vector<std::pair<std::type_index, std::unique_ptr<Module>>> m_modules;

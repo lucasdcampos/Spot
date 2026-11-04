@@ -32,9 +32,15 @@ Application::Application(ApplicationConfig config) : m_config(std::move(config))
 
 Application::~Application() = default;
 
+Application* Application::s_running = nullptr;
+
 Application& Application::Get() {
     SPOT_ASSERT(s_running, "The application is only available while Run() is running");
     return *s_running;
+}
+
+Application* Application::TryGet() {
+    return s_running;
 }
 
 // Startup, in order: what tells of a crash, the window, the graphics device, the assets, the input, the modules,

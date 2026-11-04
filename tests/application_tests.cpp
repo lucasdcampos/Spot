@@ -276,6 +276,30 @@ TEST_CASE("Application can run again after it stopped", "[application]") {
     CHECK(observed.calls == std::vector<std::string>{"start", "update", "stop", "start", "update", "stop"});
 }
 
+namespace {
+
+class CurrentApplication final : public Spot::Application {
+public:
+    using Application::Application;
+    Spot::Application* seen = nullptr;
+
+protected:
+    void OnUpdate(float) override {
+        seen = Spot::Application::TryGet();
+        Quit();
+    }
+};
+
+} // namespace
+
+TEST_CASE("Application is reachable only while it runs", "[application]") {
+    CurrentApplication application(MakeConfig());
+    CHECK(Spot::Application::TryGet() == nullptr);
+    CHECK(application.Run() == EXIT_SUCCESS);
+    CHECK(application.seen == &application);
+    CHECK(Spot::Application::TryGet() == nullptr);
+}
+
 TEST_CASE("Application writes the log to the configured file while it exists", "[application]") {
     const auto directory = std::filesystem::temp_directory_path() / "spot_tests" / "application";
     const auto path = directory / "app.log";
