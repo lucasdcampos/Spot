@@ -20,9 +20,30 @@ layers, each usable from code on its own; the editor and the tools are programs 
 ```sh
 cmake --preset msvc                  # or: ninja
 cmake --build --preset msvc-debug    # or: ninja-debug
-ctest --preset msvc-debug            # headless tests
+ctest --preset msvc-debug            # headless tests (full suite, ~950 tests)
 ctest --preset msvc-debug-gpu        # GPU tests, when rendering, shaders or graphics backends change
 ```
+
+### Fast iteration (development and AI inner loop)
+
+To keep builds fast and avoid burning tokens/time running the whole suite on small changes, **never build all
+targets or run all tests on every change**. Build only the target you modify and run only its relevant Catch2 tests:
+
+```sh
+./scripts/test.ps1 "[math]"                      # or: ./scripts/test.sh "[math]"
+./scripts/test.ps1 "Transform*"                  # run tests matching name pattern
+./scripts/test.ps1 -t editor "AssetBrowser*"     # run targeted test binary (editor, gpu, anim, ui, etc.)
+./scripts/test.ps1 no-build "[scene]"            # re-run tests without recompiling
+```
+
+Direct CMake builds for specific targets:
+```sh
+cmake --build --preset msvc-debug --target spot_tests   # compile only the test executable
+```
+
+Run the full headless suite (`ctest --preset msvc-debug`) only once when a task is finished and ready to commit.
+When running parallel AI agents or concurrent tasks, use separate git worktrees (`git worktree add`) so builds do
+not lock files in the same `build/` directory.
 
 GPU tests open real windows and run one at a time: run the relevant ones (`-R <pattern>`) only for changes that can
 affect what is drawn, and never two GPU suites at once. When a graphics backend or a shader changes, run the whole GPU
