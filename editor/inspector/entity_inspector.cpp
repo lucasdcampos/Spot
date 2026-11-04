@@ -749,6 +749,7 @@ void EntityInspector::DrawComponent(SceneDocument& document, const Card& card) {
     InspectorBackend backend({
         .scene = &scene,
         .project = m_context.GetProject(),
+        .thumbnails = m_context.GetThumbnails(),
         .eulers = &m_fieldEulers,
         .mixed = mixed,
     });

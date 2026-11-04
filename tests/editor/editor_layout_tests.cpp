@@ -1,6 +1,8 @@
 #include "headless_imgui.h"
 
 #include "app/editor_layout.h"
+#include "imgui/editor_style.h"
+#include "imgui/icons.h"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -23,6 +25,42 @@ void SubmitWindow(const char* id) {
 }
 
 } // namespace
+
+TEST_CASE("Toolbar buttons center their icons", "[editor][toolbar]") {
+    Spot::Tests::HeadlessImGui imgui({1600.0f, 900.0f});
+    Spot::Editor::LoadEditorFonts();
+    Spot::Editor::ApplyEditorStyle(1.0f);
+
+    imgui.BeginFrame();
+    ImGui::SetNextWindowSize({800.0f, 600.0f});
+    ImGui::Begin("ToolbarTest");
+
+    const float size = ImGui::GetFrameHeight();
+    const ImVec2 buttonSize = {size * 1.2f, size};
+
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {0.0f, 0.0f});
+    for (const char* icon : {ICON_FA_PLAY, ICON_FA_PAUSE, ICON_FA_FORWARD_STEP, ICON_FA_STOP, ICON_FA_HAMMER,
+                             ICON_FA_ARROW_POINTER, ICON_FA_UP_DOWN_LEFT_RIGHT, ICON_FA_ROTATE, ICON_FA_CUBE}) {
+        const int vtxStart = ImGui::GetWindowDrawList()->VtxBuffer.Size;
+        ImGui::Button(icon, buttonSize);
+        const ImVec2 bMin = ImGui::GetItemRectMin();
+        const ImVec2 bMax = ImGui::GetItemRectMax();
+        const int vtxEnd = ImGui::GetWindowDrawList()->VtxBuffer.Size;
+        REQUIRE(vtxEnd >= vtxStart + 4);
+        const auto& v0 = ImGui::GetWindowDrawList()->VtxBuffer[vtxEnd - 4];
+        const auto& v2 = ImGui::GetWindowDrawList()->VtxBuffer[vtxEnd - 2];
+        const float leftPad = v0.pos.x - bMin.x;
+        const float rightPad = bMax.x - v2.pos.x;
+        const float topPad = v0.pos.y - bMin.y;
+        const float bottomPad = bMax.y - v2.pos.y;
+        CHECK(std::abs(leftPad - rightPad) <= 1.0f);
+        CHECK(std::abs(topPad - bottomPad) <= 1.0f);
+    }
+    ImGui::PopStyleVar();
+
+    ImGui::End();
+    imgui.EndFrame();
+}
 
 TEST_CASE("The default layout puts scenes in the middle and panels around them", "[editor][layout]") {
     Spot::Tests::HeadlessImGui imgui({1600.0f, 900.0f});

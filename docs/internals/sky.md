@@ -39,7 +39,7 @@ limit this fill, which fades out on downward-facing surfaces; direct lighting an
 
 ## The sun
 
-The sun's disc is `sunSize` in angular radius, a quarter of a degree by default as the real sun's. Its light is the
+The sun's disc is `sunSize` in angular radius, about half a degree by default. Its light is the
 sunlight that crossed the air spread over its solid angle, so it is as bright as the real one for its size, capped at
 4000 times that sunlight for half floats and the bloom, and darker and redder toward its edge (limb darkening). Its
 edge is a pixel wide. Into an HDR target that is all: the air's haze draws the aureole around it, and the bloom, with

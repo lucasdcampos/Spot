@@ -67,7 +67,7 @@ struct SkyData {
     // The angular radius of the sun's disc, in radians; 0 hides the sun. The real sun's is about a quarter of a degree.
     // Its light is spread over the disc, so a larger sun is fainter for its size and lights the scene as much, while it
     // softens shadows more the farther they fall from what casts them.
-    float sunSize = ToRadians(0.27f);
+    float sunSize = ToRadians(0.54f);
     // How much air the light crosses: more makes the sky hazier and paler and its sunsets redder.
     float atmosphereThickness = 1.0f;
     // Multiplies the color the air scatters, the blue of a clear sky.

@@ -53,6 +53,7 @@ struct PickerItem {
     const char* icon = nullptr;
     // Shown muted beside the label, such as an asset's folder.
     std::string detail = {};
+    const Texture* preview = nullptr;
 };
 
 struct PickerResult {
@@ -78,6 +79,7 @@ struct PickerResult {
 // payload type. The items are only listed while the list is open.
 PickerResult PickerField(const char* icon, std::string_view current, const char* payloadType,
                          const std::function<std::vector<PickerItem>()>& listItems, bool mixed = false,
-                         const ImVec4* currentColor = nullptr, const char* tooltip = nullptr);
+                         const ImVec4* currentColor = nullptr, const char* tooltip = nullptr,
+                         const Texture* preview = nullptr);
 
 } // namespace Spot::Editor

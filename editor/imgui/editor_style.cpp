@@ -31,7 +31,7 @@ ImFont* AddFont(std::span<const std::uint8_t> data, const char* name) {
     icons.MergeMode = true;
     // Icons share one width, so labels after them line up in lists and menus.
     icons.GlyphMinAdvanceX = BaseFontSize * 1.25f;
-    icons.GlyphOffset = {0.0f, 0.5f};
+    icons.GlyphOffset = {0.0f, -0.5f};
     std::snprintf(icons.Name, sizeof(icons.Name), "%s", "Font Awesome 6 Free Solid");
     io.Fonts->AddFontFromMemoryTTF(const_cast<std::uint8_t*>(Resources::FaSolid900Ttf.data()),
                                    static_cast<int>(Resources::FaSolid900Ttf.size()), BaseFontSize * 0.9f, &icons);

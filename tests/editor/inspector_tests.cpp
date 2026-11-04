@@ -564,6 +564,25 @@ TEST_CASE("Curve and gradient key times commit before reordering", "[editor][ins
     CHECK(changed == std::vector<std::string>{"/data/gradient"});
 }
 
+TEST_CASE("Entity inspector shows asset pickers without dedicated preview section", "[editor][inspector][preview]") {
+    InspectorFixture fixture;
+    auto& entity = fixture.Selected();
+    entity.RemoveComponent(fixture.Light(entity));
+
+    entity.AddComponent<Spot::MeshRenderer>(Spot::AssetRef<Spot::Mesh>(Spot::BuiltInAssets::CubeMesh, nullptr));
+    fixture.Frame();
+    fixture.Frame();
+
+    CHECK(fixture.panel->GetItemRect("MeshRenderer/data/mesh").has_value());
+    CHECK_FALSE(fixture.panel->GetItemRect("MeshRenderer/preview").has_value());
+
+    // Adding SpriteRenderer shows texture picker without dedicated preview section.
+    entity.AddComponent<Spot::SpriteRenderer>(Spot::AssetRef<Spot::Texture>(Spot::BuiltInAssets::GridTexture, nullptr));
+    fixture.Frame();
+    CHECK(fixture.panel->GetItemRect("SpriteRenderer/data/texture").has_value());
+    CHECK_FALSE(fixture.panel->GetItemRect("SpriteRenderer/preview").has_value());
+}
+
 #ifdef SPOT_ENABLE_LUAU
 TEST_CASE("Script inspectors show exported fields and undo their edits", "[editor][inspector][ui][luau]") {
     InspectorFixture fixture;

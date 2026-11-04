@@ -271,7 +271,8 @@ void AssetInspector::DrawMaterial(EditorProject& project, const AssetInfo& info)
         !Widgets::BeginProperties("##Material")) {
         return;
     }
-    InspectorBackend backend({.project = &project, .eulers = &m_eulers, .root = ""});
+    InspectorBackend backend(
+        {.project = &project, .thumbnails = m_context.GetThumbnails(), .eulers = &m_eulers, .root = ""});
     Archive archive(backend);
     m_material->Serialize(archive);
     Widgets::EndProperties();
@@ -300,7 +301,8 @@ void AssetInspector::DrawImportSettings(EditorProject& project, const AssetInfo&
         return;
     }
     if (Widgets::BeginProperties("##Import")) {
-        InspectorBackend backend({.project = &project, .eulers = &m_eulers, .root = ""});
+        InspectorBackend backend(
+            {.project = &project, .thumbnails = m_context.GetThumbnails(), .eulers = &m_eulers, .root = ""});
         Archive archive(backend);
         switch (info.type) {
         case AssetType::Texture:
@@ -380,7 +382,8 @@ void AssetInspector::DrawModelMaterials(EditorProject& project, const AssetInfo&
         return;
     }
     if (Widgets::BeginProperties("##ModelMaterials")) {
-        InspectorBackend backend({.project = &project, .eulers = &m_eulers, .root = "/materials"});
+        InspectorBackend backend(
+            {.project = &project, .thumbnails = m_context.GetThumbnails(), .eulers = &m_eulers, .root = "/materials"});
         Archive archive(backend);
         auto& overrides = m_settings->model.materials;
         for (const auto& [key, part] : materials) {
@@ -453,7 +456,8 @@ void AssetInspector::DrawModelMaterials(EditorProject& project, const AssetInfo&
 }
 
 void AssetInspector::DrawPreview(EditorProject& project, const AssetInfo& info) {
-    if (info.type != AssetType::Texture) {
+    if (info.type != AssetType::Texture && info.type != AssetType::Material && info.type != AssetType::Mesh &&
+        info.type != AssetType::Model) {
         return;
     }
     ThumbnailCache* thumbnails = m_context.GetThumbnails();
@@ -467,7 +471,9 @@ void AssetInspector::DrawPreview(EditorProject& project, const AssetInfo& info) 
     // Small textures are shown larger, as large as fits.
     const float scale = std::min(available / width, ImGui::GetFontSize() * 16.0f / height);
     ImGui::Image(ToImTextureId(*texture), {width * scale, height * scale});
-    ImGui::TextDisabled("%u x %u pixels", texture->GetWidth(), texture->GetHeight());
+    if (info.type == AssetType::Texture) {
+        ImGui::TextDisabled("%u x %u pixels", texture->GetWidth(), texture->GetHeight());
+    }
 }
 
 } // namespace Spot::Editor

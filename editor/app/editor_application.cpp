@@ -92,7 +92,9 @@ bool ToolbarButton(const char* icon, const char* tooltip, bool selected = false)
         ImGui::PushStyleColor(ImGuiCol_Button,
                               ImVec4(EditorColors::Accent.x, EditorColors::Accent.y, EditorColors::Accent.z, 0.35f));
     }
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {0.0f, 0.0f});
     const bool pressed = ImGui::Button(icon, {size * 1.2f, size});
+    ImGui::PopStyleVar();
     if (selected) {
         ImGui::PopStyleColor();
     }

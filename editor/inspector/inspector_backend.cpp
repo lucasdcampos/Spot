@@ -1,6 +1,7 @@
 #include "inspector/inspector_backend.h"
 
 #include "assets/asset_list.h"
+#include "assets/thumbnail_cache.h"
 #include "core/text.h"
 #include "imgui/drag_payloads.h"
 #include "imgui/editor_style.h"
@@ -471,6 +472,7 @@ void InspectorBackend::Field(std::string_view name, AssetId& value, std::optiona
     }
     EditorProject* project = m_options.project;
     const std::optional<AssetEntry> entry = FindAsset(project, value);
+    const AssetType assetType = type.value_or(entry ? entry->type : AssetType::Texture);
     const char* icon = type ? GetAssetTypeIcon(*type) : ICON_FA_FILE;
     std::string current = "None";
     const ImVec4* color = &EditorColors::TextMuted;
@@ -483,18 +485,26 @@ void InspectorBackend::Field(std::string_view name, AssetId& value, std::optiona
         color = &EditorColors::Warning;
     }
 
+    const Texture* preview = nullptr;
+    if (entry && m_options.thumbnails && project) {
+        preview = m_options.thumbnails->Get(*project, value, assetType);
+    }
+
     std::vector<AssetId> ids;
     const PickerResult result = PickerField(
         icon, current, AssetsPayload,
         [&] {
             std::vector<PickerItem> items;
             for (const AssetEntry& listed : ListAssets(project, type)) {
-                items.push_back({listed.name, GetAssetTypeIcon(listed.type), GetAssetDetail(listed)});
+                const Texture* itemThumb = m_options.thumbnails && project
+                                               ? m_options.thumbnails->Get(*project, listed.id, listed.type)
+                                               : nullptr;
+                items.push_back({listed.name, GetAssetTypeIcon(listed.type), GetAssetDetail(listed), itemThumb});
                 ids.push_back(listed.id);
             }
             return items;
         },
-        IsMixed(pointer), color, entry ? entry->path.c_str() : nullptr);
+        IsMixed(pointer), color, entry ? entry->path.c_str() : nullptr, preview);
     if (result.picked) {
         value = *result.picked < 0 ? AssetId() : ids[static_cast<std::size_t>(*result.picked)];
         MarkChanged(pointer);

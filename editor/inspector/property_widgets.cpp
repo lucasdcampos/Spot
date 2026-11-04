@@ -3,6 +3,7 @@
 #include "core/text.h"
 #include "imgui/editor_style.h"
 #include "imgui/icons.h"
+#include "imgui/imgui_renderer.h"
 
 #include <imgui_stdlib.h>
 
@@ -105,7 +106,7 @@ void EulerCache::Set(std::uint64_t key, Vector3 degrees, const Quaternion& rotat
 
 PickerResult PickerField(const char* icon, std::string_view current, const char* payloadType,
                          const std::function<std::vector<PickerItem>()>& listItems, bool mixed,
-                         const ImVec4* currentColor, const char* tooltip) {
+                         const ImVec4* currentColor, const char* tooltip, const Texture* preview) {
     PickerResult result;
     const ImGuiStyle& style = ImGui::GetStyle();
     const ImVec2 size{ImGui::CalcItemWidth(), ImGui::GetFrameHeight()};
@@ -120,11 +121,24 @@ PickerResult PickerField(const char* icon, std::string_view current, const char*
     ImDrawList* drawList = ImGui::GetWindowDrawList();
     drawList->AddRectFilled(min, max, ImGui::GetColorU32(background), style.FrameRounding);
     const float arrowWidth = ImGui::CalcTextSize(ICON_FA_CHEVRON_DOWN).x;
-    const ImVec2 textMin{min.x + style.FramePadding.x, min.y};
+
+    float textStartX = min.x + style.FramePadding.x;
+    if (preview && !mixed) {
+        const float thumbSide = size.y - 4.0f;
+        const ImVec2 thumbMin{min.x + 2.0f, min.y + 2.0f};
+        const ImVec2 thumbMax{thumbMin.x + thumbSide, thumbMin.y + thumbSide};
+        drawList->AddRectFilled(thumbMin, thumbMax, ImGui::GetColorU32(ImGuiCol_FrameBg), style.FrameRounding * 0.5f);
+        drawList->AddImage(ToImTextureId(*preview), thumbMin, thumbMax);
+        textStartX = thumbMax.x + style.ItemSpacing.x;
+    }
+
+    const ImVec2 textMin{textStartX, min.y};
     const ImVec2 textMax{max.x - style.FramePadding.x * 2.0f - arrowWidth, max.y};
     std::string label;
     if (mixed) {
         label = MixedValueText;
+    } else if (preview) {
+        label = std::string(current);
     } else {
         label = std::string(icon) + "  " + std::string(current);
     }
@@ -132,7 +146,23 @@ PickerResult PickerField(const char* icon, std::string_view current, const char*
     DrawClippedText(drawList, textMin, textMax, label.c_str(), textColor);
     DrawClippedText(drawList, {max.x - style.FramePadding.x - arrowWidth, min.y}, max, ICON_FA_CHEVRON_DOWN,
                     ImGui::GetColorU32(EditorColors::TextMuted));
-    if (tooltip && !mixed) {
+    if (preview && !mixed && ImGui::IsItemHovered()) {
+        if (ImGui::BeginTooltip()) {
+            const float previewSize = 128.0f * style.FontScaleDpi;
+            const float width = static_cast<float>(preview->GetWidth());
+            const float height = static_cast<float>(preview->GetHeight());
+            const float scale = previewSize / std::max(width, height);
+            ImGui::Image(ToImTextureId(*preview), {width * scale, height * scale});
+            ImGui::TextUnformatted(std::string(current).c_str());
+            if (tooltip) {
+                ImGui::TextDisabled("%s", tooltip);
+            }
+            if (width > 0 && height > 0) {
+                ImGui::TextDisabled("%u x %u", preview->GetWidth(), preview->GetHeight());
+            }
+            ImGui::EndTooltip();
+        }
+    } else if (tooltip && !mixed) {
         ImGui::SetItemTooltip("%s", tooltip);
     }
     if (ImGui::BeginDragDropTarget()) {
@@ -167,7 +197,7 @@ PickerResult PickerField(const char* icon, std::string_view current, const char*
         const std::vector<PickerItem> items = listItems();
         std::optional<int> first;
         const auto drawItem = [&](int index, const char* itemIcon, const std::string& itemLabel,
-                                  const std::string& detail) {
+                                  const std::string& detail, const Texture* itemPreview = nullptr) {
             ImGui::PushID(index);
             if (ImGui::Selectable("##item")) {
                 result.picked = index;
@@ -175,14 +205,26 @@ PickerResult PickerField(const char* icon, std::string_view current, const char*
             ImDrawList* itemDrawList = ImGui::GetWindowDrawList();
             const ImVec2 itemMin = ImGui::GetItemRectMin();
             const ImVec2 itemMax = ImGui::GetItemRectMax();
-            const std::string text = itemIcon ? std::string(itemIcon) + "  " + itemLabel : itemLabel;
+            float textStartX = itemMin.x;
+            if (itemPreview) {
+                const float thumbSide = (itemMax.y - itemMin.y) - 2.0f;
+                const ImVec2 thumbMin{itemMin.x + 2.0f, itemMin.y + 1.0f};
+                const ImVec2 thumbMax{thumbMin.x + thumbSide, thumbMin.y + 1.0f + thumbSide};
+                itemDrawList->AddRectFilled(thumbMin, thumbMax, ImGui::GetColorU32(ImGuiCol_FrameBg),
+                                            style.FrameRounding * 0.5f);
+                itemDrawList->AddImage(ToImTextureId(*itemPreview), thumbMin, thumbMax);
+                textStartX = thumbMax.x + style.ItemSpacing.x;
+            }
+            const std::string text = itemPreview ? itemLabel
+                                     : itemIcon  ? std::string(itemIcon) + "  " + itemLabel
+                                                 : itemLabel;
             float detailWidth = 0.0f;
             if (!detail.empty()) {
                 detailWidth = ImGui::CalcTextSize(detail.c_str()).x + style.ItemSpacing.x;
                 DrawClippedText(itemDrawList, {itemMax.x - detailWidth + style.ItemSpacing.x, itemMin.y}, itemMax,
                                 detail.c_str(), ImGui::GetColorU32(EditorColors::TextMuted));
             }
-            DrawClippedText(itemDrawList, itemMin, {itemMax.x - detailWidth, itemMax.y}, text.c_str(),
+            DrawClippedText(itemDrawList, {textStartX, itemMin.y}, {itemMax.x - detailWidth, itemMax.y}, text.c_str(),
                             ImGui::GetColorU32(ImGuiCol_Text));
             ImGui::PopID();
         };
@@ -197,7 +239,7 @@ PickerResult PickerField(const char* icon, std::string_view current, const char*
             if (!first) {
                 first = static_cast<int>(i);
             }
-            drawItem(static_cast<int>(i), item.icon, item.label, item.detail);
+            drawItem(static_cast<int>(i), item.icon, item.label, item.detail, item.preview);
         }
         if (!first && !search.empty()) {
             ImGui::TextDisabled("Nothing matches");

@@ -15,6 +15,7 @@ namespace Spot::Editor {
 
 class EditorProject;
 class EulerCache;
+class ThumbnailCache;
 
 // Draws a property row for each field that a component's Serialize() visits, inside a Widgets::BeginProperties()
 // table, and changes the fields as their widgets are edited.
@@ -35,6 +36,7 @@ public:
         Scene* scene = nullptr;
         // Lists assets to pick and loads them; may be null.
         EditorProject* project = nullptr;
+        ThumbnailCache* thumbnails = nullptr;
         EulerCache* eulers = nullptr;
         // Pointers to the values that differ between the selected entities, which show as mixed.
         std::span<const std::string> mixed = {};
