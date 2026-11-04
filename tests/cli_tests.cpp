@@ -42,6 +42,7 @@ TEST_CASE("The command line tells how it is used, and refuses what it does not k
     const Result help = RunSpot({"help"});
     CHECK(help.exitCode == 0);
     CHECK(help.Says("Usage: spot <command>"));
+    CHECK(help.Says("mcp [<project>]"));
 
     const Result unknown = RunSpot({"conjure"});
     CHECK(unknown.exitCode != 0);

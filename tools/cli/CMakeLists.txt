@@ -1,8 +1,8 @@
 # spot, the tools' command line: creates projects, imports their assets, builds, runs and exports their games. It
 # links the shared engine library, which the games it builds link too.
-add_executable(spot_cli main.cpp)
+add_executable(spot_cli main.cpp mcp_server.cpp)
 set_target_properties(spot_cli PROPERTIES OUTPUT_NAME spot)
-target_link_libraries(spot_cli PRIVATE spot::tools spot::import spot::shared)
+target_link_libraries(spot_cli PRIVATE spot::tools spot::import spot::shared nlohmann_json::nlohmann_json)
 spot_set_compile_options(spot_cli)
 spot_copy_runtime_dlls(spot_cli)
 # `spot editor` opens the editor installed beside it, or else the one of this build.

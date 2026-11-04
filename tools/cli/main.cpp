@@ -3,6 +3,8 @@
 #include <spot.h>
 #include <spot_tools.h>
 
+#include "mcp_server.h"
+
 #include <spot/assets/asset_pak.h>
 #if SPOT_SCRIPTING
 #include <spot/scene/scripting/scripting_components.h>
@@ -42,6 +44,7 @@ Commands:
   editor [<project>] Opens the editor, on the project or on its hub
   version            Shows the engine's version, and where it is installed
   doctor             Checks what building and running games needs: the engine's files, CMake and the editor
+  mcp [<project>]    Runs the Model Context Protocol (MCP) server over stdio for AI assistants
   update [--channel stable|nightly]
                      Installs the newest release of the channel, the one installed from by default
   help               Shows this
@@ -416,6 +419,13 @@ int main(int argc, char** argv) {
     }
     if (command == "editor") {
         return Editor(*arguments);
+    }
+    if (command == "mcp") {
+        std::optional<std::filesystem::path> projectPath;
+        if (!arguments->positionals.empty()) {
+            projectPath = ToPath(arguments->positionals.front());
+        }
+        return Spot::RunMcpServer(projectPath);
     }
     if (command == "update") {
         return Update(*arguments);
