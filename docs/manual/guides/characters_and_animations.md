@@ -37,7 +37,10 @@ Select the character's file. Its **Import Settings** list its materials:
 
 Drag the character's file into a scene view: it comes in with its skeleton and an **Animator**. Drag an animation
 clip onto the character to see it play; it plays on any character whose bones have the same names, as all of
-Mixamo's do, even those of other sizes: each keeps its own proportions.
+Mixamo's do, even those of other sizes: each keeps its own proportions. Animations of human characters also play on
+human characters named otherwise, as `LeftUpperArm` and Mixamo's `LeftArm`, even when one rests in a T-pose with its
+arms out and the other with them hanging, or they face opposite ways. Their fingers keep the character's rest pose
+when the animation's rig has none.
 
 ## Animator controllers
 

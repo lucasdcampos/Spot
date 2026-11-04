@@ -130,7 +130,7 @@ one mesh subasset, whose primitives are submeshes with separate material referen
 references load without a graphics device; mesh references keep their ids for serialization. Import scale applies
 to both vertex positions and node translations, so it scales the whole hierarchy. A new model importer version
 reimports older models automatically, preserving subasset ids by their keys; version 15 added FBX, OBJ and the rig
-clips keep.
+clips keep, and version 16 inverts the glossiness maps of FBX Phong materials.
 
 ## FBX and OBJ models
 

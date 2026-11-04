@@ -294,7 +294,8 @@ private:
             material.metallic = metallic ? static_cast<float>(pbr.metalness.value_real) : 0.0f;
             material.roughness = std::clamp(static_cast<float>(pbr.roughness.value_real), 0.0f, 1.0f);
             const ufbx_texture* roughnessTexture = pbr.roughness.texture;
-            bool glossiness = false;
+            // Phong materials, as Mixamo's, keep a glossiness map in their shininess, which reads as roughness here.
+            bool glossiness = roughnessTexture && roughnessTexture == source->fbx.specular_exponent.texture;
             if (!roughnessTexture && pbr.glossiness.texture) {
                 roughnessTexture = pbr.glossiness.texture;
                 glossiness = true;
