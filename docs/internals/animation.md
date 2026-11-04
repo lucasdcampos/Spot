@@ -146,6 +146,13 @@ nearest body. `SetActive(false, duration)` disables proxies, restores character 
 and blends from the physical pose back to animation. Saved body ids/mode restore without
 creating duplicates; destroying the component releases its proxies.
 
+## Models with several skins
+
+A model with several skinned meshes has a skeleton per skin, as FBX files with a body in two meshes do: the same
+bones, with joints and inverse bind matrices of their own. One animator poses them all with its skeleton, and each
+renderer's `SetSkinSkeleton()` says which skin its mesh was made for, from which `Animator::RefreshRenderers()` builds
+its palette; a skin with other bones is ignored.
+
 ## Clips of other files
 
 Characters are often downloaded with their animations apart, a file each, as Mixamo gives them: those files hold the
@@ -162,7 +169,18 @@ rigs whose rest orientations differ a little still line up. Exporters key the tr
 lengths of the character the clip was made for; with `retargetTranslations`, on by default, only the topmost bones
 whose translation changes, such as the hips, keep it, scaled by the ratio of their bind offsets so strides fit the
 legs, and every other bone keeps the skeleton's length. Rigs that share bone names, as all of Mixamo's characters
-do, share their animations this way; rigs named differently need a humanoid mapping the engine does not have yet.
+do, share their animations this way.
+
+Human rigs named differently match by their parts instead: `FindHumanBone()` knows the common names and Mixamo's, and
+a rig has a whole body when it has the hips, the head, the arms and the legs. Their rest poses can be far apart, a
+T-pose and hanging arms, so a turn relative to each bone's rest would not carry over. `RetargetHumanClip()` works in
+the model's space: it finds which way each body faces from its legs, and turns the skeleton's rest pose so that its
+arms and legs lie as the clip's do at rest, with hands following their forearms and the rest of the body as it is, as
+foot bones lie at different angles on feet that stand flat in both. Each part then takes the turn it makes in the
+clip from there, and the hips move in proportion to the height of the legs. The clip is baked at its own keys, with
+a channel for every part both rigs have, since the skeleton's bind pose, which a layer's bones without channels take,
+is no longer the clip's rest. Bones of no part, as fingers and extra spine bones, keep their bind pose, and scale is
+not carried over.
 
 The binding is per animator (`Animator::Bind()`), looked up by the clip's pointer on each evaluation and released on
 the scene's thread when nothing else refers to the clip (`ReleaseUnusedBindings()`); blend trees take the bound

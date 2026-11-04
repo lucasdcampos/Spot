@@ -375,7 +375,10 @@ void Animator::RefreshRenderers(std::span<SkinnedMeshRenderer* const> renderers,
         return;
     }
     for (SkinnedMeshRenderer* renderer : renderers) {
-        Pose::Palette(*m_skeleton, m_model, renderer->GetMeshModel(), m_palette);
+        const auto& own = renderer->GetSkinSkeleton();
+        const Skeleton& skin = own && own->bones.size() == m_skeleton->bones.size() ? *own : *m_skeleton;
+        m_palette.resize(skin.joints.size());
+        Pose::Palette(skin, m_model, renderer->GetMeshModel(), m_palette);
         renderer->SetPalette(m_palette);
     }
     for (BoneAttachment* attachment : attachments) {

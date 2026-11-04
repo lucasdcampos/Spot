@@ -51,7 +51,180 @@ AnimationClip Walk() {
     return clip;
 }
 
+// A body facing -Z with its arms hanging, under the common names, with its hips at the model's origin.
+std::vector<SkeletonBone> HangingBody() {
+    return {{"Pelvis", -1, {}},
+            {"Spine", 0, {{0, 0.16f, 0}}},
+            {"Chest", 1, {{0, 0.2f, 0}}},
+            {"Neck", 2, {{0, 0.2f, 0}}},
+            {"Head", 3, {{0, 0.1f, 0}}},
+            {"LeftShoulder", 2, {{-0.17f, 0.1f, 0}}},
+            {"LeftUpperArm", 5, {{-0.06f, 0, 0}}},
+            {"LeftForearm", 6, {{0, -0.29f, 0}}},
+            {"LeftHand", 7, {{0, -0.26f, 0}}},
+            {"RightShoulder", 2, {{0.17f, 0.1f, 0}}},
+            {"RightUpperArm", 9, {{0.06f, 0, 0}}},
+            {"RightForearm", 10, {{0, -0.29f, 0}}},
+            {"RightHand", 11, {{0, -0.26f, 0}}},
+            {"LeftUpperLeg", 0, {{-0.1f, -0.07f, 0}}},
+            {"LeftLowerLeg", 13, {{0, -0.41f, 0}}},
+            {"LeftFoot", 14, {{0, -0.39f, 0}}},
+            {"RightUpperLeg", 0, {{0.1f, -0.07f, 0}}},
+            {"RightLowerLeg", 16, {{0, -0.41f, 0}}},
+            {"RightFoot", 17, {{0, -0.39f, 0}}}};
+}
+
+// A Mixamo body in T-pose, facing +Z with its feet at the origin, whose bones do not lie along their parents' axes,
+// with a spine bone and fingers the clip does not have.
+std::shared_ptr<const Skeleton> MixamoBody() {
+    const auto roll = Quaternion::FromAxisAngle({0, 0, 1}, 0.7f);
+    Skeleton skeleton;
+    skeleton.name = "Mixamo";
+    skeleton.bones = {{"mixamorig:Hips", -1, {{0, 1, 0}}},
+                      {"mixamorig:Spine", 0, {{0, 0.1f, 0}}},
+                      {"mixamorig:Spine1", 1, {{0, 0.12f, 0}}},
+                      {"mixamorig:Spine2", 2, {{0, 0.14f, 0}}},
+                      {"mixamorig:Neck", 3, {{0, 0.15f, 0}}},
+                      {"mixamorig:Head", 4, {{0, 0.07f, 0}}},
+                      {"mixamorig:LeftShoulder", 3, {{0.07f, 0.13f, 0}}},
+                      {"mixamorig:LeftArm", 6, {{0.13f, 0, 0}, roll}},
+                      {"mixamorig:LeftForeArm", 7, {Inverse(roll) * Vector3{0.25f, 0, 0}, Inverse(roll)}},
+                      {"mixamorig:LeftHand", 8, {{0.25f, 0, 0}}},
+                      {"mixamorig:LeftHandIndex1", 9, {{0.1f, 0, 0}}},
+                      {"mixamorig:RightShoulder", 3, {{-0.07f, 0.13f, 0}}},
+                      {"mixamorig:RightArm", 11, {{-0.13f, 0, 0}}},
+                      {"mixamorig:RightForeArm", 12, {{-0.25f, 0, 0}}},
+                      {"mixamorig:RightHand", 13, {{-0.25f, 0, 0}}},
+                      {"mixamorig:LeftUpLeg", 0, {{0.09f, -0.06f, 0}}},
+                      {"mixamorig:LeftLeg", 15, {{0, -0.42f, 0}}},
+                      {"mixamorig:LeftFoot", 16, {{0, -0.38f, 0}}},
+                      {"mixamorig:RightUpLeg", 0, {{-0.09f, -0.06f, 0}}},
+                      {"mixamorig:RightLeg", 18, {{0, -0.42f, 0}}},
+                      {"mixamorig:RightFoot", 19, {{0, -0.38f, 0}}}};
+    skeleton.joints = {0};
+    skeleton.inverseBindMatrices = {Matrix4{}};
+    return std::make_shared<const Skeleton>(std::move(skeleton));
+}
+
+Vector3 SampleDirection(const Skeleton& skeleton, const AnimationClip& clip, float time, std::string_view from,
+                        std::string_view to) {
+    std::vector<TransformComponents> local(skeleton.bones.size());
+    std::vector<Matrix4> model(skeleton.bones.size());
+    Pose::Sample(skeleton, clip, time, false, local);
+    Pose::ToModel(skeleton, local, model);
+    const Vector3 start = Decompose(model[*skeleton.FindBone(from)]).translation;
+    const Vector3 end = Decompose(model[*skeleton.FindBone(to)]).translation;
+    return Normalize(end - start);
+}
+
+void CheckDirection(Vector3 actual, Vector3 expected) {
+    CHECK(actual.x == Catch::Approx(expected.x).margin(1e-3f));
+    CHECK(actual.y == Catch::Approx(expected.y).margin(1e-3f));
+    CHECK(actual.z == Catch::Approx(expected.z).margin(1e-3f));
+}
+
 } // namespace
+
+TEST_CASE("Human bones are found by the names of each convention", "[animation][retarget]") {
+    const auto common = HangingBody();
+    REQUIRE(FindHumanBone(common, HumanBone::Hips));
+    CHECK(common[*FindHumanBone(common, HumanBone::Hips)].name == "Pelvis");
+    CHECK(common[*FindHumanBone(common, HumanBone::LeftLowerArm)].name == "LeftForearm");
+
+    const auto mixamo = MixamoBody();
+    CHECK(mixamo->bones[*FindHumanBone(mixamo->bones, HumanBone::Hips)].name == "mixamorig:Hips");
+    CHECK(mixamo->bones[*FindHumanBone(mixamo->bones, HumanBone::Chest)].name == "mixamorig:Spine2");
+    CHECK(mixamo->bones[*FindHumanBone(mixamo->bones, HumanBone::RightUpperLeg)].name == "mixamorig:RightUpLeg");
+    CHECK_FALSE(FindHumanBone(mixamo->bones, HumanBone::LeftToes));
+}
+
+TEST_CASE("Clips of a human rig play on one named otherwise that rests and faces another way",
+          "[animation][retarget]") {
+    const auto skeleton = MixamoBody();
+    const auto swing = Quaternion::FromAxisAngle({1, 0, 0}, 0.6f);
+    AnimationClip clip;
+    clip.name = "Walk";
+    clip.duration = 1;
+    clip.rig = HangingBody();
+    clip.events = {{0.5f, "Footstep", "left"}};
+    // Swings the arm toward the way the body faces, bends the elbow, and lowers and moves the hips forward.
+    clip.channels = {
+        {0, AnimationPath::Translation, AnimationInterpolation::Linear, {0, 1}, {{0, 0, 0, 0}, {0, -0.087f, -0.2f, 0}}},
+        {6, AnimationPath::Rotation, AnimationInterpolation::Linear, {0, 1}, {{0, 0, 0, 1}, {swing.x, swing.y, swing.z, swing.w}}},
+    };
+    CHECK_FALSE(IsClipForSkeleton(clip, *skeleton));
+
+    const auto retargeted = RetargetAnimationClip(clip, *skeleton);
+    REQUIRE(retargeted);
+    REQUIRE(retargeted->IsValid());
+    CHECK(retargeted->rig.empty());
+    CHECK(retargeted->name == "Walk");
+    REQUIRE(retargeted->events.size() == 1);
+
+    // At the clip's rest, the T-pose's arms hang as the clip's do, and its legs stay straight down.
+    CheckDirection(SampleDirection(*skeleton, *retargeted, 0, "mixamorig:LeftArm", "mixamorig:LeftForeArm"), {0, -1, 0});
+    CheckDirection(SampleDirection(*skeleton, *retargeted, 0, "mixamorig:LeftForeArm", "mixamorig:LeftHand"), {0, -1, 0});
+    CheckDirection(SampleDirection(*skeleton, *retargeted, 0, "mixamorig:RightArm", "mixamorig:RightForeArm"), {0, -1, 0});
+    CheckDirection(SampleDirection(*skeleton, *retargeted, 0, "mixamorig:LeftUpLeg", "mixamorig:LeftLeg"), {0, -1, 0});
+    // Fingers follow the hand.
+    CheckDirection(SampleDirection(*skeleton, *retargeted, 0, "mixamorig:LeftHand", "mixamorig:LeftHandIndex1"), {0, -1, 0});
+
+    // The swing toward the clip's -Z goes toward the +Z this body faces, and the other arm stays.
+    const Vector3 down{0, -std::cos(0.6f), std::sin(0.6f)};
+    CheckDirection(SampleDirection(*skeleton, *retargeted, 1, "mixamorig:LeftArm", "mixamorig:LeftForeArm"), down);
+    CheckDirection(SampleDirection(*skeleton, *retargeted, 1, "mixamorig:RightArm", "mixamorig:RightForeArm"), {0, -1, 0});
+
+    // The hips keep their height, lowered for these legs: 0.86 for the clip's 0.87.
+    std::vector<TransformComponents> pose(skeleton->bones.size());
+    Pose::Sample(*skeleton, *retargeted, 1, false, pose);
+    CHECK(pose[0].translation.y == Catch::Approx(1.0f - 0.087f * 0.86f / 0.87f));
+    CHECK(pose[0].translation.z == Catch::Approx(0.2f * 0.86f / 0.87f));
+
+    // Clips without movement of the hips leave them where the skeleton has them.
+    auto still = clip;
+    still.channels.erase(still.channels.begin());
+    const auto stillBody = RetargetAnimationClip(still, *skeleton);
+    REQUIRE(stillBody);
+    Pose::Sample(*skeleton, *stillBody, 1, false, pose);
+    CHECK(pose[0].translation.y == Catch::Approx(1.0f));
+}
+
+TEST_CASE("A mesh with a skin of its own takes its palette from it", "[animation][retarget]") {
+    const auto shifted = Matrix4::Translation({0, 0, 3});
+    Skeleton own = *MixamoBody();
+    own.joints = {2, 1};
+    own.inverseBindMatrices = {shifted, Matrix4{}};
+    Scene scene;
+    auto& root = scene.CreateEntity();
+    auto& animator = root.AddComponent<Animator>();
+    animator.SetSkeleton(MixamoBody());
+    auto& renderer = root.AddComponent<SkinnedMeshRenderer>();
+    renderer.SetAnimator(root.GetId());
+    animator.Seek(0);
+    animator.RefreshRenderers();
+    REQUIRE(renderer.GetPalette().size() == 1);
+    renderer.SetSkinSkeleton(std::make_shared<const Skeleton>(own));
+    animator.RefreshRenderers();
+    REQUIRE(renderer.GetPalette().size() == 2);
+    const auto point = renderer.GetPalette()[0] * Vector4{0, 0, 0, 1};
+    CHECK(point.z == Catch::Approx(3.0f));
+    CHECK(point.y == Catch::Approx(1.22f));
+}
+
+TEST_CASE("Human rigs named alike keep sharing clips by name", "[animation][retarget]") {
+    auto lower = std::make_shared<Skeleton>(*MixamoBody());
+    lower->bones[0].bindPose.translation.y = 0.9f;
+    AnimationClip clip;
+    clip.duration = 1;
+    for (const auto& bone : MixamoBody()->bones) {
+        clip.rig.push_back(bone);
+    }
+    clip.channels = {{0, AnimationPath::Rotation, AnimationInterpolation::Linear, {0}, {{0, 0, 0, 1}}}};
+    const auto retargeted = RetargetAnimationClip(clip, *lower);
+    REQUIRE(retargeted);
+    // Only what the clip has, unlike a clip carried over part by part.
+    CHECK(retargeted->channels.size() == 1);
+}
 
 TEST_CASE("Bone base names drop the namespaces tools give them", "[animation][retarget]") {
     CHECK(GetBoneBaseName("mixamorig:Hips") == "Hips");

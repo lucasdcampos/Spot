@@ -19,6 +19,8 @@ void SkinnedMeshRenderer::Serialize(Archive& archive) {
     archive.Field("castsShadows", m_castingShadows);
     archive.Field("boundsPadding", m_boundsPadding, {.min = 0, .max = 100});
     archive.Field("animator", m_animator);
+    archive.Field("skinSkeleton", m_skinSkeleton,
+                  {.tooltip = "The skin of its mesh, where it is not that of the animator's skeleton"});
     auto transform = Decompose(m_meshModel);
     archive.Field("meshTranslation", transform.translation);
     archive.Field("meshRotation", transform.rotation);
