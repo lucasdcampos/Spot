@@ -44,6 +44,13 @@ void RegisterComponentType(std::type_index type, std::string name, ComponentFact
     Registry& registry = GetRegistry();
     const std::lock_guard lock(registry.mutex);
 
+    // The same again, as a module starting anew: what was said of the type still holds, as its script bindings, which
+    // the built-in ones are not told twice.
+    if (const auto same = registry.names.find(type); same != registry.names.end() && same->second == name) {
+        registry.factories.insert_or_assign(std::move(name), factory);
+        return;
+    }
+
     // The name stands for a single type, and a type for a single name.
     if (const auto previous = registry.types.find(name); previous != registry.types.end()) {
         CleanupType(previous->second);

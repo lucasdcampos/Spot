@@ -25,6 +25,12 @@ TEST_CASE("System components register explicitly without an application", "[scen
         CHECK(Spot::GetComponentTypeName(*component) == name);
     }
 
+    // Registered again, as by a module of another application, a type keeps what scripts may do with it.
+    const std::size_t members = Spot::GetComponentScriptMembers("AudioSource").size();
+    CHECK(members > 0);
+    Spot::RegisterAudioComponents();
+    CHECK(Spot::GetComponentScriptMembers("AudioSource").size() == members);
+
     Spot::RegisterPhysicsComponents();
     CHECK(Spot::GetComponentTypeNames() == names);
     Spot::UnregisterComponent("Rigidbody");
